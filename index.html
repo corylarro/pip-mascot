@@ -66,6 +66,7 @@ button:focus-visible,.btnlike:focus-within{outline:3px solid var(--accent);outli
 .sw[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 2px var(--surface) inset}
 input[type=color]{width:36px;height:36px;border:none;background:none;padding:0;cursor:pointer}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid>*{min-width:0}.grid select,.grid input{width:100%}
 pre{margin:0;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;overflow-x:auto;font-family:var(--font-mono);font-size:12.5px;color:var(--ink);white-space:pre}
 .fn{color:var(--muted)}
 .sep{height:1px;background:var(--line)}
@@ -102,22 +103,21 @@ footer{font-size:13px;color:var(--muted)}
 .tag.error{color:#C8374B;border-color:#C8374B}.tag.success{color:#1E7A45;border-color:#1E7A45}
 #liveView{padding-bottom:150px}
 @media (prefers-reduced-motion: reduce){.bubble{transition:none}}
-/* Desktop: Figma-style split. Settings panel on the left, a large canvas on the right. */
+/* Desktop: Figma-style split. Settings scroll on the left; the canvas is pinned to the right edge of the window. */
 @media (min-width: 920px){
-  main{max-width:1320px;padding:20px 28px 40px}
+  :root{--gut:max(28px,calc((100vw - 1320px)/2 + 28px))}
+  main{max-width:none;margin:0;padding:20px 0 40px var(--gut);width:calc(440px + var(--gut))}
   header,.tabs,footer{max-width:440px}
-  #buildView{display:grid;grid-template-columns:440px minmax(0,1fr);column-gap:28px;row-gap:14px;align-items:start;grid-auto-flow:dense}
-  #buildView>.card{grid-column:1}
-  #buildView>.stage{grid-column:2;grid-row:1/span 30;top:20px;height:calc(100vh - 40px);min-height:520px;align-items:center;padding:24px;border:1px solid var(--line);
+  #buildView{max-width:440px}
+  #buildView>.stage{position:fixed;top:20px;bottom:20px;left:calc(var(--gut) + 468px);right:var(--gut);height:auto;z-index:5;align-items:center;padding:24px;border:1px solid var(--line);
     background-image:radial-gradient(circle,color-mix(in srgb,var(--ink) 13%,transparent) 1px,transparent 1.5px),radial-gradient(80% 70% at 50% 42%,color-mix(in srgb,var(--stage) 50%,#fff) 0%,var(--stage) 75%);
     background-size:22px 22px,100% 100%;box-shadow:none}
-  #buildView>.stage svg{max-width:min(560px,92%);max-height:78vh}
+  #buildView>.stage svg{width:auto;height:min(78%,620px);max-width:92%;max-height:none}
   #buildView>.stage .bubble{left:24px;top:24px;font-size:16px;max-width:46%}
   #buildView>.stage .badge{right:20px;top:20px}
-  #liveView{display:grid;grid-template-columns:440px minmax(0,1fr);column-gap:28px;row-gap:14px;align-items:start;grid-auto-flow:dense}
+  #liveView{display:grid;grid-template-columns:440px minmax(0,1fr);column-gap:28px;row-gap:14px;align-items:start;grid-auto-flow:dense;width:calc(100vw - 2*var(--gut));max-width:1264px}
   #liveView>.card{grid-column:1}
   #liveView>.app{grid-column:2;grid-row:1/span 10;position:sticky;top:20px;max-width:640px}
-  .tabs{margin-bottom:2px}
 }
 </style>
 </head>

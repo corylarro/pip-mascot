@@ -63,14 +63,14 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .tabs a:hover{color:var(--ink)}.tabs .cur{background:var(--accent);color:var(--accent-ink)}
 .beta{font:600 10px var(--font-mono);text-transform:uppercase;border:1px solid currentColor;border-radius:999px;padding:0 5px}
 @media (prefers-reduced-motion: reduce){.bubble{transition:none}.steps li .th{animation:none!important}}
-/* Desktop: Figma-style split. Settings panel on the left, a large canvas on the right. */
+/* Desktop: Figma-style split. Settings scroll on the left; the canvas is pinned to the right edge of the window. */
 @media (min-width: 920px){
-  main{max-width:1320px;padding:20px 28px 40px;display:grid;grid-template-columns:440px minmax(0,1fr);column-gap:28px;row-gap:14px;align-items:start;grid-auto-flow:dense}
-  main>*{grid-column:1}
-  main>.stage{grid-column:2;grid-row:1/span 30;top:20px;border:1px solid var(--line);box-shadow:none;
+  :root{--gut:max(28px,calc((100vw - 1320px)/2 + 28px))}
+  main{max-width:none;margin:0;padding:20px 0 40px var(--gut);width:calc(440px + var(--gut))}
+  main>.stage{position:fixed;top:20px;bottom:20px;left:calc(var(--gut) + 468px);right:var(--gut);border:1px solid var(--line);box-shadow:none;
     background-image:radial-gradient(circle,color-mix(in srgb,var(--ink) 13%,transparent) 1px,transparent 1.5px),radial-gradient(80% 70% at 50% 42%,color-mix(in srgb,var(--stage) 50%,#fff) 0%,var(--stage) 75%);
     background-size:22px 22px,100% 100%}
-  #cv{height:calc(100vh - 42px);min-height:520px}
+  #cv{height:100%}
   .bubble{left:24px;top:24px;font-size:16px;max-width:46%}
   .badge{right:20px;top:20px}
 }
