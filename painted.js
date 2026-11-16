@@ -105,8 +105,8 @@ const FSTATES={idle:{},thinking:{curve:.08,mouthW:.6,browY:-.25},success:{happy:
 const STATES={idle:{},thinking:{look:[.5,-.85],tilt:-3},success:{happy:1},error:{worried:1},surprised:{surprised:1},talking:{},
   sleeping:{blink:1,tilt:4,zzz:1},love:{happy:1},wave:{happy:.7},confused:{confused:1,tilt:7,q:1},giggle:{happy:1}};
 class PaintRig{
-  constructor(canvas,{bubble,onState,fit,sleepAfter}={}){
-    this.fit=fit||0;this.sleepAfter=sleepAfter===undefined?20000:sleepAfter;this.cfg={name:'',greeting:'Hi there!'};this._ls=[];this.focusLook=0;
+  constructor(canvas,{bubble,onState,fit,sleepAfter,pad}={}){
+    this.fit=fit||0;this.pad=pad||0;this.sleepAfter=sleepAfter===undefined?20000:sleepAfter;this.cfg={name:'',greeting:'Hi there!'};this._ls=[];this.focusLook=0;
     this.cv=canvas;this.ctx=canvas.getContext('2d');this.bubble=bubble;this.onState=onState||(()=>{});
     this.base=null;this.patches={};this.face=null;
     this.s={happy:new Spring(0,520,44),worried:new Spring(0,520,44),surprised:new Spring(0,560,46),confused:new Spring(0,520,44),talk:new Spring(0,700,32),blinkHold:new Spring(0,200,22),
@@ -119,7 +119,7 @@ class PaintRig{
     if(typeof ResizeObserver!=='undefined'){this._ro=new ResizeObserver(()=>this._resize());this._ro.observe(canvas)}
     on(window,'pointermove',e=>{this._act();this.lastPointer=performance.now();if(!this.focusEl&&!(this.focusLook>performance.now()))this.lookAt(e.clientX,e.clientY)},{passive:true});
     ['pointerdown','keydown'].forEach(ev=>on(window,ev,()=>this._act(),{passive:true}));
-    on(canvas,'pointerdown',()=>this.poke());
+    on(arguments[1]&&arguments[1].hit||canvas,'pointerdown',()=>this.poke());
     this._iv=setInterval(()=>this._tick(),250);
     this._last=performance.now();this._raf=requestAnimationFrame(this._frame.bind(this));
   }
@@ -204,7 +204,7 @@ class PaintRig{
     const ctx=this.ctx,W=this.W,H=this.H;ctx.setTransform(this.dpr,0,0,this.dpr,0,0);ctx.clearRect(0,0,W,H);
     if(this._dead)return;
     if(!this.base){this._raf=requestAnimationFrame(this._frame.bind(this));return}
-    const B=this.base.bbox,ground=this.fit?H*.97:H*.9,scale=this.fit?Math.min(W*this.fit/B.w,H*this.fit/B.h):Math.min(W*.66/B.w,H*.68/B.h),footX=B.x+B.w/2,footY=B.y+B.h;
+    const B=this.base.bbox,ground=this.fit?H*.97:H*.9,scale=this.fit?Math.min(W/(1+2*this.pad)*this.fit/B.w,H*this.fit/B.h):Math.min(W*.66/B.w,H*.68/B.h),footX=B.x+B.w/2,footY=B.y+B.h;
     // shadow
     const lift=Math.min(-this.jumpY/260,1);const sg=ctx.createRadialGradient(W/2,ground,0,W/2,ground,B.w*scale*.5);sg.addColorStop(0,'rgba(25,25,60,.28)');sg.addColorStop(1,'rgba(25,25,60,0)');
     ctx.save();ctx.translate(W/2,ground);ctx.scale(1-lift*.4,.16);ctx.translate(-W/2,-ground);ctx.fillStyle=sg;ctx.beginPath();ctx.arc(W/2,ground,B.w*scale*.5,0,Math.PI*2);ctx.fill();ctx.restore();

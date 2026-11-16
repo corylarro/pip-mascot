@@ -666,7 +666,7 @@ function definePipElement(engine,defaultConfig,painted,origin){
     connectedCallback(){
       if(this._m)return;const root=this.shadowRoot||this.attachShadow({mode:'open'});
       this._float=this.hasAttribute('float')||this.hasAttribute('autopilot');
-      const mid=this.getAttribute('mascot'),isPainted=!!(mid&&painted);this._ratio=isPainted?1.12:254/240;
+      const mid=this.getAttribute('mascot'),isPainted=!!(mid&&painted);this.toggleAttribute('painted',isPainted);this._ratio=isPainted?1.12:254/240;
       root.innerHTML=`<style>:host{display:inline-block;position:relative;width:var(--pip-size,${this._float?'118px':'180px'});vertical-align:bottom;-webkit-tap-highlight-color:transparent}
         svg{width:100%;height:auto;display:block;overflow:visible;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none}
         .bubble{position:absolute;left:50%;bottom:94%;transform:translate(-50%,4px);max-width:210px;width:max-content;background:var(--pip-bubble-bg,#fff);color:var(--pip-bubble-ink,#1B1A26);
@@ -675,13 +675,13 @@ function definePipElement(engine,defaultConfig,painted,origin){
         .bubble.r{left:auto;right:4px;transform:translate(0,4px)}.bubble.l{left:4px;transform:translate(0,4px)}.bubble.r.show,.bubble.l.show{transform:none}
         .bubble.below{bottom:auto;top:92%}
         @media (prefers-reduced-motion: reduce){.bubble{transition:none}}
-        canvas{width:100%;aspect-ratio:1/1.12;display:block;cursor:pointer;touch-action:manipulation}
+        canvas{width:180%;margin-left:-40%;aspect-ratio:1.8/1.12;display:block;pointer-events:none}:host([painted]){cursor:pointer;touch-action:manipulation}
         </style><div class="bubble" part="bubble" aria-live="polite"></div>${isPainted?'<canvas role="img" aria-label="Animated mascot"></canvas>':'<svg viewBox="0 -22 240 254" role="img"></svg>'}`;
       let cfg=defaultConfig;try{const a=this.getAttribute('config');if(a)cfg=JSON.parse(a)}catch(e){}
       const sa=this.getAttribute('sleep-after');
       const onState=(s,why)=>this.dispatchEvent(new CustomEvent('statechange',{detail:{state:s,reason:why||null}}));
       const sleepAfter=sa===null?20000:Number(sa)*1000;let m;
-      if(isPainted){const rig=new painted.PaintRig(root.querySelector('canvas'),{bubble:root.querySelector('.bubble'),fit:.94,sleepAfter,onState});m=this._m=adapt(rig);
+      if(isPainted){const rig=new painted.PaintRig(root.querySelector('canvas'),{bubble:root.querySelector('.bubble'),fit:.94,pad:.4,hit:this,sleepAfter,onState});m=this._m=adapt(rig);
         this._ready=fetch(`${this.getAttribute('api')||origin}/api/mascot?id=${encodeURIComponent(mid)}`).then(r=>{if(!r.ok)throw new Error('Mascot not found');return r.json()})
           .then(d=>painted.mountMascot(rig,d)).then(()=>this.dispatchEvent(new CustomEvent('ready'))).catch(e=>{console.warn('pip-mascot:',e);this.dispatchEvent(new CustomEvent('error',{detail:String(e)}))})}
       else{m=this._m=new engine.Mascot(root.querySelector('svg'),cfg,{bubble:root.querySelector('.bubble'),sleepAfter,onState});this._ready=Promise.resolve()}
