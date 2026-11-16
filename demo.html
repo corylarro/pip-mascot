@@ -255,7 +255,7 @@ const API = { outage: false, tasks: ['Ship the landing page', 'Reply to beta tes
 let pip = null, kind = 'painted';
 const esc = s => s.replace(/</g, '&lt;');
 function code() {
-  const attrs = kind === 'painted' ? ` <span class="a">mascot</span>="${PAINTED_ID}"` : '';
+  const attrs = kind === 'painted' ? ` <span class="a">mascot</span>="your-mascot-id"` : '';
   $('codeTaskly').innerHTML = `<span class="t">&lt;script</span> <span class="a">src</span>="https://pip-mascot.vercel.app/pip-mascot.js"<span class="t">&gt;&lt;/script&gt;</span>\n<span class="t">&lt;pip-mascot</span>${attrs} <span class="a">autopilot</span> <span class="a">greet</span><span class="t">&gt;&lt;/pip-mascot&gt;</span>`;
 }
 function logIt(d) {
