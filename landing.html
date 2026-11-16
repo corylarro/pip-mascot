@@ -76,6 +76,30 @@ section{padding:80px 0}
 .moment button{grid-row:1;grid-column:2;align-self:start;font:600 .88rem var(--body);background:transparent;color:var(--butter);border:1.5px solid var(--butter);border-radius:999px;padding:5px 12px;cursor:pointer}
 .moment button:hover{background:var(--butter);color:var(--ink)}
 
+/* wins */
+.demo-link{margin-top:36px;background:var(--butter)}
+.demo-link:hover{background:#FFDD7E}
+.wins{display:grid;grid-template-columns:1fr minmax(0,420px);gap:56px;align-items:center}
+.wins-copy{display:flex;flex-direction:column;gap:16px}
+.hint{color:var(--ink-2);font-weight:500}
+.calm{background:#203040;color:#EAF4F2;border:2px solid var(--ink);border-radius:28px;padding:26px;display:flex;flex-direction:column;gap:18px;box-shadow:0 6px 0 var(--ink)}
+.calm-top{display:flex;flex-direction:column;gap:2px}
+.calm-name{font:700 1.15rem var(--display);letter-spacing:-.01em}
+.calm-sub{color:#9FC3BC;font-size:.95rem}
+.streak{display:flex;align-items:center;gap:10px;font-size:1.05rem}
+.streak svg{width:30px;height:30px;fill:#FF9466}
+.streak b{font:800 1.6rem var(--display)}
+.calm.won .streak b{color:var(--butter)}
+.days{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.days li{aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font-weight:600;font-size:.9rem;border:2px dashed #5D7C88;color:#9FC3BC}
+.days li.done{background:#3FB37F;border:2px solid #3FB37F;color:#0F2A22}
+.days li.today.done{animation:pop .5s cubic-bezier(.3,1.6,.5,1)}
+@keyframes pop{0%{transform:scale(.4)}100%{transform:scale(1)}}
+.calm-btn{background:#9EE6C2;width:100%}
+.calm-btn:hover{background:#B5EDD1}
+.calm-reset{background:none;border:0;color:#9FC3BC;font:500 .92rem var(--body);text-decoration:underline;cursor:pointer;align-self:center;padding:4px}
+@media (max-width:860px){.wins{grid-template-columns:1fr;gap:28px}}
+
 /* how */
 .how-head{display:flex;justify-content:space-between;align-items:end;gap:24px;flex-wrap:wrap}
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:44px;counter-reset:s}
@@ -126,14 +150,14 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
   section{padding:60px 0}
   .moments{border-radius:28px;margin:0 8px}
 }
-@media (prefers-reduced-motion:reduce){.btn,#pipPainted{transition:none;animation:none}}
+@media (prefers-reduced-motion:reduce){.btn,#pipPainted,.days li{transition:none;animation:none}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="bar">
     <a class="mark" href="/landing" aria-label="Pip home"><i aria-hidden="true"></i>pip</a>
-    <nav aria-label="Page"><a href="#how">How it works</a><a href="#pricing">Pricing</a><a href="/">Try the builder</a></nav>
+    <nav aria-label="Page"><a href="/#live">Live demo</a><a href="#how">How it works</a><a href="#pricing">Pricing</a><a href="/">Try the builder</a></nav>
   </header>
 
   <main>
@@ -172,10 +196,29 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
       <div class="moment"><b>They're typing a password</b><button data-m="pass">Show me</button><span>Pip covers its eyes. Nobody asked for this, and everybody loves it.</span></div>
       <div class="moment"><b>They tap the button six times</b><button data-m="rage">Show me</button><span>Pip notices the frustration and calms things down.</span></div>
     </div>
+    <a class="btn demo-link" href="/#live">See it in a real app</a>
   </div>
 </section>
 
 <div class="wrap">
+<section class="wins" aria-labelledby="wh">
+  <div class="wins-copy">
+    <h2 id="wh">Make the small wins feel big.</h2>
+    <p class="lede">Streaks, milestones, a first task done. Pip notices and celebrates with your users, so they come back tomorrow.</p>
+    <p class="hint">Try it: finish today's session in this pretend meditation app.</p>
+  </div>
+  <div class="calm" id="calm" aria-label="Stillwater, a pretend meditation app">
+    <div class="calm-top"><span class="calm-name">Stillwater</span><span class="calm-sub">Evening wind-down · 10 min</span></div>
+    <div class="streak"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 3.5 5 5.6 5 10.5A5 5 0 0 1 7 12.5c0-2 1-3.3 2.2-4.4.2 1.6 1 2.6 2 3C11 8 11 5 12 2z"/></svg>
+      <span><b id="streakN">6</b> day streak</span></div>
+    <ol class="days" id="days">
+      <li class="done"><span>M</span></li><li class="done"><span>T</span></li><li class="done"><span>W</span></li><li class="done"><span>T</span></li><li class="done"><span>F</span></li><li class="done"><span>S</span></li><li class="today"><span>S</span></li>
+    </ol>
+    <button class="btn calm-btn" id="calmBtn" type="button">Finish today's session</button>
+    <button class="calm-reset" id="calmReset" type="button" hidden>Reset the demo</button>
+  </div>
+</section>
+
 <section id="how" aria-labelledby="hh">
   <div class="how-head"><h2 id="hh">From a sentence to your app in a few minutes.</h2></div>
   <div class="steps">
@@ -195,7 +238,7 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
     <div class="plan">
       <h3>Starter</h3>
       <div class="price">Free</div>
-      <ul><li>Build a mascot from shapes and colours</li><li>Autopilot reactions on any site</li><li>Small “Made with Pip” badge</li></ul>
+      <ul><li>Build a mascot from shapes and colors</li><li>Autopilot reactions on any site</li><li>Small “Made with Pip” badge</li></ul>
       <a class="btn ghost" href="/">Build one now</a>
     </div>
     <div class="plan paint">
@@ -267,21 +310,31 @@ async function resizePip(small) {
 }
 // Hop out of the circle, walk to a field, point at it, then go home
 let roamTok = 0, homeT;
-async function roamTo(input, text) {
-  if (!pip._m || !pip._pos) { pointAt(input); say(text); return; }
+async function roamTo(input, text, kind = 'help') {
+  if (!pip._m || !pip._pos) { if (kind === 'cheer') { pip.react('success', 2400); say(text); } else { pointAt(input); say(text); } return; }
   const tok = ++roamTok; clearTimeout(homeT);
   const r0 = input.getBoundingClientRect();
   if (r0.top < 80 || r0.bottom > innerHeight - 80) { input.scrollIntoView({ block: 'center', behavior: 'smooth' }); await wait(500); }
   if (tok !== roamTok) return;
   m().unpoint && m().unpoint();
   await resizePip(true);
-  const [w, h] = pip._size(), r = input.getBoundingClientRect(), f = input.form.getBoundingClientRect();
+  const [w, h] = pip._size(), r = input.getBoundingClientRect(), f = input.form ? input.form.getBoundingClientRect() : r;
   let x, y, sit = false;
   if (f.right + w + 16 < innerWidth) { x = f.right + 10; y = r.top + r.height / 2 - h * .62; }   // beside the form, pointing back at the field
   else { x = r.right - w - 10; y = r.top - h * .97; sit = true; }                                 // narrow screens: sit on the field's edge and look down at it
-  pip.react('surprised', 700);
+  if (kind === 'cheer') { if (f.right + w + 16 < innerWidth) { x = f.right + 14; y = r.bottom - h; sit = false; } else { x = r.right - w - 14; y = r.top - h * .97; sit = true; } }
+  // If Pip is far off-screen, pop in from the nearest edge instead of dashing across the whole page
+  const [px, py] = pip._pos;
+  if (py > innerHeight + 20) pip._setPos(x, innerHeight + 10); else if (py + h < -20) pip._setPos(x, -h - 10);
+  pip.react(kind === 'cheer' ? 'love' : 'surprised', 700);
   await pip.walkTo(Math.max(4, x), Math.max(4, y));
   if (tok !== roamTok) return;
+  if (kind === 'cheer') {
+    pip.react('success', 2600); say(text, 2800);
+    setTimeout(() => { if (tok === roamTok) pip.react('love', 1800); }, 2700);
+    homeT = setTimeout(goHome, 4600);
+    return;
+  }
   pip.react('error', 2400);
   if (sit) { const rr = input.getBoundingClientRect(); pip.lookAt(rr.left + rr.width * .35, rr.top + rr.height); if (m()) m().focusLook = performance.now() + 3000; }
   else pointAt(input);
@@ -349,6 +402,19 @@ function wire(formId, noteId) {
   input.addEventListener('input', () => { if (note.classList.contains('bad')) { note.className = 'note'; note.textContent = ''; } });
 }
 wire('join1', 'note1'); wire('join2', 'note2');
+
+// Pretend meditation app: finish today's session and Pip celebrates the streak
+const calmBtn = document.getElementById('calmBtn'), calmReset = document.getElementById('calmReset'), calm = document.getElementById('calm');
+calmBtn.addEventListener('click', () => {
+  const today = document.querySelector('#days li.today');
+  today.classList.add('done'); document.getElementById('streakN').textContent = '7'; calm.classList.add('won');
+  calmBtn.disabled = true; calmBtn.textContent = 'Done for today'; calmReset.hidden = false;
+  roamTo(calm, 'A full week in a row! So proud of you.', 'cheer');
+});
+calmReset.addEventListener('click', () => {
+  document.querySelector('#days li.today').classList.remove('done'); document.getElementById('streakN').textContent = '6'; calm.classList.remove('won');
+  calmBtn.disabled = false; calmBtn.textContent = "Finish today's session"; calmReset.hidden = true; calmBtn.focus();
+});
 document.getElementById('email1').addEventListener('focus', () => { const i = document.getElementById('email1'), r = i.getBoundingClientRect(); pip.lookAt(r.left + r.width / 2, r.top); });
 </script>
 </body>
