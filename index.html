@@ -121,6 +121,7 @@ footer{font-size:13px;color:var(--muted)}
   #liveView>.app{grid-column:2;grid-row:1/span 10;position:sticky;top:20px;max-width:640px}
 }
 </style>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 </head>
 <body>
 <main>
@@ -677,7 +678,16 @@ function definePipElement(engine,defaultConfig,painted,origin){
         .bubble.below{bottom:auto;top:92%}
         @media (prefers-reduced-motion: reduce){.bubble{transition:none}}
         canvas{width:180%;margin-left:-40%;margin-top:-50.4%;aspect-ratio:1.8/1.624;display:block;pointer-events:none}:host([painted]){cursor:pointer;touch-action:manipulation}
-        </style><div class="bubble" part="bubble" aria-live="polite"></div>${isPainted?'<canvas role="img" aria-label="Animated mascot"></canvas>':'<svg viewBox="0 -22 240 254" role="img"></svg>'}`;
+        .hide,.peek{display:none;place-items:center;padding:0;cursor:pointer;border:2px solid #2A2140;background:#fff;color:#2A2140;border-radius:50%;font:inherit}
+        .hide{position:absolute;top:0;right:-2px;width:28px;height:28px;z-index:2;opacity:0;transition:opacity .15s}
+        .hide svg{width:10px;height:10px;cursor:pointer}.peek svg{width:24px;height:24px;cursor:pointer}
+        :host([data-hideable]) .hide{display:grid}
+        :host([data-hideable]:hover) .hide,.hide:focus-visible,.hide.on{opacity:1}
+        .peek{position:absolute;right:4px;bottom:4px;width:46px;height:46px;box-shadow:0 3px 0 #2A2140;pointer-events:auto}
+        :host([data-hidden]){pointer-events:none}
+        :host([data-hidden]) .peek{display:grid}
+        :host([data-hidden]) canvas,:host([data-hidden]) svg[role=img],:host([data-hidden]) .bubble,:host([data-hidden]) .hide{visibility:hidden}
+        </style><div class="bubble" part="bubble" aria-live="polite"></div>${isPainted?'<canvas role="img" aria-label="Animated mascot"></canvas>':'<svg viewBox="0 -22 240 254" role="img"></svg>'}<button class="hide" part="hide" type="button" aria-label="Hide the mascot" title="Hide"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button><button class="peek" part="peek" type="button" aria-label="Show the mascot" title="Show"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#FFD35A" stroke="#2A2140" stroke-width="2"/><circle cx="9" cy="10.5" r="1.5" fill="#2A2140"/><circle cx="15" cy="10.5" r="1.5" fill="#2A2140"/><path d="M8.3 14.6c1.3 1.7 6.1 1.7 7.4 0" stroke="#2A2140" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg></button>`;
       let cfg=defaultConfig;try{const a=this.getAttribute('config');if(a)cfg=JSON.parse(a)}catch(e){}
       const sa=this.getAttribute('sleep-after');
       const onState=(s,why)=>this.dispatchEvent(new CustomEvent('statechange',{detail:{state:s,reason:why||null}}));
@@ -688,6 +698,19 @@ function definePipElement(engine,defaultConfig,painted,origin){
       else{m=this._m=new engine.Mascot(root.querySelector('svg'),cfg,{bubble:root.querySelector('.bubble'),sleepAfter,onState});this._ready=Promise.resolve()}
       const say=m.say.bind(m);m.say=(t,o)=>{this._placeBubble();return say(t,o)};
       const st=this.getAttribute('state');if(st)m.setState(st);
+      // Visitors can hide a floating mascot; the choice is remembered on this site. Opt out with the no-hide attribute.
+      if(this._float&&!this._anchor&&!this.hasAttribute('no-hide')){
+        this.setAttribute('data-hideable','');const KEY='pip-hidden:'+location.host,hb=root.querySelector('.hide'),pb=root.querySelector('.peek');let xT=0;
+        const store=v=>{try{v?localStorage.setItem(KEY,'1'):localStorage.removeItem(KEY)}catch(e){}};
+        this.hideMascot=()=>{if(this._hiddenByUser)return;const go=()=>{this._hiddenByUser=true;this.setAttribute('data-hidden','');store(1);
+            this.dispatchEvent(new CustomEvent('pip:hide'));try{pb.focus({preventScroll:true})}catch(e){}};
+          (this._docked||!this._m?Promise.resolve():this.home()).then(go,go)};
+        this.showMascot=()=>{if(!this._hiddenByUser)return;this._hiddenByUser=false;this.removeAttribute('data-hidden');store(0);
+          this.dispatchEvent(new CustomEvent('pip:show'));try{m.react('wave',1600);m.say("I'm back!",{hold:1200})}catch(e){}};
+        hb.addEventListener('pointerdown',e=>e.stopPropagation());hb.addEventListener('click',e=>{e.stopPropagation();this.hideMascot()});
+        pb.addEventListener('pointerdown',e=>e.stopPropagation());pb.addEventListener('click',e=>{e.stopPropagation();this.showMascot()});
+        this.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')return;hb.classList.add('on');clearTimeout(xT);xT=setTimeout(()=>hb.classList.remove('on'),3500)});
+        try{if(localStorage.getItem(KEY)==='1'){this._hiddenByUser=true;this.setAttribute('data-hidden','')}}catch(e){}}
       const greet=()=>this._ready.then(()=>{if(this.hasAttribute('greet')&&this._m){m.react('wave',2400);m.say(this.getAttribute('greeting')||m.cfg.greeting,{hold:2600})}});
       if(this._float){
         // With a home spot on the page, ride along with the page (absolute) so scrolling never lags; otherwise float over the screen (fixed).
@@ -697,7 +720,9 @@ function definePipElement(engine,defaultConfig,painted,origin){
         this._onResize=()=>{if(this._docked&&!this._walking){const d=this._dock();this._setPos(d[0],d[1])}};addEventListener('resize',this._onResize);
         if(this._anchor){if(typeof ResizeObserver!=='undefined'){this._aro=new ResizeObserver(this._onResize);this._aro.observe(this._anchor)}
           requestAnimationFrame(()=>{const d=this._dock();this._setPos(d[0],d[1]);this.style.visibility='';setTimeout(greet,500)})}
-        else requestAnimationFrame(()=>{const d=this._dock();this._setPos(d[0],innerHeight+20);this.style.visibility='';
+        else requestAnimationFrame(()=>{const d=this._dock();
+          if(this._hiddenByUser){this._setPos(d[0],d[1]);this.style.visibility='';this._docked=true;return}
+          this._setPos(d[0],innerHeight+20);this.style.visibility='';
           this.walkTo(d[0],d[1],{ms:700,hops:false}).then(()=>{this._docked=true;setTimeout(greet,150)})});
       }else setTimeout(greet,500);
       if(this.hasAttribute('autopilot'))this._ap=autopilot(this);
@@ -717,7 +742,7 @@ function definePipElement(engine,defaultConfig,painted,origin){
     _placeBubble(){const b=this.shadowRoot&&this.shadowRoot.querySelector('.bubble');if(!b)return;const r=this.getBoundingClientRect(),c=r.left+r.width/2;
       b.classList.toggle('below',r.top<90);b.classList.toggle('r',c>innerWidth*.6);b.classList.toggle('l',c<innerWidth*.4)}
     walkTo(x,y,{ms,hops=true}={}){
-      if(!this._float||!this._m)return Promise.resolve();const m=this._m,[x0,y0]=this._pos,dist=Math.hypot(x-x0,y-y0);
+      if(!this._float||!this._m||this._hiddenByUser)return Promise.resolve();const m=this._m,[x0,y0]=this._pos,dist=Math.hypot(x-x0,y-y0);
       const tok=this._walkTok=(this._walkTok||0)+1;this._docked=false;
       if(dist<3){this._setPos(x,y);return Promise.resolve()}
       ms=ms||clamp(dist/.6,380,1500);if(RM<1)ms=Math.min(ms,300);this._walking=true;m.lean=Math.sign(x-x0)*9;
@@ -727,7 +752,7 @@ function definePipElement(engine,defaultConfig,painted,origin){
           if(hops&&now-lastHop>300&&p<.85){m.hop(150);lastHop=now}
           if(p<1)requestAnimationFrame(step);else{m.lean=0;this._walking=false;res()}};
         requestAnimationFrame(step)})}
-    async goTo(el,{mode='point',text,state,stay}={}){
+    async goTo(el,{mode='point',text,state,stay}={}){if(this._hiddenByUser)return;
       if(!this._float||!el||!this._m)return;clearTimeout(this._homeT);this._goAt=Date.now();this._m.unpoint();
       let r=el.getBoundingClientRect();
       if(r.bottom<60||r.top>innerHeight-60){el.scrollIntoView({block:'center',behavior:RM<1?'auto':'smooth'});await wait(480);r=el.getBoundingClientRect();this._goAt=Date.now()}
@@ -743,7 +768,7 @@ function definePipElement(engine,defaultConfig,painted,origin){
     // Phones: hop onto the focused field so the keyboard doesn't hide the mascot
     // Switch between floating over the screen (fixed) and riding along with the page (absolute), keeping the same spot
     _setAbs(abs){if(!!this._abs===abs)return;const p=this._pos;this._abs=abs;this.style.position=abs?'absolute':'fixed';this._setPos(p[0],p[1])}
-    _perch(el){if(!this._float||!this._m||!el||!el.isConnected)return Promise.resolve();
+    _perch(el){if(this._hiddenByUser||!this._float||!this._m||!el||!el.isConnected)return Promise.resolve();
       // While perched, ride along with the page so the keyboard sliding things around can't knock the mascot off the field
       if(!this._anchor)this._setAbs(true);
       const vv=window.visualViewport,r=el.getBoundingClientRect(),[w,h]=this._size(),top=vv?vv.offsetTop:0;
@@ -832,7 +857,7 @@ function definePipElement(engine,defaultConfig,painted,origin){
       // Pointing at a problem (a missed field, an error) always wins; the keyboard spot waits until it's done
       const busy=()=>Date.now()-(host._goAt||0)<3800;
       host._kbSpot=()=>onKb&&kbUp()?spot():null;
-      const follow=()=>{if(!onKb||host._walking||busy())return;const p=spot();host._setPos(p[0],p[1])};
+      const follow=()=>{if(!onKb||host._walking||busy()||host._hiddenByUser)return;const p=spot();host._setPos(p[0],p[1])};
       const sitOnKb=()=>{if(!isField(document.activeElement)||!kbUp()||!host._m)return;
         if(onKb)return follow();onKb=true;if(busy())return;clearTimeout(host._homeT);if(host._abs)host._setAbs(false);
         const p=spot();host.walkTo(p[0],p[1],{ms:360}).then(follow)};
