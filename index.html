@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pip Mascot Demo</title>
+<script src="/painted.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fredoka:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -209,6 +210,7 @@ footer{font-size:13px;color:var(--muted)}
     <section class="card">
       <h2>Autopilot</h2>
       <p class="sub">Below is a pretend app called Taskly, running on a simulated server. Your mascot was added with the single line below and no other code. It works out what’s happening by itself.</p>
+      <div class="chips" id="livePick" hidden aria-label="Which mascot"></div>
       <pre id="apCode"></pre>
       <span class="lab">Things to try</span>
       <ul class="try">
@@ -647,8 +649,16 @@ return {Mascot,sanitize,cleanSvg,palette,hsl,hexToHsl,OPT,STATES:Object.keys(STA
 }
 
 /* Web component wrapper + autopilot, also copied into the exported file. */
-function definePipElement(engine,defaultConfig){
+function definePipElement(engine,defaultConfig,painted,origin){
   if(typeof customElements==='undefined'||customElements.get('pip-mascot'))return;
+  origin=origin||'https://pip-mascot.vercel.app';
+  // Wrap a painted rig so it speaks the same language as the vector mascot.
+  const adapt=rig=>({rig,get state(){return rig.state},get cfg(){return rig.cfg},get focusEl(){return rig.focusEl},set focusEl(v){rig.focusEl=v},
+    get lean(){return rig.lean},set lean(v){rig.lean=v},setState:s=>rig.setState(s),react:(s,ms)=>rig.react(s,ms),say:(t,o)=>rig.say(t,o),
+    cover:on=>{rig.cover=!!on},lookAt:(x,y)=>rig.lookAt(x,y),lookAtCaret:i=>rig.lookAtCaret(i),bump:()=>rig.bump(),hop:v=>rig.hop(v),
+    point:(x,y)=>rig.point(x,y),unpoint:()=>rig.unpoint(),destroy:()=>rig.destroy(),
+    watch(inp){const secret=inp.type==='password';inp.addEventListener('focus',()=>{rig.focusEl=inp;if(secret)rig.cover=true;rig.lookAtCaret(inp)});
+      inp.addEventListener('input',()=>{rig.lookAtCaret(inp);rig.bump()});inp.addEventListener('blur',()=>{rig.focusEl=null;if(secret)rig.cover=false})}});
   const RM=engine.RM,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),wait=ms=>new Promise(r=>setTimeout(r,ms)),pick=a=>a[Math.floor(Math.random()*a.length)];
   const RATIO=254/240;
   class PipMascot extends HTMLElement{
@@ -656,6 +666,7 @@ function definePipElement(engine,defaultConfig){
     connectedCallback(){
       if(this._m)return;const root=this.shadowRoot||this.attachShadow({mode:'open'});
       this._float=this.hasAttribute('float')||this.hasAttribute('autopilot');
+      const mid=this.getAttribute('mascot'),isPainted=!!(mid&&painted);this._ratio=isPainted?1.12:254/240;
       root.innerHTML=`<style>:host{display:inline-block;position:relative;width:var(--pip-size,${this._float?'118px':'180px'});vertical-align:bottom;-webkit-tap-highlight-color:transparent}
         svg{width:100%;height:auto;display:block;overflow:visible;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none}
         .bubble{position:absolute;left:50%;bottom:94%;transform:translate(-50%,4px);max-width:210px;width:max-content;background:var(--pip-bubble-bg,#fff);color:var(--pip-bubble-ink,#1B1A26);
@@ -663,15 +674,20 @@ function definePipElement(engine,defaultConfig){
         .bubble.show{opacity:1;transform:translate(-50%,0)}
         .bubble.r{left:auto;right:4px;transform:translate(0,4px)}.bubble.l{left:4px;transform:translate(0,4px)}.bubble.r.show,.bubble.l.show{transform:none}
         .bubble.below{bottom:auto;top:92%}
-        @media (prefers-reduced-motion: reduce){.bubble{transition:none}}</style>
-        <div class="bubble" part="bubble" aria-live="polite"></div><svg viewBox="0 -22 240 254" role="img"></svg>`;
+        @media (prefers-reduced-motion: reduce){.bubble{transition:none}}
+        canvas{width:100%;aspect-ratio:1/1.12;display:block;cursor:pointer;touch-action:manipulation}
+        </style><div class="bubble" part="bubble" aria-live="polite"></div>${isPainted?'<canvas role="img" aria-label="Animated mascot"></canvas>':'<svg viewBox="0 -22 240 254" role="img"></svg>'}`;
       let cfg=defaultConfig;try{const a=this.getAttribute('config');if(a)cfg=JSON.parse(a)}catch(e){}
       const sa=this.getAttribute('sleep-after');
-      const m=this._m=new engine.Mascot(root.querySelector('svg'),cfg,{bubble:root.querySelector('.bubble'),sleepAfter:sa===null?20000:Number(sa)*1000,
-        onState:(s,why)=>this.dispatchEvent(new CustomEvent('statechange',{detail:{state:s,reason:why||null}}))});
+      const onState=(s,why)=>this.dispatchEvent(new CustomEvent('statechange',{detail:{state:s,reason:why||null}}));
+      const sleepAfter=sa===null?20000:Number(sa)*1000;let m;
+      if(isPainted){const rig=new painted.PaintRig(root.querySelector('canvas'),{bubble:root.querySelector('.bubble'),fit:.94,sleepAfter,onState});m=this._m=adapt(rig);
+        this._ready=fetch(`${this.getAttribute('api')||origin}/api/mascot?id=${encodeURIComponent(mid)}`).then(r=>{if(!r.ok)throw new Error('Mascot not found');return r.json()})
+          .then(d=>painted.mountMascot(rig,d)).then(()=>this.dispatchEvent(new CustomEvent('ready'))).catch(e=>{console.warn('pip-mascot:',e);this.dispatchEvent(new CustomEvent('error',{detail:String(e)}))})}
+      else{m=this._m=new engine.Mascot(root.querySelector('svg'),cfg,{bubble:root.querySelector('.bubble'),sleepAfter,onState});this._ready=Promise.resolve()}
       const say=m.say.bind(m);m.say=(t,o)=>{this._placeBubble();return say(t,o)};
       const st=this.getAttribute('state');if(st)m.setState(st);
-      const greet=()=>{if(this.hasAttribute('greet')&&this._m){m.react('wave',2000);m.say(m.cfg.greeting,{hold:2600})}};
+      const greet=()=>this._ready.then(()=>{if(this.hasAttribute('greet')&&this._m){m.react('wave',2400);m.say(this.getAttribute('greeting')||m.cfg.greeting,{hold:2600})}});
       if(this._float){
         Object.assign(this.style,{position:'fixed',left:'0',top:'0',margin:'0',zIndex:'2147483000',visibility:'hidden'});
         this._pos=[0,0];this._docked=true;
@@ -684,7 +700,7 @@ function definePipElement(engine,defaultConfig){
     disconnectedCallback(){if(this._ap){this._ap();this._ap=null}if(this._m){this._m.destroy();this._m=null}
       if(this._onResize)removeEventListener('resize',this._onResize);clearTimeout(this._homeT);this._walkTok=(this._walkTok||0)+1}
     attributeChangedCallback(n,o,v){if(this._m&&n==='state'&&v)this._m.setState(v)}
-    _size(){const w=this.getBoundingClientRect().width||118;return [w,w*RATIO]}
+    _size(){const w=this.getBoundingClientRect().width||118;return [w,w*(this._ratio||RATIO)]}
     _dock(){const [w,h]=this._size();return [innerWidth-w-10,innerHeight-h-6]}
     _setPos(x,y){this._pos=[x,y];this.style.transform=`translate(${x}px,${y}px)`;this._placeBubble()}
     _placeBubble(){const b=this.shadowRoot&&this.shadowRoot.querySelector('.bubble');if(!b)return;const r=this.getBoundingClientRect(),c=r.left+r.width/2;
@@ -1113,7 +1129,8 @@ $('login').addEventListener('submit',e=>{e.preventDefault();pw.blur();email.blur
 
 /* ---------- live view ---------- */
 if(/vercel\.app$/.test(location.hostname))$('tabPaint').setAttribute('href','/paint');
-definePipElement(engine,PRESETS[0]);
+const paintedEngine=window.PipPaintedEngine?PipPaintedEngine():null;
+definePipElement(engine,PRESETS[0],paintedEngine,location.origin);
 const API={outage:false,tasks:['Ship the landing page','Reply to beta testers','Record the demo clip']};
 (function installFakeServer(){const real=window.fetch?window.fetch.bind(window):null;
   const json=(status,body,ms)=>new Promise(r=>setTimeout(()=>r(new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}})),ms));
@@ -1126,15 +1143,23 @@ const API={outage:false,tasks:['Ship the landing page','Reply to beta testers','
     if(url==='/api/tasks'&&method==='GET')return json(200,{tasks:API.tasks},1700);
     if(url==='/api/tasks')return json(200,{ok:true},900);
     return json(404,{error:'Not found'},400)}})();
-let liveEl=null;const apLog=$('apLog');
-function startLive(){if(liveEl)return;apLog.innerHTML='';
+let liveEl=null,livePick='painted';const apLog=$('apLog');
+const paintedId=()=>{try{return localStorage.getItem('pip-painted-id')}catch(e){return null}};
+const paintedName=()=>{try{return localStorage.getItem('pip-painted-name')||'Painted mascot'}catch(e){return 'Painted mascot'}};
+function renderPick(){const pid=paintedId(),el=$('livePick');if(!pid||!paintedEngine){el.hidden=true;return}el.hidden=false;
+  el.innerHTML=`<button type="button" class="chip" data-p="painted" aria-pressed="${livePick==='painted'}">${paintedName().replace(/</g,'&lt;')} (painted)</button><button type="button" class="chip" data-p="vector" aria-pressed="${livePick==='vector'}">${cfg.name} (builder)</button>`;
+  el.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{livePick=b.dataset.p;stopLive();startLive()}))}
+function startLive(){if(liveEl)return;apLog.innerHTML='';renderPick();
+  const pid=paintedId(),usePainted=!!(pid&&paintedEngine&&livePick==='painted');
   liveEl=document.createElement('pip-mascot');liveEl.setAttribute('autopilot','');liveEl.setAttribute('greet','');
+  if(usePainted){liveEl.setAttribute('mascot',pid);liveEl.setAttribute('greeting',"I'm watching this app for you. Try breaking something!");liveEl.style.setProperty('--pip-size','150px')}
   liveEl.setAttribute('config',JSON.stringify({...cfg,greeting:`I'm ${cfg.name}. I'm watching this app for you. Try breaking something!`}));
   liveEl.addEventListener('pip:autopilot',e=>{const d=e.detail,li=document.createElement('li'),tm=new Date(d.time);
     li.innerHTML=`<time>${tm.toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'})}</time><span class="tag ${d.action}">${d.action}</span>`;
     const sp=document.createElement('span');sp.textContent=d.signal;li.appendChild(sp);apLog.prepend(li)});
   document.body.appendChild(liveEl);
-  $('apCode').innerHTML=`<span class="fn">&lt;!-- the only code added to Taskly --&gt;</span>\n&lt;script src="/${fileName()}"&gt;&lt;/script&gt;\n&lt;pip-mascot autopilot greet&gt;&lt;/pip-mascot&gt;`}
+  $('apCode').innerHTML=usePainted?`<span class="fn">&lt;!-- the only code added to Taskly --&gt;</span>\n&lt;script src="${location.origin}/pip-mascot.js"&gt;&lt;/script&gt;\n&lt;pip-mascot mascot="${pid}" autopilot greet&gt;&lt;/pip-mascot&gt;`:
+    `<span class="fn">&lt;!-- the only code added to Taskly --&gt;</span>\n&lt;script src="/${fileName()}"&gt;&lt;/script&gt;\n&lt;pip-mascot autopilot greet&gt;&lt;/pip-mascot&gt;`}
 function stopLive(){if(liveEl){liveEl.remove();liveEl=null}}
 function showTab(live){$('tabBuild').setAttribute('aria-selected',String(!live));$('tabLive').setAttribute('aria-selected',String(live));
   $('buildView').hidden=live;$('liveView').hidden=!live;if(live){mascot.setState('idle');startLive()}else stopLive();scrollTo({top:0})}
