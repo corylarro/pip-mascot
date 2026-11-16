@@ -20,7 +20,7 @@ function hsl(h,s,l){s/=100;l/=100;const k=n=>(n+h/30)%12,a=s*Math.min(l,1-l),f=n
   return '#'+[f(0),f(8),f(4)].map(x=>Math.round(x*255).toString(16).padStart(2,'0')).join('')}
 function palette(hex){let [h,s,l]=hexToHsl(hex);l=clamp(l,46,86);s=clamp(s,22,95);
   return {base:hsl(h,s,l),light:hsl(h,s*.85,Math.min(l+15,95)),shade:hsl(h,Math.min(s+6,100),l-15),deep:hsl(h,Math.min(s+8,100),l-24),
-    outline:hsl(h,clamp(s*.55,22,48),15)}}
+    outline:hsl(h,clamp(s*.55,22,48),15),back:hsl(h,s,l-8)}}
 
 const OPT={shape:['bean','round','tall','cube','pear','custom'],topper:['none','sprout','antenna','cat','bunny','horns','tuft'],
   eyes:['round','tall','small','dot','anime','cyclops'],pattern:['none','belly','spots','stripes'],accessory:['none','glasses','bowtie','crown','headphones'],
@@ -55,7 +55,10 @@ const num=(v,a,b,d)=>{v=Number(v);return isFinite(v)?clamp(v,a,b):d};
 function cleanBody(b){if(!b||typeof b!=='object'||typeof b.d!=='string')return null;const d=b.d.trim();
   if(!PATHD.test(d)||d.length>6000||!/^[Mm]/.test(d))return null;
   return {d,eyeY:num(b.eyeY,60,170,120),spacing:num(b.spacing,0,40,24),eyeSize:num(b.eyeSize,.6,1.4,1),mouthY:num(b.mouthY,90,195,155),
-    back:cleanSvg(b.back),marks:cleanSvg(b.marks)}}
+    back:cleanSvg(b.back),marks:cleanSvg(b.marks),
+    parts:Array.isArray(b.parts)?b.parts.slice(0,10).map(p=>p&&typeof p==='object'?{svg:cleanSvg(p.svg),pivot:[num(p.pivot&&p.pivot[0],0,240,120),num(p.pivot&&p.pivot[1],-20,240,120)],
+      motion:MOTIONS.includes(p.motion)?p.motion:'sway'}:null).filter(p=>p&&p.svg):[]}}
+const MOTIONS=['flap','wag','sway','twitch','bob','none'];
 let MS=null;const bboxCache={};
 function measure(d){if(bboxCache[d])return bboxCache[d];try{if(!MS){MS=document.createElementNS('http://www.w3.org/2000/svg','svg');
   MS.setAttribute('style','position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;visibility:hidden');MS.innerHTML='<path/>';document.documentElement.appendChild(MS)}
@@ -82,8 +85,8 @@ function render(cfg,uid){
   const eyes=cfg.eyes==='cyclops'?[{cx:120,cy:G.eyeY+2,rx:E.rx,ry:E.ry,ir:E.ir}]:[-1,1].map(s=>({cx:120+s*(G.dx+E.adj*es),cy:G.eyeY,rx:E.rx,ry:E.ry,ir:E.ir}));
   const ST={glossy:{fill:`url(#${u}grad)`,w:4.5,inner:.35,hl:true,oc:ol},flat:{fill:P.base,w:5,inner:0,hl:false,oc:ol},
     soft:{fill:`url(#${u}grad)`,w:3,inner:.22,hl:true,oc:P.deep},bold:{fill:P.base,w:7,inner:.5,hl:true,oc:ol}}[cfg.style]||{fill:`url(#${u}grad)`,w:4.5,inner:.35,hl:true,oc:ol};
-  const hw=Math.max(3,ST.w*.85);
-  let top='';
+  const hw=Math.max(3,ST.w*.85);const ih=hexToHsl(cfg.eyeColor),irisL=hsl(ih[0],Math.min(ih[1]+10,90),Math.min(ih[2]+24,70)),irisD=hsl(ih[0],ih[1],Math.max(ih[2]-10,6));
+  let top='';const parts=[];
   if(cfg.topper==='sprout')top=`<path d="M120 ${t+6} C119 ${t-6} 121 ${t-14} 124 ${t-22}" stroke="${ol}" stroke-width="4" fill="none" stroke-linecap="round"/>
     <path d="M123 ${t-20} C130 ${t-33} 147 ${t-35} 154 ${t-28} C147 ${t-17} 132 ${t-13} 123 ${t-20} Z" fill="${acc}" stroke="${ol}" stroke-width="3.5" stroke-linejoin="round"/>
     <path d="M121 ${t-12} C114 ${t-20} 102 ${t-20} 98 ${t-15} C103 ${t-7} 114 ${t-6} 121 ${t-12} Z" fill="${acc}" stroke="${ol}" stroke-width="3.5" stroke-linejoin="round"/>`;
@@ -94,6 +97,10 @@ function render(cfg,uid){
   if(cfg.topper==='bunny')top=[-1,1].map(s=>{const x=120+s*(G.ex-10);return `<g transform="rotate(${s*12} ${x} ${t+10})">
     <ellipse cx="${x}" cy="${t-24}" rx="12" ry="32" fill="${P.base}" stroke="${ol}" stroke-width="4"/><ellipse cx="${x}" cy="${t-20}" rx="5.5" ry="22" fill="#FF9EB1"/></g>`}).join('');
   if(cfg.topper==='horns')top=[-1,1].map(s=>{const x=120+s*G.ex;return `<path d="M${x-s*8} ${t+16} C${x-s*16} ${t-4} ${x-s*8} ${t-22} ${x-s*14} ${t-34} C${x+s*6} ${t-22} ${x+s*12} ${t-4} ${x+s*12} ${t+12} Z" fill="${acc}" stroke="${ol}" stroke-width="3.5" stroke-linejoin="round"/>`}).join('');
+  if(cfg.topper==='sprout'||cfg.topper==='antenna'){parts.push({svg:top,pivot:[120,t+8],motion:'bob',shift:0});top=''}
+  if(cfg.topper==='cat'||cfg.topper==='bunny'){top='';
+    [-1,1].forEach(s2=>{if(cfg.topper==='cat'){const x=120+s2*G.ex;parts.push({motion:'twitch',pivot:[x,t+16],svg:`<path d="M${x-s2*18} ${t+28} L${x-s2*6} ${t-20} L${x+s2*22} ${t+12} Z" fill="${P.base}" stroke="${ol}" stroke-width="4" stroke-linejoin="round"/><path d="M${x-s2*9} ${t+19} L${x-s2*5} ${t-6} L${x+s2*11} ${t+12} Z" fill="#FF9EB1"/>`})}
+      else{const x=120+s2*(G.ex-10);parts.push({motion:'twitch',pivot:[x,t+12],svg:`<g transform="rotate(${s2*12} ${x} ${t+10})"><ellipse cx="${x}" cy="${t-24}" rx="12" ry="32" fill="${P.base}" stroke="${ol}" stroke-width="4"/><ellipse cx="${x}" cy="${t-20}" rx="5.5" ry="22" fill="#FF9EB1"/></g>`})}})}
   if(cfg.topper==='tuft')top=`<path d="M104 ${t+10} C96 ${t-8} 108 ${t-22} 116 ${t-30} C116 ${t-18} 124 ${t-14} 128 ${t-26} C136 ${t-16} 142 ${t-4} 136 ${t+10} Z" fill="${P.shade}" stroke="${ol}" stroke-width="3.5" stroke-linejoin="round"/>`;
   let pat='';
   if(cfg.pattern==='belly'){const by=(G.mouthY+206)/2+8;pat=`<ellipse cx="120" cy="${by}" rx="${(G.sideR-G.sideL)*.32}" ry="${206-by+4}" fill="${P.light}"/>`}
@@ -107,7 +114,7 @@ function render(cfg,uid){
     <ellipse cx="${e.cx}" cy="${e.cy}" rx="${e.rx}" ry="${e.ry}" fill="${E.dark?'#16121E':'#fff'}"/>
     <g clip-path="url(#${u}ec${i})">
       <g id="${u}pup${i}">${E.dark?`<circle cx="${e.cx+e.rx*.32}" cy="${e.cy-e.ry*.38}" r="${Math.max(2,e.rx*.36)}" fill="#fff"/>`:
-        `<circle cx="${e.cx}" cy="${e.cy+1}" r="${e.ir}" fill="${cfg.eyeColor}"/><circle cx="${e.cx}" cy="${e.cy+1}" r="${e.ir*.56}" fill="#16121E"/>
+        `<circle cx="${e.cx}" cy="${e.cy+1}" r="${e.ir}" fill="url(#${u}iris)"/><circle cx="${e.cx}" cy="${e.cy+1}" r="${e.ir*.94}" fill="none" stroke="${irisD}" stroke-width="${Math.max(1,e.ir*.13)}" opacity=".8"/><circle cx="${e.cx}" cy="${e.cy+1}" r="${e.ir*.52}" fill="#16121E"/>
         <circle cx="${e.cx+e.ir*.38}" cy="${e.cy-e.ir*.38}" r="${Math.max(2.2,e.ir*.3)}" fill="#fff"/><circle cx="${e.cx-e.ir*.35}" cy="${e.cy+e.ir*.42}" r="${Math.max(1.2,e.ir*.13)}" fill="#fff" opacity=".85"/>
         ${E.sparkle?`<ellipse cx="${e.cx}" cy="${e.cy+e.ir*.75}" rx="${e.ir*.7}" ry="${e.ir*.28}" fill="#fff" opacity=".35"/><circle cx="${e.cx-e.ir*.45}" cy="${e.cy-e.ir*.55}" r="${e.ir*.16}" fill="#fff"/>`:''}`}</g>
       <g id="${u}lidT${i}"><rect x="${e.cx-e.rx-3}" y="${e.cy-e.ry-2-H}" width="${2*e.rx+6}" height="${H}" fill="${P.base}"/>
@@ -120,7 +127,7 @@ function render(cfg,uid){
     <path id="${u}heart${i}" d="${heartD(e.cx,e.cy,Math.max(e.rx,e.ry)*.72)}" fill="#FF4D6D" stroke="${ol}" stroke-width="3" stroke-linejoin="round" opacity="0"/>`}).join('');
   const brows=eyes.map((e,i)=>`<path id="${u}brow${i}" stroke="${ol}" stroke-width="${eyes.length===1?5.5:5}" fill="none" stroke-linecap="round"/>`).join('');
   const cheeks=(eyes.length===2?eyes.map((e,i)=>[e.cx+(i?1:-1)*(e.rx-2),e.cy+e.ry+9]):[[80,G.eyeY+30],[160,G.eyeY+30]])
-    .map(([x,y])=>`<ellipse class="cheek" cx="${x}" cy="${y}" rx="10" ry="6" fill="#FF8F9E" opacity=".5"/>`).join('');
+    .map(([x,y])=>`<ellipse class="cheek" cx="${x}" cy="${y}" rx="13" ry="8" fill="url(#${u}cheek)" opacity=".5"/>`).join('');
   let glasses='',front='',behind='';
   if(cfg.accessory==='glasses'){const r=eyes.map(e=>Math.max(e.rx,e.ry)+5);
     glasses=eyes.map((e,i)=>`<circle cx="${e.cx}" cy="${e.cy}" r="${r[i]}" fill="#fff" fill-opacity=".14" stroke="${ol}" stroke-width="3.5"/>`).join('')+
@@ -132,25 +139,31 @@ function render(cfg,uid){
   if(cfg.accessory==='headphones'){const L=G.sideL+2,R=G.sideR-2,y=G.eyeY+2;
     behind=`<path d="M${L} ${y} C${L} ${t-30} ${R} ${t-30} ${R} ${y}" stroke="${ol}" stroke-width="11" fill="none" stroke-linecap="round"/><path d="M${L} ${y} C${L} ${t-30} ${R} ${t-30} ${R} ${y}" stroke="${acc}" stroke-width="5" fill="none" stroke-linecap="round"/>`;
     front=[L,R].map(x=>`<rect x="${x-11}" y="${y-18}" width="22" height="36" rx="10" fill="${acc}" stroke="${ol}" stroke-width="3.5"/><rect x="${x-5}" y="${y-11}" width="10" height="22" rx="5" fill="${ol}" opacity=".25"/>`).join('')}
+  if(cfg.shape==='custom'&&cfg.body&&cfg.body.parts)cfg.body.parts.forEach(p=>parts.push({svg:p.svg,pivot:[p.pivot[0],p.pivot[1]+sh],motion:p.motion,shift:sh,ai:true}));
   const paint=sv=>sv.replace(/(fill|stroke)="(outline|body|accent|shade|light)"/g,(m,k,tk)=>k+'="'+({outline:ol,body:P.base,accent:acc,shade:P.shade,light:P.light}[tk])+'"');
+  const paintB=sv=>sv.replace(/(fill|stroke)="(outline|body|accent|shade|light)"/g,(m,k,tk)=>k+'="'+({outline:ol,body:P.back,accent:acc,shade:P.shade,light:P.light}[tk])+'"');
+  const partMk=parts.map((p,i)=>`<g id="${u}part${i}"><g transform="translate(0 ${p.ai?sh:0})">${p.ai?paintB(p.svg):p.svg}</g></g>`).join('');
   const hat=cfg.hat?`<g id="${u}hat" transform="translate(${120-45} ${t+14-66*.9}) scale(.9)">${paint(cfg.hat)}</g>`:'';
   const item=cfg.item?`<g transform="rotate(-20) translate(-12 -40) scale(.9)">${paint(cfg.item)}</g>`:'';
   const markup=`<defs>
     <radialGradient id="${u}grad" cx=".36" cy=".26" r=".9"><stop offset="0" stop-color="${P.light}"/><stop offset=".55" stop-color="${P.base}"/><stop offset="1" stop-color="${P.shade}"/></radialGradient>
+    <radialGradient id="${u}iris" cx=".5" cy=".38" r=".62"><stop offset="0" stop-color="${irisL}"/><stop offset=".72" stop-color="${cfg.eyeColor}"/><stop offset="1" stop-color="${irisD}"/></radialGradient>
+    <radialGradient id="${u}cheek"><stop offset="0" stop-color="#FF7F95" stop-opacity=".95"/><stop offset="1" stop-color="#FF7F95" stop-opacity="0"/></radialGradient>
+    <filter id="${u}blur" x="-30%" y="-200%" width="160%" height="500%"><feGaussianBlur stdDeviation="3.2"/></filter>
     <clipPath id="${u}bclip"><path d="${G.d}" transform="translate(0 ${sh})"/></clipPath><clipPath id="${u}mclip"><path id="${u}mclipPath"/></clipPath></defs>
-  <ellipse id="${u}shadow" cx="120" cy="214" rx="66" ry="7.5" fill="rgba(25,25,60,.18)"/>
+  <g id="${u}shadow"><ellipse cx="120" cy="213" rx="70" ry="9" fill="rgba(25,25,60,.22)" filter="url(#${u}blur)"/><ellipse cx="120" cy="209" rx="44" ry="4" fill="rgba(25,25,60,.18)"/></g>
   <g id="${u}zzz" font-family="Fredoka, ui-rounded, sans-serif" font-weight="600" fill="${ol}"><text>z</text><text>z</text><text>z</text></g>
   <text id="${u}q" x="${G.sideR-4}" y="${t+4}" font-family="Fredoka, ui-rounded, sans-serif" font-size="34" font-weight="700" fill="${ol}" opacity="0">?</text>
   <g id="${u}dots" fill="${ol}"><circle cx="168" cy="${t-18}" r="5"/><circle cx="184" cy="${t-18}" r="5"/><circle cx="200" cy="${t-18}" r="5"/></g>
   <g id="${u}body">
     <g id="${u}topper">${top}</g>${behind}
-    ${cfg.body&&cfg.shape==='custom'&&cfg.body.back?`<g transform="translate(0 ${sh})">${paint(cfg.body.back)}</g>`:''}
+    ${cfg.body&&cfg.shape==='custom'&&cfg.body.back?`<g transform="translate(0 ${sh})">${paintB(cfg.body.back)}</g>`:''}${partMk}
     ${cfg.feet==='none'?'':`<ellipse cx="94" cy="205" rx="17" ry="8" fill="${P.shade}" stroke="${ST.oc}" stroke-width="${hw}"/>
     <ellipse cx="146" cy="205" rx="17" ry="8" fill="${P.shade}" stroke="${ST.oc}" stroke-width="${hw}"/>`}
     <path d="${G.d}" fill="${ST.fill}" transform="translate(0 ${sh})"/>
-    <g clip-path="url(#${u}bclip)">${pat}${cfg.body&&cfg.shape==='custom'&&cfg.body.marks?`<g transform="translate(0 ${sh})">${paint(cfg.body.marks)}</g>`:''}${ST.inner?`<path d="${G.d}" fill="none" stroke="${P.deep}" stroke-opacity="${ST.inner}" stroke-width="14" transform="translate(4 ${6+sh})"/>`:''}</g>
+    <g clip-path="url(#${u}bclip)">${pat}${cfg.body&&cfg.shape==='custom'&&cfg.body.marks?`<g transform="translate(0 ${sh})">${paint(cfg.body.marks)}</g>`:''}${ST.inner?`<path d="${G.d}" fill="none" stroke="${P.deep}" stroke-opacity="${ST.inner}" stroke-width="16" transform="translate(-5 ${sh-7})"/>`:''}${ST.hl?`<path d="${G.d}" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="7" transform="translate(4 ${sh+5})"/>`:''}</g>
     <path d="${G.d}" fill="none" stroke="${ST.oc}" stroke-width="${ST.w}" stroke-linejoin="round" transform="translate(0 ${sh})"/>
-    ${ST.hl?`<ellipse cx="${120-G.ex-4}" cy="${t+26}" rx="15" ry="7" fill="#fff" opacity=".5" transform="rotate(-28 ${120-G.ex-4} ${t+26})"/>`:''}
+    ${ST.hl?`<ellipse cx="${120-G.ex-4}" cy="${t+26}" rx="15" ry="7" fill="#fff" opacity=".55" transform="rotate(-28 ${120-G.ex-4} ${t+26})"/><circle cx="${120-G.ex+14}" cy="${t+16}" r="3" fill="#fff" opacity=".6"/>`:''}
     ${hat}
     <g id="${u}face">
       ${cheeks}${eyeMk}${brows}${glasses}
@@ -162,11 +175,13 @@ function render(cfg,uid){
   </g>
   ${[0,1].map(i=>{const nb=cfg.hands==='nub',hide=cfg.hands==='none';return `<g id="${u}hand${i}">${i?item:''}${hide?'':`<ellipse rx="${nb?10:16}" ry="${nb?9:14}" fill="${P.base}" stroke="${ST.oc}" stroke-width="${hw}"/>${ST.hl?`<ellipse cx="${nb?-2.5:-4}" cy="${nb?-2.5:-4}" rx="${nb?3:5}" ry="${nb?2:3}" fill="#fff" opacity=".45"/>`:''}`}</g>`}).join('')}
   <g id="${u}fx"></g>`;
-  return {markup,geom:{...G,eyes}};
+  return {markup,geom:{...G,eyes,parts:parts.map(p=>({pivot:p.pivot,motion:p.motion}))}};
 }
 
 class Spring{constructor(x,k=170,d=20){this.x=x;this.v=0;this.t=x;this.k=k;this.d=d}
   step(dt){const a=this.k*(this.t-this.x)-this.d*this.v;this.v+=a*dt;this.x+=this.v*dt;return this.x}}
+const ENERGY={idle:1,thinking:.6,success:1.7,error:.45,talking:1.1,sleeping:.15,wave:1.4,love:1.3,surprised:1.2,confused:.7,giggle:1.6};
+const DROOP={error:.8,sleeping:1,confused:.3};
 const BASE={open:.98,squint:0,happy:0,love:0,pupil:1,browTilt:0,browY:0,skew:0,curve:.55,mouthOpen:0,mouthW:1,blush:.5,sweat:0,tilt:0,droop:0,dots:0,zzz:0,q:0};
 const STATES={
   idle:{hands:'rest'},
@@ -221,7 +236,7 @@ class Mascot{
     this._iv=setInterval(()=>this._idleTick(),250);
     this._last=performance.now();this._raf=requestAnimationFrame(this._frame.bind(this));
   }
-  destroy(){cancelAnimationFrame(this._raf);clearInterval(this._iv);clearTimeout(this.timer);(this._ls||[]).forEach(([el,ev,fn,o])=>el.removeEventListener(ev,fn,o))}
+  destroy(){clearTimeout(this._hopT);cancelAnimationFrame(this._raf);clearInterval(this._iv);clearTimeout(this.timer);(this._ls||[]).forEach(([el,ev,fn,o])=>el.removeEventListener(ev,fn,o))}
   build(cfg,first){
     this.cfg=sanitize(cfg);const u=this.uid,{markup,geom}=render(this.cfg,u);this.svg.innerHTML=markup;this.g=geom;
     const q=id=>this.svg.querySelector('#'+u+id);
@@ -229,6 +244,8 @@ class Mascot{
       sweat:q('sweat'),topper:q('topper'),shadow:q('shadow'),dots:q('dots'),zzz:q('zzz'),q:q('q'),fx:q('fx'),
       cheeks:[...this.svg.querySelectorAll('.cheek')],hands:[q('hand0'),q('hand1')],
       eyes:geom.eyes.map((e,i)=>({...e,g:q('eye'+i),pup:q('pup'+i),lidT:q('lidT'+i),lidB:q('lidB'+i),hap:q('hap'+i),heart:q('heart'+i),brow:q('brow'+i)}))};
+    this.limbs=(geom.parts||[]).map((p,i)=>({el:q('part'+i),pivot:p.pivot,motion:p.motion,side:Math.abs(p.pivot[0]-120)<10?1:Math.sign(p.pivot[0]-120),
+      sp:new Spring(0,120,9),phase:i*1.37,next:1+Math.random()*3}));
     this.svg.setAttribute('aria-label',`${this.cfg.name}, an animated mascot`);
     if(first){const h=handTargets('rest',geom,false,false,0);this.hands.forEach((p,i)=>{p[0].x=p[0].t=h[i][0];p[1].x=p[1].t=h[i][1]})}
     else{this.squash.v-=3.5;this.hop(220)}
@@ -252,7 +269,8 @@ class Mascot{
     const txt=inp.type==='password'?'•'.repeat(inp.value.length):inp.value,w=meas?meas.measureText(txt).width:txt.length*8;
     this.lookAt(r.left+parseFloat(cs.paddingLeft||0)+Math.min(w,r.width-24),r.top+r.height/2)}
   bump(){this.squash.v-=1.4}
-  hop(v){if(this.jumpY>-1&&this.jumpV>=0)this.jumpV=-v*Math.sqrt(RM)}
+  hop(v){if(this.jumpY>-1&&this.jumpV>=0&&!this._hopT){if(RM<1){this.jumpV=-v*Math.sqrt(RM);return}
+    this.squash.v-=v*.0075;this._hopT=setTimeout(()=>{this._hopT=null;this.jumpV=-v},75)}}
   poke(){const now=performance.now();this.pokes=this.pokes.filter(p=>now-p<4000);this.pokes.push(now);this.squash.v-=4;
     if(this.state==='sleeping')return;
     if(this.pokes.length>=5){this.pokes=[];this.react('confused',2400);this.say("Okay, okay! I'm awake!",{hold:1600});return}
@@ -281,6 +299,7 @@ class Mascot{
       this.E.fx.appendChild(r);
       this.parts.push({r,x:120,y:this.g.eyeY,vx:(Math.random()-.5)*440,vy:-260-Math.random()*320,a:Math.random()*360,va:(Math.random()-.5)*900,life:1.7,g:900})}}
   _idleTick(){const now=performance.now();
+    if(!this._sacT||now>this._sacT){this.sacc=[(Math.random()-.5)*.14,(Math.random()-.5)*.1];this._sacT=now+600+Math.random()*900}
     if(this.state==='idle'&&!this.focusEl&&!this.coverOn&&now-this.lastPointer>3500&&now>this.nextGlance){
       this.look=[(Math.random()-.5)*1.6,(Math.random()-.5)];this.nextGlance=now+1800+Math.random()*2500;
       if(Math.random()<.12)this.hop(110)}
@@ -289,7 +308,7 @@ class Mascot{
     const dt=Math.min((now-this._last)/1000,.05);this._last=now;this.t+=dt;const t=this.t,g=this.g,E=this.E;
     const S=STATES[this.state],tg=Object.assign({},BASE,S),sleeping=this.state==='sleeping',cover=this.coverOn&&!sleeping;
     if(cover)Object.assign(tg,{curve:this.peekOn?.75:.35,blush:.95,browY:-3});
-    const lk=S.look||this.look;this.s.lookX.t=lk[0];this.s.lookY.t=lk[1];
+    const lk=S.look||this.look,sc=this.sacc&&!sleeping?this.sacc:[0,0];this.s.lookX.t=clamp(lk[0]+sc[0],-1,1);this.s.lookY.t=clamp(lk[1]+sc[1],-1,1);
     for(const k in BASE)this.s[k].t=tg[k];
     const v={};for(const k in this.s)v[k]=this.s[k].step(dt);
     const sq=this.squash.step(dt),talk=clamp(this.talk.step(dt),0,1);this.leanS.t=this.lean;const lean=this.leanS.step(dt);
@@ -307,7 +326,16 @@ class Mascot{
     E.body.setAttribute('transform',`translate(${120+sx0} ${206+jy}) rotate(${v.tilt+giggle+lean}) scale(${sxs} ${sy}) translate(-120 -206)`);
     const lift=Math.min(Math.max(-jy,0)/260,1);
     E.shadow.setAttribute('transform',`translate(120 214) scale(${(1-lift*.45)*sxs} 1) translate(-120 -214)`);E.shadow.setAttribute('opacity',1-lift*.6);
-    E.face.setAttribute('transform',`translate(${v.lookX*6} ${v.lookY*4})`);
+    E.face.setAttribute('transform',`translate(${v.lookX*6} ${v.lookY*4+clamp(this.jumpV*.006,-4,4)})`);
+    const en=ENERGY[this.state]||1,dr=DROOP[this.state]||0,perk=this.state==='surprised'?1:0;
+    for(const p of this.limbs||[]){if(!p.el)continue;let a=0;
+      if(p.motion==='wag')a=Math.sin(t*(3+5*en)+p.phase)*(4+9*en);
+      else if(p.motion==='flap')a=p.side*Math.sin(t*(2+7*en)+p.phase)*(4+12*en);
+      else if(p.motion==='sway')a=Math.sin(t*(1.2+.8*en)+p.phase)*(3+4*en);
+      else if(p.motion==='twitch'&&t>p.next){p.sp.v+=-p.side*(60+40*en);p.next=t+1.5+Math.random()*4/en}
+      if(p.motion!=='none'){a=a*RM+p.side*dr*16-p.side*perk*8;p.sp.t=a;p.sp.v+=clamp(this.jumpV*.05,-40,40)*(p.motion==='bob'||p.motion==='sway'?1:.5)}
+      else p.sp.t=0;
+      p.el.setAttribute('transform',`rotate(${p.sp.step(dt)} ${p.pivot[0]} ${p.pivot[1]})`)}
     const close=clamp(1-v.open*(1-blink),0,1),lo=clamp(v.love,0,1),eo=clamp(Math.min(1-v.happy,1-lo),0,1),pulse=1+Math.sin(t*9)*.09*lo;
     for(const e of E.eyes){
       e.lidT.setAttribute('transform',`translate(0 ${close*(2*e.ry+5)})`);
