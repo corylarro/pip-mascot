@@ -147,7 +147,7 @@ a.ghost{display:inline-flex;align-items:center;text-decoration:none;border-radiu
 (function(){
 "use strict";
 const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),pick=a=>a[Math.floor(Math.random()*a.length)];
-const P=PipPaintedEngine(),{attachFrames,refineFace,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES}=P;
+const P=PipPaintedEngine(),{encodeAtlas,attachFrames,refineFace,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES}=P;
 /* ---------- storage (so a refresh doesn't cost another painting) ---------- */
 const DB={open(){return new Promise((res,rej)=>{const r=indexedDB.open('pip-paint',1);r.onupgradeneeded=()=>r.result.createObjectStore('m');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})},
   async put(v){try{const db=await this.open();await new Promise((res,rej)=>{const tx=db.transaction('m','readwrite');tx.objectStore('m').put(v,'last');tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}catch(e){}},
@@ -205,7 +205,7 @@ Panel 12: talking; neutral eyes, smiling mouth slightly open with teeth showing,
 Leave generous empty space between panels and around each character so nothing touches. No panel borders, no grid lines, no text, no labels, no numbers.
 ${bgLine(desc)} The background is the same flat colour across the entire sheet.`}
 
-let current={},busy=false;
+let current={},busy=false,prepared=null;
 try{const sp=localStorage.getItem('pip-pass');if(sp){$('pass').value=sp}}catch(e){}
 async function api(body){const pass=$('pass').value.trim();try{if(pass)localStorage.setItem('pip-pass',pass)}catch(e){}
   const r=await fetch('/api/paint',{method:'POST',headers:{'Content-Type':'application/json',...(pass?{'x-pip-pass':pass}:{})},body:JSON.stringify(body)});
@@ -255,7 +255,7 @@ async function loadSheet(m,fresh){
     try{const r=await api({step:'face',image:canvasB64(frames[0].canvas,'image/webp'),mime:'image/webp'});face=r.face}catch(e){if(e.status===401)throw e}
     f=faceFrom(face,L,frames[0].bbox);m.face=f}
   const rf=refineFace(frames,f,SHEET_NAMES);if(fresh||!m.face.refined)stepState('face',rf.refined?'done':(f?'done':'fail'),faceThumb(frames[0],rf));
-  rig.setFace(rf);
+  rig.setFace(rf);prepared={frames,face:rf};
   attachFrames(rig,frames,rf);
   document.querySelector('#states [data-s="wave"]').title=rig.full&&rig.full.waveA?'':'Paint a new sheet to get a real wave'}
 function faceThumb(fr,f){const c=canvasOf(fr.canvas.width,fr.canvas.height),x=c.getContext('2d');x.drawImage(fr.canvas,0,0);x.lineWidth=Math.max(2,c.width/120);
@@ -281,9 +281,10 @@ function showUse(){$('useCard').hidden=false;if(current.savedId){$('mname').valu
 $('save').addEventListener('click',async()=>{if(!current||!(current.sheet||current.base)||!current.face)return;const btn=$('save');btn.disabled=true;btn.textContent='Saving…';$('saveMsg').textContent='';
   try{const name=$('mname').value.trim();const raw=current.mode==='sheet'?current.sheet:current.base;
     const image=await reencode(raw,current.mime);
+    const atlas=current.mode==='sheet'&&prepared?await encodeAtlas(prepared.frames,prepared.face).catch(()=>({})):{};
     const pass=$('pass').value.trim();
     const r=await fetch('/api/mascot',{method:'POST',headers:{'Content-Type':'application/json',...(pass?{'x-pip-pass':pass}:{})},
-      body:JSON.stringify({mode:current.mode,image,mime:'image/webp',face:current.face,grid:current.grid||[3,2],name,greeting:name?`Hi, I'm ${name}!`:'Hi there!',desc:current.desc})});
+      body:JSON.stringify({mode:current.mode,image,mime:'image/webp',face:current.face,grid:current.grid||[3,2],name,greeting:name?`Hi, I'm ${name}!`:'Hi there!',desc:current.desc,...atlas})});
     let j={};try{j=await r.json()}catch(e){}
     if(!r.ok){if(r.status===401)$('passWrap').hidden=false;throw new Error(j.error||r.statusText)}
     current.savedId=j.id;current.name=name;DB.put(current);showSnippet(j.id);$('saveMsg').textContent='Saved. Paste this into your site, before the closing </body> tag.';rig.react('success',1600)}
@@ -291,8 +292,18 @@ $('save').addEventListener('click',async()=>{if(!current||!(current.sheet||curre
 $('copySnip').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('snippet').textContent);$('copySnip').textContent='Copied'}catch(e){
   const r=document.createRange();r.selectNodeContents($('snippet'));const sel=getSelection();sel.removeAllRanges();sel.addRange(r)}setTimeout(()=>{$('copySnip').textContent='Copy code'},1600)});
 
+// One-time upgrade for mascots saved before prepared poses existed: /paint?prepare=ID
+const prepId=new URLSearchParams(location.search).get('prepare');
+if(prepId)(async()=>{setStatus('Preparing this mascot so it loads fast everywhere…','ok');
+  try{const d=await (await fetch('/api/mascot?id='+encodeURIComponent(prepId))).json();if(!d.image)throw new Error(d.error||'Mascot not found');
+    const [c,r]=d.grid||[3,2],k=keyOut(await loadImg(d.image)),frames=splitSheet(k,c,r),rf=refineFace(frames,d.face,SHEET_NAMES);
+    const a=await encodeAtlas(frames,rf),pass=$('pass').value.trim();
+    const res=await fetch('/api/mascot?id='+encodeURIComponent(prepId),{method:'PUT',headers:{'Content-Type':'application/json',...(pass?{'x-pip-pass':pass}:{})},body:JSON.stringify(a)});
+    const j=await res.json().catch(()=>({}));if(!res.ok){if(res.status===401)$('passWrap').hidden=false;throw new Error(j.error||res.statusText)}
+    setStatus(`Done. ${d.name||'This mascot'} now loads fast on every site.`,'ok')}
+  catch(e){setStatus('Couldn’t prepare it: '+(e.message||e),'err')}})();
 // restore the last painted mascot for free
-(async()=>{const m=await DB.get();if(!m)return;try{
+if(!prepId)(async()=>{const m=await DB.get();if(!m)return;try{
   current=m;$('desc').value=m.desc||'';if(m.mode)modeSel.value=m.mode;syncHint();
   if(m.mode==='sheet'&&m.sheet)await loadSheet(m,false);else if(m.mode==='simple'&&m.base)await loadSimple(m,false);else return;
   showUse();setStatus('Loaded your last painted mascot. Painting a new one replaces it.','ok');$('meta').textContent=m.model?`Image model: ${m.model}`:''}catch(e){}})();

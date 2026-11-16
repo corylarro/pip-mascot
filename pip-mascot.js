@@ -727,10 +727,30 @@ function refineFace(frames,face,names){
 
 // Load a saved mascot ({mode, image, face, grid, name, greeting}) into a rig.
 async function mountMascot(rig,data){
+  if(data.atlas&&data.atlasMeta&&data.atlasFace&&data.mode!=='simple'){
+    try{const img=await loadImg(data.atlas),frames=framesFromAtlas(img,data.atlasMeta);
+      rig.cfg={name:data.name||'',greeting:data.greeting||`Hi${data.name?", I'm "+data.name:''}!`};
+      rig.simple=null;rig.setBase(frames[0]);rig.setFace(data.atlasFace);data.face=data.atlasFace;attachFrames(rig,frames,data.atlasFace);return rig}
+    catch(e){/* fall back to preparing the original painting */}}
   const k=keyOut(await loadImg(data.image));rig.cfg={name:data.name||'',greeting:data.greeting||`Hi${data.name?", I'm "+data.name:''}!`};
   if(data.mode==='simple'){rig.setBase(k);rig.setSimple(simpleInfo(data.face,k.canvas));return rig}
   const [c,r]=data.grid||[3,2],frames=splitSheet(k,c,r);rig.simple=null;rig.setBase(frames[0]);const face=refineFace(frames,data.face,SHEET_NAMES);rig.setFace(face);data.face=face;
   attachFrames(rig,frames,face);return rig}
+// Prepared poses: the cut-out frames packed into one image, so pages skip the cut-out work.
+const ATLAS_MAX=640;
+function scaleRects(o,k){if(Array.isArray(o))return o.map(v=>scaleRects(v,k));if(o&&typeof o==='object'){const r={};for(const key in o){const v=o[key];r[key]=(typeof v==='number'&&/^(x|y|w|h)$/.test(key))?v*k:scaleRects(v,k)}return r}return o}
+function buildAtlas(frames,face,max){const L=frames[0].canvas.width,size=Math.min(L,max||ATLAS_MAX),k=size/L,cols=4,rows=Math.ceil(frames.length/cols);
+  const c=canvasOf(size*cols,size*rows),x=c.getContext('2d');x.imageSmoothingQuality='high';
+  frames.forEach((fr,i)=>x.drawImage(fr.canvas,(i%cols)*size,Math.floor(i/cols)*size,size,size));
+  return {canvas:c,meta:{v:1,size,cols,n:frames.length,boxes:frames.map(f=>scaleRects(f.bbox,k))},face:scaleRects(face,k)}}
+function framesFromAtlas(img,meta){const {size,cols,n,boxes}=meta;
+  return boxes.slice(0,n).map((bb,i)=>{const c=canvasOf(size,size);c.getContext('2d').drawImage(img,(i%cols)*size,Math.floor(i/cols)*size,size,size,0,0,size,size);return {canvas:c,bbox:bb}})}
+// Encode an atlas for upload: WebP keeps transparency small; browsers without WebP encoding get a smaller PNG.
+async function encodeAtlas(frames,face){let a=buildAtlas(frames,face);
+  const blobOf=(c,t,q)=>new Promise(r=>c.toBlob(r,t,q));let blob=await blobOf(a.canvas,'image/webp',.9);
+  if(!blob||blob.type!=='image/webp'){a=buildAtlas(frames,face,400);blob=await blobOf(a.canvas,'image/png')}
+  const b64=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(String(fr.result).split(',')[1]);fr.readAsDataURL(blob)});
+  return {atlas:b64,atlasMime:blob.type,atlasMeta:a.meta,atlasFace:a.face}}
 const SHEET_NAMES=['neutral','blink','happy','talk','worried','surprised','confused','waveA','waveB','pointL','pointR','talkE'];
 const FULL_FRAMES=['waveA','waveB','pointL','pointR'];
 // Attach every frame of a split sheet to a rig (expressions as face patches, poses as full frames), with sanity checks.
@@ -742,7 +762,7 @@ function attachFrames(rig,frames,face){
     const byside={};if(sl)byside[sl]=pl;if(sr&&!byside[sr])byside[sr]=pr;
     if(byside.L&&!byside.R)byside.R=mirrorFrame(byside.L);if(byside.R&&!byside.L)byside.L=mirrorFrame(byside.R);
     if(byside.L)rig.addFull('pointL',byside.L);if(byside.R)rig.addFull('pointR',byside.R)}}
-return {attachFrames,refineFace,mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
+return {encodeAtlas,buildAtlas,framesFromAtlas,attachFrames,refineFace,mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
 }
 
 var paintedEngine=PipPaintedEngine();

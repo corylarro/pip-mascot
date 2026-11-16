@@ -8,7 +8,7 @@ export const config = { maxDuration: 60 };
 
 const cors = res => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-pip-pass');
 };
 const ID = /^[a-z0-9]{6,24}$/;
@@ -20,6 +20,12 @@ async function findData(id) {
   if (!data) return null;
   const r = await fetch(data.url, { cache: 'no-store' });
   return r.ok ? r.json() : null;
+}
+
+async function saveAtlas(id, b) {
+  const mime = /^image\/(webp|png)$/.test(b.atlasMime) ? b.atlasMime : 'image/webp';
+  const blob = await put(`mascots/${id}/atlas.${mime.split('/')[1]}`, Buffer.from(b.atlas, 'base64'), { access: 'public', contentType: mime, addRandomSuffix: false, allowOverwrite: true });
+  return { atlasUrl: blob.url, atlasMime: mime, atlasMeta: b.atlasMeta || null, atlasFace: b.atlasFace || null, atlasV: Date.now().toString(36) };
 }
 
 export default async function handler(req, res) {
@@ -43,8 +49,24 @@ export default async function handler(req, res) {
         name: String(b.name || '').slice(0, 40), greeting: String(b.greeting || '').slice(0, 120), desc: String(b.desc || '').slice(0, 300),
         imageUrl: img.url, mime, created: new Date().toISOString()
       };
+      if (b.atlas) Object.assign(meta, await saveAtlas(id, b));
       await put(`mascots/${id}/data.json`, JSON.stringify(meta), { access: 'public', contentType: 'application/json', addRandomSuffix: false });
       res.json({ id }); return;
+    }
+
+    if (req.method === 'PUT') {
+      // Add prepared poses to a mascot saved before they existed.
+      const pass = process.env.PAINT_PASSCODE;
+      if (pass && req.headers['x-pip-pass'] !== pass) { res.status(401).json({ error: 'This site needs a passcode to update mascots.' }); return; }
+      const id = String(req.query.id || '');
+      if (!ID.test(id)) { res.status(400).json({ error: 'Unknown mascot id.' }); return; }
+      const meta = await findData(id);
+      if (!meta) { res.status(404).json({ error: 'Mascot not found.' }); return; }
+      const b = (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body) || {};
+      if (!b.atlas) { res.status(400).json({ error: 'Missing prepared poses.' }); return; }
+      Object.assign(meta, await saveAtlas(id, b));
+      await put(`mascots/${id}/data.json`, JSON.stringify(meta), { access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true });
+      res.json({ id, atlas: true }); return;
     }
 
     if (req.method === 'GET') {
@@ -53,19 +75,22 @@ export default async function handler(req, res) {
       const meta = await findData(id);
       if (!meta) { res.status(404).json({ error: 'Mascot not found.' }); return; }
       if (req.query.img) {
-        const r = await fetch(meta.imageUrl);
+        const atlas = req.query.img === 'atlas' && meta.atlasUrl;
+        const r = await fetch(atlas ? meta.atlasUrl : meta.imageUrl);
         if (!r.ok) { res.status(502).json({ error: 'Could not load the painting.' }); return; }
-        res.setHeader('Content-Type', meta.mime || 'image/webp');
+        res.setHeader('Content-Type', (atlas ? meta.atlasMime : meta.mime) || 'image/webp');
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         res.send(Buffer.from(await r.arrayBuffer())); return;
       }
       const host = req.headers['x-forwarded-host'] || req.headers.host;
-      res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=3600');
-      res.json({ id, mode: meta.mode, grid: meta.grid, face: meta.face, name: meta.name, greeting: meta.greeting,
-        image: `https://${host}/api/mascot?id=${id}&img=1` });
+      res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=60, stale-while-revalidate=600');
+      const out = { id, mode: meta.mode, grid: meta.grid, face: meta.face, name: meta.name, greeting: meta.greeting,
+        image: `https://${host}/api/mascot?id=${id}&img=1` };
+      if (meta.atlasUrl) Object.assign(out, { atlas: `https://${host}/api/mascot?id=${id}&img=atlas&v=${meta.atlasV}`, atlasMeta: meta.atlasMeta, atlasFace: meta.atlasFace });
+      res.json(out);
       return;
     }
-    res.status(405).json({ error: 'Use GET or POST.' });
+    res.status(405).json({ error: 'Use GET, POST or PUT.' });
   } catch (e) {
     res.status(500).json({ error: String((e && e.message) || e) });
   }
