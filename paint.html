@@ -235,12 +235,12 @@ const FSTATES={idle:{},thinking:{curve:.08,mouthW:.6,browY:-.25},success:{happy:
   sleeping:{open:.03,curve:.2,mouthOpen:.15,mouthW:.5},love:{love:1,curve:.95,mouthOpen:.25,blush:1},wave:{curve:.85,mouthOpen:.35,blush:.7},
   confused:{browTilt:-8,curve:-.15,mouthW:.6},giggle:{happy:1,curve:1,mouthOpen:.45,blush:1}};
 const STATES={idle:{},thinking:{look:[.5,-.85],tilt:-3},success:{happy:1},error:{worried:1},surprised:{surprised:1},talking:{},
-  sleeping:{blink:1,tilt:4,zzz:1},love:{happy:1},wave:{happy:.7},confused:{worried:.5,tilt:7,q:1},giggle:{happy:1}};
+  sleeping:{blink:1,tilt:4,zzz:1},love:{happy:1},wave:{happy:.7},confused:{confused:1,tilt:7,q:1},giggle:{happy:1}};
 class PaintRig{
   constructor(canvas,{bubble,onState}={}){
     this.cv=canvas;this.ctx=canvas.getContext('2d');this.bubble=bubble;this.onState=onState||(()=>{});
     this.base=null;this.patches={};this.face=null;
-    this.s={happy:new Spring(0,520,44),worried:new Spring(0,520,44),surprised:new Spring(0,560,46),talk:new Spring(0,700,32),blinkHold:new Spring(0,200,22),
+    this.s={happy:new Spring(0,520,44),worried:new Spring(0,520,44),surprised:new Spring(0,560,46),confused:new Spring(0,520,44),talk:new Spring(0,700,32),blinkHold:new Spring(0,200,22),
       lookX:new Spring(0,120,16),lookY:new Spring(0,120,16),tilt:new Spring(0,90,12),lean:new Spring(0,90,12),zzz:new Spring(0),q:new Spring(0)};
     for(const [k,v0] of Object.entries(FBASE))this.s['f_'+k]=new Spring(v0,170,20);
     this.squash=new Spring(1,320,13);this.state='idle';this.look=[0,0];this.timer=null;this.cover=false;
@@ -254,7 +254,8 @@ class PaintRig{
   }
   _resize(){const r=this.cv.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2.5);this.cv.width=Math.round(r.width*dpr);this.cv.height=Math.round(r.height*dpr);this.dpr=dpr;this.W=r.width;this.H=r.height}
   _act(){this.lastAct=performance.now();if(this.state==='sleeping')this.setState('idle'),this.hop(160)}
-  setBase(k){this.base=k;this.patches={};this.hop(220)}
+  setBase(k){this.base=k;this.patches={};this.full={};this.hop(220)}
+  addFull(name,k){if(!this.base)return;const off=this.face?alignFrames(this.base,k,this.face.box):{dx:0,dy:0};this.full[name]={canvas:k.canvas,off}}
   // face: {box, eyes:[box], mouth:box} in 1024px image coordinates
   setFace(f){this.face=f.box?f:{box:f};const F=this.face,B=F.box;
     if(F.eyes&&F.eyes.length){const xs=F.eyes.map(e=>e.x),ys=F.eyes.map(e=>e.y),x2=F.eyes.map(e=>e.x+e.w),y2=F.eyes.map(e=>e.y+e.h);
@@ -266,6 +267,7 @@ class PaintRig{
   setSimple(info){this.simple=info;this.face=null;this.patches={}}
   regionsFor(name){const F=this.face;if(!F.eyeR)return [F.box];if(name==='blink')return [F.eyeR];if(name==='talk')return [F.mouthR];if(name==='neutral')return [F.eyeR,F.mouthR];return [F.eyeR,F.mouthR]}
   addExpr(name,k){if(!this.base||!this.face)return;const off=alignFrames(this.base,k,this.face.box);this.patches[name]=this._patches(k.canvas,name,off);
+    if(name==='surprised'&&this.face.mouthR)this.patches.oMouth=this._patches(k.canvas,'talk',off);
     if(name==='happy'&&this.state==='idle')this.react('success',1400)}
   _patches(src,name,off){return this.regionsFor(name).map(R=>this._patch(src,R,off,name!=='neutral'))}
   // Cut a feathered patch, shifted into register with the base, colour-matched to it.
@@ -293,8 +295,9 @@ class PaintRig{
     const n=this.pokes.length;if(n===3){this.react('love',1800);this.say('Aww, thanks!');return}
     this.react(n===1?'surprised':'giggle',n===1?900:1400);this.say(n===1?'Boop!':pick(['Hee hee, that tickles!','Hey there!','Again? Okay!']))}
   say(text,{speed=40,hold=2400}={}){const tok=this.sayTok=(this.sayTok||0)+1,b=this.bubble;b.textContent='';b.classList.add('show');let i=0;
-    const tick=()=>{if(tok!==this.sayTok)return;if(i>=text.length){this.s.talk.t=0;setTimeout(()=>{if(tok===this.sayTok)b.classList.remove('show')},hold);return}
-      const ch=text[i++];b.textContent=text.slice(0,i);this.s.talk.t=/[aeiouy]/i.test(ch)?1:/\s/.test(ch)?0:/[.,!?]/.test(ch)?0:.45;setTimeout(tick,/[.,!?]/.test(ch)?speed*4:speed)};tick()}
+    const tick=()=>{if(tok!==this.sayTok)return;if(i>=text.length){this.s.talk.t=0;this.mouth=null;setTimeout(()=>{if(tok===this.sayTok)b.classList.remove('show')},hold);return}
+      const ch=text[i++];b.textContent=text.slice(0,i);this.s.talk.t=/[aeiouy]/i.test(ch)?1:/\s/.test(ch)?0:/[.,!?]/.test(ch)?0:.45;
+      this.mouth=/[ouw]/i.test(ch)?'o':/[aeiy]/i.test(ch)?'a':/[bmp]/i.test(ch)?null:(/[a-z]/i.test(ch)&&this.mouth?this.mouth:null);setTimeout(tick,/[.,!?]/.test(ch)?speed*4:speed)};tick()}
   burst(kind){if(RM<1)return;const cols=['#FF6B7A','#6E9BFF','#7DDC8A','#FFC23D','#B58CFF'];
     for(let i=0;i<(kind==='hearts'?7:34);i++)this.parts.push(kind==='hearts'?{h:1,x:(Math.random()-.5)*80,y:-150,vx:(Math.random()-.5)*30,vy:-50-Math.random()*50,life:1.8,g:-15,c:'#FF4D6D',a:0,va:0}:
       {x:0,y:-120,vx:(Math.random()-.5)*480,vy:-260-Math.random()*320,life:1.7,g:900,c:cols[i%5],a:Math.random()*6,va:(Math.random()-.5)*14})}
@@ -303,7 +306,8 @@ class PaintRig{
     if(this.base&&this.state==='idle'&&!this.cover&&!this.focusEl&&now-this.lastAct>20000)this._enter('sleeping')}
   _frame(now){
     const dt=Math.min((now-this._last)/1000,.05);this._last=now;this.t+=dt;const t=this.t,S=STATES[this.state]||{};
-    for(const k of ['happy','worried','surprised'])this.s[k].t=S[k]||0;
+    const P0=this.patches||{};for(const k of ['happy','worried','surprised','confused'])this.s[k].t=S[k]||0;
+    if(this.state==='confused'&&!P0.confused)this.s.worried.t=.5;
     this.s.blinkHold.t=(S.blink||(this.cover?1:0));this.s.tilt.t=S.tilt||0;this.s.zzz.t=S.zzz||0;this.s.q.t=S.q||0;
     const lk=S.look||this.look;this.s.lookX.t=lk[0];this.s.lookY.t=lk[1];
     const FS=FSTATES[this.state]||{};for(const k in FBASE)this.s['f_'+k].t=(FS[k]!==undefined?FS[k]:FBASE[k]);
@@ -323,12 +327,16 @@ class PaintRig{
     ctx.save();ctx.translate(W/2,ground);ctx.scale(1-lift*.4,.16);ctx.translate(-W/2,-ground);ctx.fillStyle=sg;ctx.beginPath();ctx.arc(W/2,ground,B.w*scale*.5,0,Math.PI*2);ctx.fill();ctx.restore();
     // body
     ctx.save();ctx.translate(W/2+shx,ground+this.jumpY);ctx.rotate((v.tilt+giggle+v.lean)*Math.PI/180);ctx.scale(sx*scale,sy*scale);ctx.translate(-footX,-footY);
-    ctx.drawImage(this.base.canvas,0,0);
+    const FF=this.full||{},waving=this.state==='wave'&&FF.waveA;
+    if(waving){const fr=(FF.waveB&&Math.floor(t*3.4)%2)?FF.waveB:FF.waveA;ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
+    else ctx.drawImage(this.base.canvas,0,0);
     if(this.simple)drawSimpleFace(ctx,this.simple,v,blink,t);
-    if(this.face){const P=this.patches,FB=this.face.box,ox=v.lookX*FB.w*.035,oy=v.lookY*FB.h*.03;
+    if(this.face&&!waving){const P=this.patches,FB=this.face.box,ox=v.lookX*FB.w*.035,oy=v.lookY*FB.h*.03;
       const draw=(ps,a)=>{if(ps&&a>.01){ctx.globalAlpha=Math.min(1,a);for(const p of ps)ctx.drawImage(p.c,p.x+ox,p.y+oy)}};
-      draw(P.neutral,1);draw(P.happy,v.happy);draw(P.worried,v.worried);draw(P.surprised,v.surprised);
-      draw(P.talk,v.talk*(1-v.happy*.5));draw(P.blink,Math.max(blink,v.blinkHold));ctx.globalAlpha=1}
+      draw(P.neutral,1);draw(P.happy,v.happy);draw(P.worried,v.worried);draw(P.surprised,v.surprised);draw(P.confused,v.confused);
+      // lip-sync: snap between closed, "ah" and "oh" mouths (fall back to a fade if a shape is missing)
+      if(this.mouth==='o'&&P.oMouth)draw(P.oMouth,1);else if(this.mouth&&P.talk)draw(P.talk,1);else if(!P.talk)draw(P.talk,v.talk);
+      draw(P.blink,Math.max(blink,v.blinkHold));ctx.globalAlpha=1}
     ctx.restore();
     // extras
     const headY=ground-B.h*scale;
@@ -355,8 +363,9 @@ const rig=new PaintRig($('cv'),{bubble:$('bubble'),onState:s=>{badge.textContent
   b.addEventListener('click',()=>{if(['success','error','surprised','love','wave','confused'].includes(s))rig.react(s);else if(s==='talking'){rig.setState('idle');rig.say(`Hi! I'm ${current.name||'your mascot'}. I was painted, then rigged to move.`)}else rig.setState(s)});statesEl.appendChild(b)});
 const pw=$('tryPw');pw.addEventListener('focus',()=>{rig.cover=true});pw.addEventListener('blur',()=>{rig.cover=false});pw.addEventListener('input',()=>rig.squash.v-=1.2);
 
-const MODES={sheet:{steps:[['sheet','Sheet'],['face','Find face'],['f0','Neutral'],['f1','Blink'],['f2','Happy'],['f3','Talking'],['f4','Worried'],['f5','Surprised']],
-    hint:'Paints all six expressions together in one image so they stay the same character. One image, about $0.05 to $0.20.'},
+const SHEET_NAMES=['neutral','blink','happy','talk','worried','surprised','confused','waveA','waveB'];
+const MODES={sheet:{steps:[['sheet','Sheet'],['face','Find face'],['f0','Neutral'],['f1','Blink'],['f2','Happy'],['f3','Talking'],['f4','Worried'],['f5','Surprised'],['f6','Confused'],['f7','Wave'],['f8','Wave 2']],
+    hint:'Paints all nine poses and expressions together in one image so they stay the same character. One image, about $0.10 to $0.30.'},
   simple:{steps:[['base','Character'],['face','Place face']],hint:'Paints the character with a blank face, then Pip draws the eyes and mouth live, so expressions, blinking, eye-tracking and talking are perfectly smooth. One image, about $0.03 to $0.10. Best for toys, creatures and stylized characters.'}};
 let STEP_LIST=MODES.sheet.steps;
 function renderSteps(mode){STEP_LIST=MODES[mode].steps;stepsEl.innerHTML=STEP_LIST.map(([k,l])=>`<li data-k="${k}" data-s="wait"><span class="th"></span><span>${l}</span></li>`).join('')}
@@ -379,18 +388,21 @@ IMPORTANT: draw the character with a completely BLANK face: NO eyes, NO eyebrows
 ${bgLine(desc)}`}
 function sheetPrompt(desc,style){return `Character expression sheet for an app mascot: ${desc}.
 ${STYLE[style]||STYLE['3d']}.
-Layout: exactly six panels in a grid of 3 columns and 2 rows. Every panel shows the SAME character, full body, standing upright and facing the viewer straight on, in the IDENTICAL pose, at the IDENTICAL size and position within its panel, with the same lighting. Only the facial expression changes between panels; the body, clothing, hair and accessories are identical.
-Panel 1 (top left): neutral, friendly; both eyes open looking at the viewer, mouth closed in a gentle smile.
-Panel 2 (top middle): blinking; eyes gently closed, calm neutral mouth.
-Panel 3 (top right): overjoyed; big open-mouth smile, happy squinting eyes.
-Panel 4 (bottom left): talking; neutral eyes, mouth open as if saying "ah".
-Panel 5 (bottom middle): worried; eyebrows raised and pinched in the middle, small frown.
-Panel 6 (bottom right): shocked; eyes wide open, eyebrows high, small round "O" mouth.
+Layout: exactly nine panels in a grid of 3 columns and 3 rows. Every panel shows the SAME character, full body, standing upright and facing the viewer straight on, at the IDENTICAL size and position within its panel, with the same lighting. The body, clothing, hair and accessories are identical in every panel. In panels 1 to 7 the pose is IDENTICAL and only the facial expression changes.
+Panel 1 (row 1, left): neutral, friendly; both eyes open looking at the viewer, mouth closed in a gentle smile.
+Panel 2 (row 1, middle): blinking; eyes gently closed, calm neutral mouth.
+Panel 3 (row 1, right): overjoyed; big open-mouth smile, happy squinting eyes.
+Panel 4 (row 2, left): talking; neutral eyes, mouth open as if saying "ah".
+Panel 5 (row 2, middle): worried; eyebrows raised and pinched in the middle, small frown.
+Panel 6 (row 2, right): shocked; eyes wide open, eyebrows high, small round "O" mouth.
+Panel 7 (row 3, left): confused; one eyebrow raised and the other lowered, mouth pulled to one side in a puzzled half-frown.
+Panel 8 (row 3, middle): waving hello; the same pose except one hand is raised high beside the head with the palm open toward the viewer; big friendly smile.
+Panel 9 (row 3, right): identical to panel 8 but the raised hand is tilted the other way, as the next moment of the wave.
 Leave clear empty space between panels and around each character. No panel borders, no grid lines, no text, no labels, no numbers.
 ${bgLine(desc)} The background is the same flat colour across the entire sheet.`}
 
 // Split a keyed sheet into separate, equally-sized frames, each standing on the same spot.
-function splitSheet(k){const W=k.canvas.width,H=k.canvas.height,D=4,w=Math.ceil(W/D),h=Math.ceil(H/D);
+function splitSheet(k,cols=3,rows=2){const N=cols*rows,W=k.canvas.width,H=k.canvas.height,D=4,w=Math.ceil(W/D),h=Math.ceil(H/D);
   const a=k.canvas.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data,m=new Uint8Array(w*h);
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=((y*D)*W+x*D)*4+3;m[y*w+x]=a[i]>60?1:0}
   const lab=new Int32Array(w*h),comps=[];let id=0;const q=new Int32Array(w*h);
@@ -400,13 +412,13 @@ function splitSheet(k){const W=k.canvas.width,H=k.canvas.height,D=4,w=Math.ceil(
     comps.push({id,n,x:x0*D,y:y0*D,w:(x1-x0+1)*D,h:(y1-y0+1)*D})}
   comps.sort((a,b)=>b.n-a.n);let big=comps.filter(c=>c.n>comps[0].n*.25);
   // merge small detached bits (a hat tip, a held item) into the nearest big piece
-  if(big.length>6)big=big.slice(0,6);
+  if(big.length>N)big=big.slice(0,N);
   let boxes;
-  if(big.length===6){boxes=big.map(c=>({x:c.x,y:c.y,w:c.w,h:c.h}));
+  if(big.length===N){boxes=big.map(c=>({x:c.x,y:c.y,w:c.w,h:c.h}));
     for(const c of comps){if(big.includes(c)||c.n<comps[0].n*.004)continue;const cx=c.x+c.w/2,cy=c.y+c.h/2;
       const t=boxes.find(b=>cx>b.x-b.w*.15&&cx<b.x+b.w*1.15&&cy>b.y-b.h*.25&&cy<b.y+b.h*1.1);if(t){const x2=Math.max(t.x+t.w,c.x+c.w),y2=Math.max(t.y+t.h,c.y+c.h);t.x=Math.min(t.x,c.x);t.y=Math.min(t.y,c.y);t.w=x2-t.x;t.h=y2-t.y}}
-    boxes.sort((a,b)=>(a.y+a.h/2)-(b.y+b.h/2));const top=boxes.slice(0,3).sort((a,b)=>a.x-b.x),bot=boxes.slice(3).sort((a,b)=>a.x-b.x);boxes=top.concat(bot)}
-  else{boxes=[];for(let r=0;r<2;r++)for(let c=0;c<3;c++){const cx0=c*W/3,cy0=r*H/2;boxes.push(tightBox(a,W,cx0,cy0,W/3,H/2))}}
+    boxes.sort((a,b)=>(a.y+a.h/2)-(b.y+b.h/2));let out=[];for(let r=0;r<rows;r++)out=out.concat(boxes.slice(r*cols,(r+1)*cols).sort((a,b)=>a.x-b.x));boxes=out}
+  else{boxes=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const cx0=c*W/cols,cy0=r*H/rows;boxes.push(tightBox(a,W,cx0,cy0,W/cols,H/rows))}}
   const mg=10,L=Math.ceil(Math.max(...boxes.map(b=>Math.max(b.w,b.h)))+2*mg);
   return boxes.map(b=>{const c=canvasOf(L,L),x=c.getContext('2d');const dx=L/2-(b.x+b.w/2),dy=L-mg-(b.y+b.h);
     x.save();x.beginPath();x.rect(L/2-b.w/2-2,L-mg-b.h-2,b.w+4,b.h+4);x.clip();x.drawImage(k.canvas,dx,dy);x.restore();
@@ -450,9 +462,9 @@ async function paint(){
   const tick=setInterval(()=>{$('go').textContent=`Painting… ${Math.round((Date.now()-t0)/1000)}s`},1000);
   try{
     if(mode==='sheet'){
-      setStatus('Painting all six expressions in one image…','ok');stepState('sheet','work');
-      const r=await withRetry(()=>api({step:'base',prompt:sheetPrompt(desc,style),quality,size:'2304x1536',fallbackSizes:['1536x1024']}),'painting');
-      current={mode,desc,style,quality,sheet:r.image,mime:r.mime,model:r.model};
+      setStatus('Painting all nine poses and expressions in one image…','ok');stepState('sheet','work');
+      const r=await withRetry(()=>api({step:'base',prompt:sheetPrompt(desc,style),quality,size:'2304x2304',fallbackSizes:['2048x2048','1536x1536','1536x1024']}),'painting');
+      current={mode,desc,style,quality,sheet:r.image,mime:r.mime,model:r.model,grid:[3,3]};
       $('meta').textContent=`Image model: ${r.model} · ${r.size}`;
       await loadSheet(current,true);
     }else{
@@ -470,14 +482,20 @@ async function paint(){
 $('go').addEventListener('click',paint);
 
 async function loadSheet(m,fresh){
+  const [cols,rows]=m.grid||[3,2];
   const k=keyOut(await loadImg(b64ToDataUrl(m.sheet,m.mime)));if(fresh)stepState('sheet','done',k.canvas.toDataURL('image/webp',.7));
-  const frames=splitSheet(k),L=frames[0].canvas.width;
+  const frames=splitSheet(k,cols,rows),L=frames[0].canvas.width;
   $('empty').hidden=true;$('badge').hidden=false;rig.simple=null;rig.setBase(frames[0]);if(fresh)frames.forEach((f,i)=>stepState('f'+i,'done',f.canvas.toDataURL('image/webp',.7)));
   let f=m.face;
   if(!f){setStatus('Finding the face…','ok');stepState('face','work');let face=null;
     try{const r=await api({step:'face',image:canvasB64(frames[0].canvas,'image/webp'),mime:'image/webp'});face=r.face}catch(e){if(e.status===401)throw e}
-    f=faceFrom(face,L,frames[0].bbox);m.face=f;stepState('face',face?'done':'fail')}
-  rig.setFace(f);['blink','happy','talk','worried','surprised'].forEach((n,i)=>rig.addExpr(n,frames[i+1]))}
+    f=faceFrom(face,L,frames[0].bbox);m.face=f;stepState('face',face?'done':'fail',faceThumb(frames[0],f))}
+  rig.setFace(f);
+  frames.forEach((fr,i)=>{const n=SHEET_NAMES[i];if(!n||n==='neutral')return;if(n.startsWith('wave'))rig.addFull(n,fr);else rig.addExpr(n,fr)});
+  document.querySelector('#states [data-s="wave"]').title=rig.full&&rig.full.waveA?'':'Paint a new sheet to get a real wave'}
+function faceThumb(fr,f){const c=canvasOf(fr.canvas.width,fr.canvas.height),x=c.getContext('2d');x.drawImage(fr.canvas,0,0);x.lineWidth=Math.max(2,c.width/120);
+  const box=(b,col)=>{if(!b)return;x.strokeStyle=col;x.strokeRect(b.x,b.y,b.w,b.h)};box(f.box,'#FFC23D');(f.eyes||[]).forEach(e=>box(e,'#6E9BFF'));box(f.mouth,'#FF6B7A');
+  return c.toDataURL('image/webp',.7)}
 async function loadSimple(m,fresh){
   const k=keyOut(await loadImg(b64ToDataUrl(m.base,m.mime)));$('empty').hidden=true;$('badge').hidden=false;rig.face=null;rig.patches={};rig.setBase(k);
   if(fresh)stepState('base','done',k.canvas.toDataURL('image/webp',.7));
