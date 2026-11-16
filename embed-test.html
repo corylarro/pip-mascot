@@ -32,5 +32,10 @@
   <!-- The only two lines added for the mascot -->
   <script src="/pip-mascot.js"></script>
   <pip-mascot autopilot greet></pip-mascot>
+  <script>
+    // Testing helper: /embed-test?mascot=ID swaps in a saved painted mascot.
+    var id=new URLSearchParams(location.search).get('mascot');
+    if(id){var old=document.querySelector('pip-mascot'),m=document.createElement('pip-mascot');m.setAttribute('mascot',id);m.setAttribute('autopilot','');m.setAttribute('greet','');m.style.setProperty('--pip-size','150px');old.replaceWith(m)}
+  </script>
 </body>
 </html>

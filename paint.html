@@ -129,7 +129,7 @@ a.ghost{display:inline-flex;align-items:center;text-decoration:none;border-radiu
     <button type="button" class="primary" id="save">Save and get the code</button>
     <p class="hint" id="saveMsg"></p>
     <pre class="snippet" id="snippet" hidden></pre>
-    <div class="row" id="useActions" hidden><button type="button" class="ghost" id="copySnip">Copy code</button><a class="ghost" href="/#live" id="tryLive">See it in the Taskly demo</a></div>
+    <div class="row" id="useActions" hidden><button type="button" class="ghost" id="copySnip">Copy code</button><a class="ghost" href="/#live" id="tryLive">See it in the Taskly demo</a><a class="ghost" href="/embed-test" id="tryPlain" target="_blank" rel="noopener">Try it on a plain page</a></div>
   </section>
 
   <section class="card" aria-labelledby="ctl">
@@ -268,7 +268,7 @@ async function loadSimple(m,fresh){
 async function reencode(b64,mime){const im=await loadImg(b64ToDataUrl(b64,mime)),c=canvasOf(im.naturalWidth,im.naturalHeight);c.getContext('2d').drawImage(im,0,0);
   let q=.9,out=canvasB64(c,'image/webp');for(const qq of [.88,.8,.7]){q=qq;out=c.toDataURL('image/webp',q).split(',')[1];if(out.length<3000000)break}return out}
 function showSnippet(id){const code=`<script src="${location.origin}/pip-mascot.js"><\/script>\n<pip-mascot mascot="${id}" autopilot greet></pip-mascot>`;
-  $('snippet').textContent=code;$('snippet').hidden=false;$('useActions').hidden=false;$('save').textContent='Save again as a new copy';
+  $('snippet').textContent=code;$('snippet').hidden=false;$('tryPlain').href='/embed-test?mascot='+encodeURIComponent(id);$('useActions').hidden=false;$('save').textContent='Save again as a new copy';
   try{localStorage.setItem('pip-painted-id',id);localStorage.setItem('pip-painted-name',$('mname').value.trim()||'Painted mascot')}catch(e){}}
 function showUse(){$('useCard').hidden=false;if(current.savedId){$('mname').value=current.name||'';showSnippet(current.savedId);$('saveMsg').textContent='Saved. Paste this into your site, before the closing </body> tag.'}
   else{$('snippet').hidden=true;$('useActions').hidden=true;$('save').textContent='Save and get the code';$('saveMsg').textContent=''}}
