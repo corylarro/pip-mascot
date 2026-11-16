@@ -110,7 +110,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
         <select id="quality"><option value="low">Draft (cheapest)</option><option value="medium" selected>Standard</option><option value="high">High (slower)</option></select></div>
     </div>
     <div class="field" id="passWrap" hidden><label for="pass">Passcode</label><input type="password" id="pass" autocomplete="off" placeholder="The PAINT_PASSCODE you set in Vercel"></div>
-    <button type="button" class="primary" id="go">Paint it</button>
+    <div class="row"><button type="button" class="primary" id="go" style="flex:1">Paint it</button><button type="button" class="ghost" id="redo" disabled title="Keep this character and only repaint its expressions">Redo expressions</button></div>
     <p class="hint" id="status">Painting makes about 6 images on your OpenAI account (roughly $0.20 to $0.50 at Standard) and takes 1 to 3 minutes.</p>
     <ol class="steps" id="steps"></ol>
   </section>
@@ -160,6 +160,15 @@ function keyOut(img){
 function b64ToDataUrl(b64,mime){return `data:${mime||'image/webp'};base64,${b64}`}
 function canvasB64(c,type){return c.toDataURL(type||'image/png').split(',')[1]}
 
+/* Find the small shift that lines a repainted frame up with the original, using the body (not the face). */
+function alignFrames(base,frame,face){const S=256,f=S/1024,gray=c=>{const t=canvasOf(S,S),x=t.getContext('2d',{willReadFrequently:true});x.fillStyle='#808080';x.fillRect(0,0,S,S);x.drawImage(c,0,0,S,S);
+    const d=x.getImageData(0,0,S,S).data,g=new Float32Array(S*S);for(let i=0;i<S*S;i++)g[i]=d[i*4]*.3+d[i*4+1]*.59+d[i*4+2]*.11;return g};
+  const A=gray(base.canvas),B=gray(frame.canvas),bb=base.bbox,ex={x:(face.x-face.w*.4)*f,y:(face.y-face.h*.5)*f,x2:(face.x+face.w*1.4)*f,y2:(face.y+face.h*1.5)*f};
+  const pts=[];for(let y=Math.max(4,bb.y*f);y<Math.min(S-4,(bb.y+bb.h)*f);y+=2)for(let x=Math.max(4,bb.x*f);x<Math.min(S-4,(bb.x+bb.w)*f);x+=2){if(x>ex.x&&x<ex.x2&&y>ex.y&&y<ex.y2)continue;pts.push(y*S+x)}
+  let best={e:1e18,dx:0,dy:0};const R=12;
+  for(let dy=-R;dy<=R;dy++)for(let dx=-R;dx<=R;dx++){let e=0;for(const p of pts){const q=p+dy*S+dx;e+=Math.abs(A[p]-(B[q]===undefined?128:B[q]))}if(e<best.e)best={e,dx,dy}}
+  return {dx:best.dx/f,dy:best.dy/f}}
+
 /* ---------- the painted rig ---------- */
 class Spring{constructor(x,k=170,d=20){this.x=x;this.v=0;this.t=x;this.k=k;this.d=d}step(dt){const a=this.k*(this.t-this.x)-this.d*this.v;this.v+=a*dt;this.x+=this.v*dt;return this.x}}
 const EXPRS=['happy','worried','surprised','talk','blink'];
@@ -169,7 +178,7 @@ class PaintRig{
   constructor(canvas,{bubble,onState}={}){
     this.cv=canvas;this.ctx=canvas.getContext('2d');this.bubble=bubble;this.onState=onState||(()=>{});
     this.base=null;this.patches={};this.face=null;
-    this.s={happy:new Spring(0,140,18),worried:new Spring(0,140,18),surprised:new Spring(0,160,18),talk:new Spring(0,700,32),blinkHold:new Spring(0,200,22),
+    this.s={happy:new Spring(0,520,44),worried:new Spring(0,520,44),surprised:new Spring(0,560,46),talk:new Spring(0,700,32),blinkHold:new Spring(0,200,22),
       lookX:new Spring(0,120,16),lookY:new Spring(0,120,16),tilt:new Spring(0,90,12),lean:new Spring(0,90,12),zzz:new Spring(0),q:new Spring(0)};
     this.squash=new Spring(1,320,13);this.state='idle';this.look=[0,0];this.timer=null;this.cover=false;
     this.jumpY=0;this.jumpV=0;this.shake=0;this.t=0;this.nextBlink=1.2;this.blinkStart=-1;this.parts=[];this.pokes=[];this.lastAct=performance.now();this.lastPointer=0;this.nextGlance=0;
@@ -183,22 +192,32 @@ class PaintRig{
   _resize(){const r=this.cv.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2.5);this.cv.width=Math.round(r.width*dpr);this.cv.height=Math.round(r.height*dpr);this.dpr=dpr;this.W=r.width;this.H=r.height}
   _act(){this.lastAct=performance.now();if(this.state==='sleeping')this.setState('idle'),this.hop(160)}
   setBase(k){this.base=k;this.patches={};this.hop(220)}
-  setFace(box){this.face=box;if(this.base)this.patches.neutral=this._patch(this.base.canvas,this.base.bbox)}
-  addExpr(name,k){if(!this.base||!this.face)return;this.patches[name]=this._patch(k.canvas,k.bbox);if(name==='happy'&&this.state==='idle')this.react('success',1400)}
-  // Cut a feathered face patch out of a frame, aligned to the base character.
-  _patch(src,bb){const B=this.base.bbox,F=this.face;
-    const sx=B.w/bb.w,sy=B.h/bb.h,ox=B.x-bb.x*sx,oy=B.y-bb.y*sy;
-    const pad=.32,px=F.x-F.w*pad,py=F.y-F.h*pad,pw=F.w*(1+2*pad),ph=F.h*(1+2*pad);
-    const c=canvasOf(Math.ceil(pw),Math.ceil(ph)),x=c.getContext('2d');
-    x.setTransform(sx,0,0,sy,ox-px,oy-py);x.drawImage(src,0,0);x.setTransform(1,0,0,1,0,0);
+  // face: {box, eyes:[box], mouth:box} in 1024px image coordinates
+  setFace(f){this.face=f.box?f:{box:f};const F=this.face,B=F.box;
+    if(F.eyes&&F.eyes.length){const xs=F.eyes.map(e=>e.x),ys=F.eyes.map(e=>e.y),x2=F.eyes.map(e=>e.x+e.w),y2=F.eyes.map(e=>e.y+e.h);
+      const x=Math.min(...xs),y=Math.min(...ys),w=Math.max(...x2)-x,h=Math.max(...y2)-y,eh=Math.max(h,B.h*.12);
+      F.eyeR={x:x-Math.max(w*.18,eh*.6),y:y-eh*1.05,w:w+2*Math.max(w*.18,eh*.6),h:eh*2.3}}
+    if(F.mouth&&F.mouth.w>0){const m=F.mouth;F.mouthR={x:m.x-m.w*.45,y:m.y-m.h*.55,w:m.w*1.9,h:m.h*2.1}}
+    if(!F.eyeR||!F.mouthR){F.eyeR=null;F.mouthR=null}
+    this.pos={};if(this.base){this.patches.neutral=this._patches(this.base.canvas,'neutral',{dx:0,dy:0})}}
+  regionsFor(name){const F=this.face;if(!F.eyeR)return [F.box];if(name==='blink')return [F.eyeR];if(name==='talk')return [F.mouthR];if(name==='neutral')return [F.eyeR,F.mouthR];return [F.eyeR,F.mouthR]}
+  addExpr(name,k){if(!this.base||!this.face)return;const off=alignFrames(this.base,k,this.face.box);this.patches[name]=this._patches(k.canvas,name,off);
+    if(name==='happy'&&this.state==='idle')this.react('success',1400)}
+  _patches(src,name,off){return this.regionsFor(name).map(R=>this._patch(src,R,off,name!=='neutral'))}
+  // Cut a feathered patch, shifted into register with the base, colour-matched to it.
+  _patch(src,R,off,match){const pad=.18,px=R.x-R.w*pad,py=R.y-R.h*pad,pw=Math.ceil(R.w*(1+2*pad)),ph=Math.ceil(R.h*(1+2*pad));
+    const c=canvasOf(pw,ph),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(src,-(px+off.dx),-(py+off.dy));
+    if(match){const bc=canvasOf(pw,ph),bx=bc.getContext('2d',{willReadFrequently:true});bx.drawImage(this.base.canvas,-px,-py);
+      const a=x.getImageData(0,0,pw,ph),bb=bx.getImageData(0,0,pw,ph);const sa=[0,0,0],sb=[0,0,0];let n=0;
+      for(let yy=0;yy<ph;yy+=2)for(let xx=0;xx<pw;xx+=2){const nx=(xx/pw-.5)*2,ny=(yy/ph-.5)*2,r=nx*nx+ny*ny;if(r<.6||r>1)continue;const i=(yy*pw+xx)*4;
+        if(a.data[i+3]<200||bb.data[i+3]<200)continue;for(let k=0;k<3;k++){sa[k]+=a.data[i+k];sb[k]+=bb.data[i+k]}n++}
+      if(n>20){const g=[0,1,2].map(k=>clamp(sb[k]/Math.max(1,sa[k]),.82,1.2));for(let i=0;i<a.data.length;i+=4)for(let k=0;k<3;k++)a.data[i+k]=clamp(a.data[i+k]*g[k],0,255);x.putImageData(a,0,0)}}
     x.globalCompositeOperation='destination-in';x.save();x.translate(pw/2,ph/2);x.scale(1,ph/pw);
-    const g=x.createRadialGradient(0,0,0,0,0,pw/2);g.addColorStop(0,'#000');g.addColorStop(.8,'#000');g.addColorStop(1,'rgba(0,0,0,0)');
-    x.fillStyle=g;x.fillRect(-pw/2,-pw/2,pw,pw);x.restore();
-    // keep only pixels that are part of the character (avoid painting background-coloured halos)
-    return {c,x:px,y:py}}
+    const gr=x.createRadialGradient(0,0,0,0,0,pw/2);gr.addColorStop(0,'#000');gr.addColorStop(.62,'#000');gr.addColorStop(1,'rgba(0,0,0,0)');
+    x.fillStyle=gr;x.fillRect(-pw/2,-pw/2,pw,pw);x.restore();return {c,x:px,y:py}}
   setState(n){clearTimeout(this.timer);this._enter(n)}
   react(n,ms=2300){this._enter(n);clearTimeout(this.timer);this.timer=setTimeout(()=>this._enter('idle'),ms)}
-  _enter(n){if(!STATES[n])return;this.state=n;this.onState(n);
+  _enter(n){if(!STATES[n])return;if(n!==this.state)this.squash.v-=1.8;this.state=n;this.onState(n);
     if(n==='success'){this.hop(360);setTimeout(()=>this.hop(250),560);this.burst('confetti')}
     if(n==='error'){this.shake=10;this.squash.v-=3}
     if(n==='surprised'){this.hop(220);this.squash.v+=2}
@@ -239,8 +258,8 @@ class PaintRig{
     // body
     ctx.save();ctx.translate(W/2+shx,ground+this.jumpY);ctx.rotate((v.tilt+giggle+v.lean)*Math.PI/180);ctx.scale(sx*scale,sy*scale);ctx.translate(-footX,-footY);
     ctx.drawImage(this.base.canvas,0,0);
-    if(this.face){const P=this.patches,ox=v.lookX*this.face.w*.06,oy=v.lookY*this.face.h*.05;
-      const draw=(p,a)=>{if(p&&a>.01){ctx.globalAlpha=Math.min(1,a);ctx.drawImage(p.c,p.x+ox,p.y+oy)}};
+    if(this.face){const P=this.patches,FB=this.face.box,ox=v.lookX*FB.w*.035,oy=v.lookY*FB.h*.03;
+      const draw=(ps,a)=>{if(ps&&a>.01){ctx.globalAlpha=Math.min(1,a);for(const p of ps)ctx.drawImage(p.c,p.x+ox,p.y+oy)}};
       draw(P.neutral,1);draw(P.happy,v.happy);draw(P.worried,v.worried);draw(P.surprised,v.surprised);
       draw(P.talk,v.talk*(1-v.happy*.5));draw(P.blink,Math.max(blink,v.blinkHold));ctx.globalAlpha=1}
     ctx.restore();
@@ -293,7 +312,8 @@ const EXPR={
   worried:'worried and upset: eyebrows raised and pinched in the middle, a small frown, nervous eyes',
   surprised:'shocked: eyes wide open, eyebrows very high, a small round open "O" mouth'};
 function editPrompt(name){return `Change ONLY the facial expression of this exact character to: ${EXPR[name]}.
-Keep everything else identical: the same character, pose, body, proportions, colors, materials, lighting, camera angle, framing and the same flat background color. The face stays in exactly the same place and size.`}
+This must be recognisably the SAME individual: identical face shape, age, skin tone, nose, eye shape and eye colour, eyebrow shape and colour, facial hair, hair, ears and headwear. Only the eyelids, eyebrows' angle and mouth may move.
+Keep everything else pixel-identical: pose, body, clothing, proportions, colours, materials, lighting, camera angle, framing, and the same flat background colour. The face stays in exactly the same place and size.`}
 
 let current={},busy=false;
 async function api(body){const pass=$('pass').value.trim();
@@ -310,50 +330,60 @@ function explain(e){const m=(e&&e.msg)||String(e);
   if(e&&e.status===404&&/api\/paint/.test(m))return 'The painting server isn’t deployed here. Open this page on your Vercel site.';
   return 'Painting failed: '+m}
 
+function lockUi(on,label){busy=on;$('go').disabled=on;$('redo').disabled=on||!current.base;if(!on){$('go').textContent='Paint it';$('redo').textContent='Redo expressions'}}
 async function paint(){
   if(busy)return;const desc=$('desc').value.trim();if(!desc){setStatus('Describe your character first, like “a sleepy baby dragon barista”.','err');$('desc').focus();return}
-  busy=true;$('go').disabled=true;renderSteps();const t0=Date.now();const quality=$('quality').value,style=$('style').value;
+  lockUi(true);renderSteps();const t0=Date.now();const quality=$('quality').value,style=$('style').value;
   const tick=setInterval(()=>{$('go').textContent=`Painting… ${Math.round((Date.now()-t0)/1000)}s`},1000);
   try{
     setStatus('Painting your character…','ok');stepState('base','work');
     const b=await withRetry(()=>api({step:'base',prompt:basePrompt(desc,style),quality}),'painting');
-    const baseUrl=b64ToDataUrl(b.image,b.mime);const baseImg=await loadImg(baseUrl);const keyed=keyOut(baseImg);
-    current={name:'',desc,style,base:b.image,mime:b.mime,model:b.model,exprs:{}};
+    const keyed=keyOut(await loadImg(b64ToDataUrl(b.image,b.mime)));
+    current={name:'',desc,style,quality,base:b.image,mime:b.mime,model:b.model,exprs:{}};
     $('empty').hidden=true;$('badge').hidden=false;rig.setBase(keyed);stepState('base','done',keyed.canvas.toDataURL('image/webp',.8));
     $('meta').textContent=`Image model: ${b.model}`;
-
-    setStatus('Finding the face…','ok');stepState('face','work');
-    let face;try{const f=await api({step:'face',image:b.image,mime:b.mime});face=f.face;$('meta').textContent+=` · Vision: ${f.model}`}catch(e){face=null}
-    const S=1024,bb=keyed.bbox;let box;
-    if(face&&face.face&&face.face.w>0){const F=face.face;box={x:F.x*S,y:F.y*S,w:F.w*S,h:F.h*S}}
-    else box={x:bb.x+bb.w*.2,y:bb.y+bb.h*.14,w:bb.w*.6,h:bb.h*.38};
-    box.w=Math.max(box.w,bb.w*.18);box.h=Math.max(box.h,bb.h*.12);
-    current.face=box;rig.setFace(box);stepState('face',face?'done':'fail');
-
-    // mask: transparent where the model may repaint (the face), opaque elsewhere
-    const mc=canvasOf(S,S),mx=mc.getContext('2d');mx.fillStyle='#000';mx.fillRect(0,0,S,S);
-    const ex=.3;mx.clearRect(box.x-box.w*ex,box.y-box.h*ex,box.w*(1+2*ex),box.h*(1+2*ex));const mask=canvasB64(mc,'image/png');
-    setStatus('Painting expressions. Each one appears as soon as it’s ready…','ok');
-    const queue=['blink','happy','talk','worried','surprised'];let failed=0;
-    const worker=async()=>{while(queue.length){const name=queue.shift();stepState(name,'work');
-      try{const r=await withRetry(()=>api({step:'edit',image:b.image,mime:b.mime,mask,prompt:editPrompt(name),quality,model:b.model}),name);
-        const im=await loadImg(b64ToDataUrl(r.image,r.mime));const k=keyOut(im);rig.addExpr(name,k);current.exprs[name]=r.image;
-        stepState(name,'done',k.canvas.toDataURL('image/webp',.8))}
-      catch(e){failed++;stepState(name,'fail');if(e.status===401||/verif|billing|quota|credit/i.test(e.msg||''))throw e}}};
-    await Promise.all([worker(),worker()]);
-    DB.put(current);
-    const secs=Math.round((Date.now()-t0)/1000);
-    setStatus(failed?`Done in ${secs}s, but ${failed} expression${failed>1?'s':''} failed. It still works with the rest.`:`Done in ${secs}s. Tap it, type a password, or try the reactions below.`,failed?'err':'ok');
-    rig.react('wave',1800);rig.say('Ta-da! I was painted, then rigged.');
-  }catch(e){setStatus(explain(e),'err');STEP_LIST.forEach(([k])=>{const li=stepsEl.querySelector(`[data-k="${k}"]`);if(li&&li.dataset.s==='work')li.dataset.s='fail'})}
-  finally{clearInterval(tick);busy=false;$('go').disabled=false;$('go').textContent='Paint it'}}
-$('go').addEventListener('click',paint);
+    await paintExpressions(keyed,quality,t0);
+  }catch(e){failSteps(e)}
+  finally{clearInterval(tick);lockUi(false)}}
+async function redoExpressions(){
+  if(busy||!current.base)return;lockUi(true);renderSteps();const t0=Date.now();
+  const tick=setInterval(()=>{$('redo').textContent=`Repainting… ${Math.round((Date.now()-t0)/1000)}s`},1000);
+  try{const keyed=keyOut(await loadImg(b64ToDataUrl(current.base,current.mime)));rig.setBase(keyed);stepState('base','done',keyed.canvas.toDataURL('image/webp',.8));
+    current.exprs={};await paintExpressions(keyed,$('quality').value,t0)}
+  catch(e){failSteps(e)}finally{clearInterval(tick);lockUi(false)}}
+function failSteps(e){setStatus(explain(e),'err');STEP_LIST.forEach(([k])=>{const li=stepsEl.querySelector(`[data-k="${k}"]`);if(li&&li.dataset.s==='work')li.dataset.s='fail'})}
+async function paintExpressions(keyed,quality,t0){
+  setStatus('Finding the face…','ok');stepState('face','work');
+  let face=null;try{const f=await api({step:'face',image:current.base,mime:current.mime});face=f.face;$('meta').textContent=`Image model: ${current.model||'?'} · Vision: ${f.model}`}catch(e){if(e.status===401)throw e}
+  const S=1024,bb=keyed.bbox;let box;
+  if(face&&face.face&&face.face.w>0){const F=face.face;box={x:F.x*S,y:F.y*S,w:F.w*S,h:F.h*S}}
+  else box={x:bb.x+bb.w*.2,y:bb.y+bb.h*.14,w:bb.w*.6,h:bb.h*.38};
+  box.w=Math.max(box.w,bb.w*.18);box.h=Math.max(box.h,bb.h*.12);
+  const px=b=>b&&b.w>0?{x:b.x*S,y:b.y*S,w:b.w*S,h:b.h*S}:null;
+  const fInfo={box,eyes:face&&Array.isArray(face.eyes)?face.eyes.map(px).filter(Boolean):[],mouth:face?px(face.mouth):null};
+  current.face=fInfo;rig.setFace(fInfo);stepState('face',face?'done':'fail');
+  // mask: transparent where the model may repaint (the face), opaque elsewhere
+  const mc=canvasOf(S,S),mx=mc.getContext('2d');mx.fillStyle='#000';mx.fillRect(0,0,S,S);
+  const ex=.3;mx.clearRect(box.x-box.w*ex,box.y-box.h*ex,box.w*(1+2*ex),box.h*(1+2*ex));const mask=canvasB64(mc,'image/png');
+  setStatus('Painting expressions. Each one appears as soon as it’s ready…','ok');
+  const queue=['blink','happy','talk','worried','surprised'];let failed=0;
+  const worker=async()=>{while(queue.length){const name=queue.shift();stepState(name,'work');
+    try{const r=await withRetry(()=>api({step:'edit',image:current.base,mime:current.mime,mask,prompt:editPrompt(name),quality,model:current.model}),name);
+      const k=keyOut(await loadImg(b64ToDataUrl(r.image,r.mime)));rig.addExpr(name,k);current.exprs[name]=r.image;
+      stepState(name,'done',k.canvas.toDataURL('image/webp',.8))}
+    catch(e){failed++;stepState(name,'fail');if(e.status===401||/verif|billing|quota|credit/i.test(e.msg||''))throw e}}};
+  await Promise.all([worker(),worker()]);
+  DB.put(current);
+  const secs=Math.round((Date.now()-t0)/1000);
+  setStatus(failed?`Done in ${secs}s, but ${failed} expression${failed>1?'s':''} failed. It still works with the rest.`:`Done in ${secs}s. Tap it, type a password, or try the reactions below.`,failed?'err':'ok');
+  rig.react('wave',1800);rig.say('Ta-da! I was painted, then rigged.')}
+$('go').addEventListener('click',paint);$('redo').addEventListener('click',redoExpressions);
 
 // restore the last painted mascot for free
 (async()=>{const m=await DB.get();if(!m||!m.base)return;try{
   current=m;$('desc').value=m.desc||'';const k=keyOut(await loadImg(b64ToDataUrl(m.base,m.mime)));$('empty').hidden=true;$('badge').hidden=false;rig.setBase(k);
   if(m.face){rig.setFace(m.face);for(const [n,b64] of Object.entries(m.exprs||{}))rig.addExpr(n,keyOut(await loadImg(b64ToDataUrl(b64,m.mime))))}
-  setStatus('Loaded your last painted mascot. Painting a new one replaces it.','ok');$('meta').textContent=m.model?`Image model: ${m.model}`:''}catch(e){}})();
+  $('redo').disabled=false;setStatus('Loaded your last painted mascot. “Redo expressions” keeps this character and repaints only its faces (about 5 images).','ok');$('meta').textContent=m.model?`Image model: ${m.model}`:''}catch(e){}})();
 })();
 </script>
 </body>

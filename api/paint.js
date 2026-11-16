@@ -32,7 +32,7 @@ function parseJson(t) {
 const FACE_PROMPT = `This image shows one cartoon mascot character on a plain background. Locate its face features.
 Reply with ONLY this JSON (no prose). All numbers are fractions of the image width/height from 0 to 1; x,y is the top-left corner of each box:
 {"face":{"x":0,"y":0,"w":0,"h":0},"eyes":[{"x":0,"y":0,"w":0,"h":0}],"mouth":{"x":0,"y":0,"w":0,"h":0}}
-"face" must tightly cover the eyes, eyebrows and mouth (not the whole head, ears or hair). List every visible eye.`;
+"face" must tightly cover the eyes, eyebrows and mouth (not the whole head, ears or hair). List every visible eye, left to right. Each eye box covers just that eye (not the eyebrow). The mouth box covers just the lips/mouth opening, even if partly hidden by a beard.`;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST.' }); return; }
@@ -66,17 +66,18 @@ export default async function handler(req, res) {
       const models = uniq([b.model, ...IMAGE_MODELS()]);
       let last = null;
       for (const model of models) {
-        for (const useMask of mask ? [true, false] : [false]) {
+        for (const [useMask, hiFi] of (mask ? [[true, true], [true, false], [false, false]] : [[false, true], [false, false]])) {
           const fd = new FormData();
           fd.append('model', model);
           fd.append('prompt', String(b.prompt || '').slice(0, 4000));
           fd.append('image', new Blob([img], { type: b.mime || 'image/webp' }), 'image.webp');
           if (useMask) fd.append('mask', new Blob([mask], { type: 'image/png' }), 'mask.png');
           fd.append('size', '1024x1024'); fd.append('quality', quality); fd.append('output_format', 'webp'); fd.append('n', '1');
+          if (hiFi) fd.append('input_fidelity', 'high');
           const r = await call(`${API}/images/edits`, { method: 'POST', headers: auth, body: fd });
-          if (r.ok && r.json && r.json.data && r.json.data[0]) { res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model, masked: useMask }); return; }
+          if (r.ok && r.json && r.json.data && r.json.data[0]) { res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model, masked: useMask, hiFi }); return; }
           last = r;
-          if (useMask && /mask/i.test(r.msg || '')) continue;   // retry this model without the mask
+          if (/input_fidelity|fidelity/i.test(r.msg || '') || (useMask && /mask/i.test(r.msg || ''))) continue;   // retry this model without the optional parameter
           break;
         }
         if (!tryNext(last.status, last.msg)) break;
