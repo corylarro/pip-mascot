@@ -22,9 +22,10 @@ function palette(hex){let [h,s,l]=hexToHsl(hex);l=clamp(l,46,86);s=clamp(s,22,95
   return {base:hsl(h,s,l),light:hsl(h,s*.85,Math.min(l+15,95)),shade:hsl(h,Math.min(s+6,100),l-15),deep:hsl(h,Math.min(s+8,100),l-24),
     outline:hsl(h,clamp(s*.55,22,48),15)}}
 
-const OPT={shape:['bean','round','tall','cube','pear'],topper:['none','sprout','antenna','cat','bunny','horns','tuft'],
-  eyes:['round','tall','small','cyclops'],pattern:['none','belly','spots','stripes'],accessory:['none','glasses','bowtie','crown','headphones']};
-const DEFAULT={name:'Pip',shape:'bean',color:'#FFC23D',accent:'#6BCB77',eyeColor:'#5A3A1E',topper:'sprout',eyes:'round',pattern:'none',accessory:'none',tooth:false,hat:'',item:'',greeting:"Hi, I'm Pip!"};
+const OPT={shape:['bean','round','tall','cube','pear','custom'],topper:['none','sprout','antenna','cat','bunny','horns','tuft'],
+  eyes:['round','tall','small','dot','anime','cyclops'],pattern:['none','belly','spots','stripes'],accessory:['none','glasses','bowtie','crown','headphones'],
+  style:['glossy','flat','soft','bold'],hands:['mitten','nub','none'],feet:['feet','none']};
+const DEFAULT={name:'Pip',shape:'bean',color:'#FFC23D',accent:'#6BCB77',eyeColor:'#5A3A1E',topper:'sprout',eyes:'round',pattern:'none',accessory:'none',style:'glossy',hands:'mitten',feet:'feet',tooth:false,hat:'',item:'',body:null,greeting:"Hi, I'm Pip!"};
 const HEX=/^#[0-9a-f]{6}$/i;
 const TAGS=new Set(['g','path','circle','ellipse','rect','line','polyline','polygon']);
 const ATTRS=new Set(['d','cx','cy','r','rx','ry','x','y','width','height','x1','y1','x2','y2','points','fill','stroke','stroke-width','stroke-linecap','stroke-linejoin','opacity','fill-opacity','stroke-opacity','transform']);
@@ -48,7 +49,20 @@ function sanitize(c){c=c||{};const d=DEFAULT,o={};
   o.color=HEX.test(c.color)?c.color:d.color;o.accent=HEX.test(c.accent)?c.accent:d.accent;o.eyeColor=HEX.test(c.eyeColor)?c.eyeColor:d.eyeColor;
   o.name=String(typeof c.name==='string'&&c.name.trim()?c.name.trim():d.name).slice(0,16);
   o.greeting=String(typeof c.greeting==='string'&&c.greeting.trim()?c.greeting.trim():`Hi, I'm ${o.name}!`).slice(0,90);
-  o.tooth=!!c.tooth;o.hat=cleanSvg(c.hat);o.item=cleanSvg(c.item);return o}
+  o.tooth=!!c.tooth;o.hat=cleanSvg(c.hat);o.item=cleanSvg(c.item);o.body=cleanBody(c.body);
+  if(o.shape==='custom'&&!o.body)o.shape='bean';return o}
+const num=(v,a,b,d)=>{v=Number(v);return isFinite(v)?clamp(v,a,b):d};
+function cleanBody(b){if(!b||typeof b!=='object'||typeof b.d!=='string')return null;const d=b.d.trim();
+  if(!PATHD.test(d)||d.length>6000||!/^[Mm]/.test(d))return null;
+  return {d,eyeY:num(b.eyeY,60,170,120),spacing:num(b.spacing,0,40,24),eyeSize:num(b.eyeSize,.6,1.4,1),mouthY:num(b.mouthY,90,195,155),
+    back:cleanSvg(b.back),marks:cleanSvg(b.marks)}}
+let MS=null;const bboxCache={};
+function measure(d){if(bboxCache[d])return bboxCache[d];try{if(!MS){MS=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  MS.setAttribute('style','position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;visibility:hidden');MS.innerHTML='<path/>';document.documentElement.appendChild(MS)}
+  const p=MS.firstChild;p.setAttribute('d',d);const b=p.getBBox();if(!b.width||!b.height)return null;return bboxCache[d]={x:b.x,y:b.y,width:b.width,height:b.height}}catch(e){return null}}
+function customGeom(b){const bb=measure(b.d);if(!bb)return null;const shift=206-(bb.y+bb.height),top=bb.y+shift,sideL=bb.x,sideR=bb.x+bb.width;
+  const eyeY=clamp(b.eyeY+shift,top+22,170),mouthY=clamp(b.mouthY+shift,eyeY+16,194);
+  return {d:b.d,shift,top,eyeY,dx:clamp(b.spacing,8,Math.max(10,(sideR-sideL)/2-16)),mouthY,sideL,sideR,handY:clamp(eyeY+46,eyeY+28,188),ex:clamp(bb.width*.24,18,44)}}
 
 const SHAPES={
   bean:{d:'M120 58 C172 58 202 100 202 146 C202 186 166 206 120 206 C74 206 38 186 38 146 C38 100 68 58 120 58 Z',top:58,eyeY:124,dx:25,mouthY:158,sideL:42,sideR:198,handY:170,ex:34},
@@ -57,12 +71,18 @@ const SHAPES={
   cube:{d:'M80 66 L160 66 C182 66 196 80 196 102 L196 176 C196 196 184 206 162 206 L78 206 C56 206 44 196 44 176 L44 102 C44 80 58 66 80 66 Z',top:66,eyeY:122,dx:28,mouthY:156,sideL:44,sideR:196,handY:170,ex:42},
   pear:{d:'M120 64 C152 64 166 90 170 116 C175 146 204 162 200 188 C197 204 162 208 120 208 C78 208 43 204 40 188 C36 162 65 146 70 116 C74 90 88 64 120 64 Z',top:64,eyeY:110,dx:21,mouthY:142,sideL:44,sideR:196,handY:180,ex:24}
 };
-const EYES={round:{rx:16,ry:19,ir:10.5,adj:0},tall:{rx:12.5,ry:21,ir:9,adj:-3},small:{rx:9.5,ry:11,ir:7,adj:1},cyclops:{rx:24,ry:26,ir:14,adj:0}};
+const EYES={round:{rx:16,ry:19,ir:10.5,adj:0},tall:{rx:12.5,ry:21,ir:9,adj:-3},small:{rx:9.5,ry:11,ir:7,adj:1},cyclops:{rx:24,ry:26,ir:14,adj:0},
+  dot:{rx:7.5,ry:9.5,ir:0,adj:4,dark:true},anime:{rx:15,ry:22,ir:12.5,adj:-1,sparkle:true}};
 const heartD=(cx,cy,r)=>`M${cx} ${cy+r*.95} C${cx-r*1.5} ${cy+r*.05} ${cx-r*1.15} ${cy-r*1.2} ${cx} ${cy-r*.42} C${cx+r*1.15} ${cy-r*1.2} ${cx+r*1.5} ${cy+r*.05} ${cx} ${cy+r*.95} Z`;
 
 function render(cfg,uid){
-  const P=palette(cfg.color),G=SHAPES[cfg.shape],E=EYES[cfg.eyes],acc=cfg.accent,ol=P.outline,t=G.top,u=uid;
-  const eyes=cfg.eyes==='cyclops'?[{cx:120,cy:G.eyeY+2,rx:E.rx,ry:E.ry,ir:E.ir}]:[-1,1].map(s=>({cx:120+s*(G.dx+E.adj),cy:G.eyeY,rx:E.rx,ry:E.ry,ir:E.ir}));
+  const P=palette(cfg.color),E0=EYES[cfg.eyes],acc=cfg.accent,ol=P.outline,u=uid;
+  const G=(cfg.shape==='custom'&&cfg.body&&customGeom(cfg.body))||SHAPES[cfg.shape==='custom'?'bean':cfg.shape],t=G.top,sh=G.shift||0;
+  const es=cfg.shape==='custom'&&cfg.body?cfg.body.eyeSize:1,E={...E0,rx:E0.rx*es,ry:E0.ry*es,ir:E0.ir*es};
+  const eyes=cfg.eyes==='cyclops'?[{cx:120,cy:G.eyeY+2,rx:E.rx,ry:E.ry,ir:E.ir}]:[-1,1].map(s=>({cx:120+s*(G.dx+E.adj*es),cy:G.eyeY,rx:E.rx,ry:E.ry,ir:E.ir}));
+  const ST={glossy:{fill:`url(#${u}grad)`,w:4.5,inner:.35,hl:true,oc:ol},flat:{fill:P.base,w:5,inner:0,hl:false,oc:ol},
+    soft:{fill:`url(#${u}grad)`,w:3,inner:.22,hl:true,oc:P.deep},bold:{fill:P.base,w:7,inner:.5,hl:true,oc:ol}}[cfg.style]||{fill:`url(#${u}grad)`,w:4.5,inner:.35,hl:true,oc:ol};
+  const hw=Math.max(3,ST.w*.85);
   let top='';
   if(cfg.topper==='sprout')top=`<path d="M120 ${t+6} C119 ${t-6} 121 ${t-14} 124 ${t-22}" stroke="${ol}" stroke-width="4" fill="none" stroke-linecap="round"/>
     <path d="M123 ${t-20} C130 ${t-33} 147 ${t-35} 154 ${t-28} C147 ${t-17} 132 ${t-13} 123 ${t-20} Z" fill="${acc}" stroke="${ol}" stroke-width="3.5" stroke-linejoin="round"/>
@@ -84,16 +104,18 @@ function render(cfg,uid){
     +`<path d="M106 ${t+4} L114 ${t+18} L120 ${t+4} L126 ${t+18} L134 ${t+4}" stroke="${P.deep}" stroke-width="5" fill="none" opacity=".6" stroke-linejoin="round"/>`;
   const eyeMk=eyes.map((e,i)=>{const H=2*e.ry+8;return `<g id="${u}eye${i}">
     <clipPath id="${u}ec${i}"><ellipse cx="${e.cx}" cy="${e.cy}" rx="${e.rx}" ry="${e.ry}"/></clipPath>
-    <ellipse cx="${e.cx}" cy="${e.cy}" rx="${e.rx}" ry="${e.ry}" fill="#fff"/>
+    <ellipse cx="${e.cx}" cy="${e.cy}" rx="${e.rx}" ry="${e.ry}" fill="${E.dark?'#16121E':'#fff'}"/>
     <g clip-path="url(#${u}ec${i})">
-      <g id="${u}pup${i}"><circle cx="${e.cx}" cy="${e.cy+1}" r="${e.ir}" fill="${cfg.eyeColor}"/><circle cx="${e.cx}" cy="${e.cy+1}" r="${e.ir*.56}" fill="#16121E"/>
-        <circle cx="${e.cx+e.ir*.38}" cy="${e.cy-e.ir*.38}" r="${Math.max(2.2,e.ir*.3)}" fill="#fff"/><circle cx="${e.cx-e.ir*.35}" cy="${e.cy+e.ir*.42}" r="${Math.max(1.2,e.ir*.13)}" fill="#fff" opacity=".85"/></g>
+      <g id="${u}pup${i}">${E.dark?`<circle cx="${e.cx+e.rx*.32}" cy="${e.cy-e.ry*.38}" r="${Math.max(2,e.rx*.36)}" fill="#fff"/>`:
+        `<circle cx="${e.cx}" cy="${e.cy+1}" r="${e.ir}" fill="${cfg.eyeColor}"/><circle cx="${e.cx}" cy="${e.cy+1}" r="${e.ir*.56}" fill="#16121E"/>
+        <circle cx="${e.cx+e.ir*.38}" cy="${e.cy-e.ir*.38}" r="${Math.max(2.2,e.ir*.3)}" fill="#fff"/><circle cx="${e.cx-e.ir*.35}" cy="${e.cy+e.ir*.42}" r="${Math.max(1.2,e.ir*.13)}" fill="#fff" opacity=".85"/>
+        ${E.sparkle?`<ellipse cx="${e.cx}" cy="${e.cy+e.ir*.75}" rx="${e.ir*.7}" ry="${e.ir*.28}" fill="#fff" opacity=".35"/><circle cx="${e.cx-e.ir*.45}" cy="${e.cy-e.ir*.55}" r="${e.ir*.16}" fill="#fff"/>`:''}`}</g>
       <g id="${u}lidT${i}"><rect x="${e.cx-e.rx-3}" y="${e.cy-e.ry-2-H}" width="${2*e.rx+6}" height="${H}" fill="${P.base}"/>
         <path d="M${e.cx-e.rx-3} ${e.cy-e.ry-2} L${e.cx+e.rx+3} ${e.cy-e.ry-2}" stroke="${ol}" stroke-width="3.5"/></g>
       <g id="${u}lidB${i}"><rect x="${e.cx-e.rx-3}" y="${e.cy+e.ry+2}" width="${2*e.rx+6}" height="${H}" fill="${P.base}"/>
         <path d="M${e.cx-e.rx-3} ${e.cy+e.ry+2} L${e.cx+e.rx+3} ${e.cy+e.ry+2}" stroke="${ol}" stroke-width="3"/></g>
     </g>
-    <ellipse cx="${e.cx}" cy="${e.cy}" rx="${e.rx}" ry="${e.ry}" fill="none" stroke="${ol}" stroke-width="3.5"/></g>
+    ${E.dark?'':`<ellipse cx="${e.cx}" cy="${e.cy}" rx="${e.rx}" ry="${e.ry}" fill="none" stroke="${ol}" stroke-width="3.5"/>`}</g>
     <path id="${u}hap${i}" d="M${e.cx-e.rx+1} ${e.cy+4} Q${e.cx} ${e.cy-e.ry} ${e.cx+e.rx-1} ${e.cy+4}" stroke="${ol}" stroke-width="5" fill="none" stroke-linecap="round" opacity="0"/>
     <path id="${u}heart${i}" d="${heartD(e.cx,e.cy,Math.max(e.rx,e.ry)*.72)}" fill="#FF4D6D" stroke="${ol}" stroke-width="3" stroke-linejoin="round" opacity="0"/>`}).join('');
   const brows=eyes.map((e,i)=>`<path id="${u}brow${i}" stroke="${ol}" stroke-width="${eyes.length===1?5.5:5}" fill="none" stroke-linecap="round"/>`).join('');
@@ -115,19 +137,20 @@ function render(cfg,uid){
   const item=cfg.item?`<g transform="rotate(-20) translate(-12 -40) scale(.9)">${paint(cfg.item)}</g>`:'';
   const markup=`<defs>
     <radialGradient id="${u}grad" cx=".36" cy=".26" r=".9"><stop offset="0" stop-color="${P.light}"/><stop offset=".55" stop-color="${P.base}"/><stop offset="1" stop-color="${P.shade}"/></radialGradient>
-    <clipPath id="${u}bclip"><path d="${G.d}"/></clipPath><clipPath id="${u}mclip"><path id="${u}mclipPath"/></clipPath></defs>
+    <clipPath id="${u}bclip"><path d="${G.d}" transform="translate(0 ${sh})"/></clipPath><clipPath id="${u}mclip"><path id="${u}mclipPath"/></clipPath></defs>
   <ellipse id="${u}shadow" cx="120" cy="214" rx="66" ry="7.5" fill="rgba(25,25,60,.18)"/>
   <g id="${u}zzz" font-family="Fredoka, ui-rounded, sans-serif" font-weight="600" fill="${ol}"><text>z</text><text>z</text><text>z</text></g>
   <text id="${u}q" x="${G.sideR-4}" y="${t+4}" font-family="Fredoka, ui-rounded, sans-serif" font-size="34" font-weight="700" fill="${ol}" opacity="0">?</text>
   <g id="${u}dots" fill="${ol}"><circle cx="168" cy="${t-18}" r="5"/><circle cx="184" cy="${t-18}" r="5"/><circle cx="200" cy="${t-18}" r="5"/></g>
   <g id="${u}body">
     <g id="${u}topper">${top}</g>${behind}
-    <ellipse cx="94" cy="205" rx="17" ry="8" fill="${P.shade}" stroke="${ol}" stroke-width="4"/>
-    <ellipse cx="146" cy="205" rx="17" ry="8" fill="${P.shade}" stroke="${ol}" stroke-width="4"/>
-    <path d="${G.d}" fill="url(#${u}grad)"/>
-    <g clip-path="url(#${u}bclip)">${pat}<path d="${G.d}" fill="none" stroke="${P.deep}" stroke-opacity=".35" stroke-width="14" transform="translate(4 6)"/></g>
-    <path d="${G.d}" fill="none" stroke="${ol}" stroke-width="4.5" stroke-linejoin="round"/>
-    <ellipse cx="${120-G.ex-4}" cy="${t+26}" rx="15" ry="7" fill="#fff" opacity=".5" transform="rotate(-28 ${120-G.ex-4} ${t+26})"/>
+    ${cfg.body&&cfg.shape==='custom'&&cfg.body.back?`<g transform="translate(0 ${sh})">${paint(cfg.body.back)}</g>`:''}
+    ${cfg.feet==='none'?'':`<ellipse cx="94" cy="205" rx="17" ry="8" fill="${P.shade}" stroke="${ST.oc}" stroke-width="${hw}"/>
+    <ellipse cx="146" cy="205" rx="17" ry="8" fill="${P.shade}" stroke="${ST.oc}" stroke-width="${hw}"/>`}
+    <path d="${G.d}" fill="${ST.fill}" transform="translate(0 ${sh})"/>
+    <g clip-path="url(#${u}bclip)">${pat}${cfg.body&&cfg.shape==='custom'&&cfg.body.marks?`<g transform="translate(0 ${sh})">${paint(cfg.body.marks)}</g>`:''}${ST.inner?`<path d="${G.d}" fill="none" stroke="${P.deep}" stroke-opacity="${ST.inner}" stroke-width="14" transform="translate(4 ${6+sh})"/>`:''}</g>
+    <path d="${G.d}" fill="none" stroke="${ST.oc}" stroke-width="${ST.w}" stroke-linejoin="round" transform="translate(0 ${sh})"/>
+    ${ST.hl?`<ellipse cx="${120-G.ex-4}" cy="${t+26}" rx="15" ry="7" fill="#fff" opacity=".5" transform="rotate(-28 ${120-G.ex-4} ${t+26})"/>`:''}
     ${hat}
     <g id="${u}face">
       ${cheeks}${eyeMk}${brows}${glasses}
@@ -137,7 +160,7 @@ function render(cfg,uid){
       <path id="${u}sweat" d="M0 -13 C0 -13 -8 -1 -8 4 C-8 9 -4 12 0 12 C4 12 8 9 8 4 C8 -1 0 -13 0 -13 Z" fill="#8FD3FF" stroke="${ol}" stroke-width="2.5" opacity="0"/>
     </g>${front}
   </g>
-  ${[0,1].map(i=>`<g id="${u}hand${i}">${i?item:''}<ellipse rx="16" ry="14" fill="${P.base}" stroke="${ol}" stroke-width="4"/><ellipse cx="-4" cy="-4" rx="5" ry="3" fill="#fff" opacity=".45"/></g>`).join('')}
+  ${[0,1].map(i=>{const nb=cfg.hands==='nub',hide=cfg.hands==='none';return `<g id="${u}hand${i}">${i?item:''}${hide?'':`<ellipse rx="${nb?10:16}" ry="${nb?9:14}" fill="${P.base}" stroke="${ST.oc}" stroke-width="${hw}"/>${ST.hl?`<ellipse cx="${nb?-2.5:-4}" cy="${nb?-2.5:-4}" rx="${nb?3:5}" ry="${nb?2:3}" fill="#fff" opacity=".45"/>`:''}`}</g>`}).join('')}
   <g id="${u}fx"></g>`;
   return {markup,geom:{...G,eyes}};
 }
@@ -280,9 +303,9 @@ class Mascot{
     const giggle=this.state==='giggle'?Math.sin(t*22)*3*RM:0;
     const breathe=(sleeping?Math.sin(t*1.2)*.035:Math.sin(t*2.3)*.017)*RM;
     const air=this.jumpY<0?Math.min(Math.abs(this.jumpV)/2600,.12):0;
-    const sy=sq+breathe+air,sxs=1+(1-sy)*.9,jy=this.jumpY;
+    const sy=sq+breathe+air,sxs=1+(1-sy)*.9,fl=this.cfg.feet==='none'?Math.sin(t*2.1)*5*RM-6:0,jy=this.jumpY+fl;
     E.body.setAttribute('transform',`translate(${120+sx0} ${206+jy}) rotate(${v.tilt+giggle+lean}) scale(${sxs} ${sy}) translate(-120 -206)`);
-    const lift=Math.min(-jy/260,1);
+    const lift=Math.min(Math.max(-jy,0)/260,1);
     E.shadow.setAttribute('transform',`translate(120 214) scale(${(1-lift*.45)*sxs} 1) translate(-120 -214)`);E.shadow.setAttribute('opacity',1-lift*.6);
     E.face.setAttribute('transform',`translate(${v.lookX*6} ${v.lookY*4})`);
     const close=clamp(1-v.open*(1-blink),0,1),lo=clamp(v.love,0,1),eo=clamp(Math.min(1-v.happy,1-lo),0,1),pulse=1+Math.sin(t*9)*.09*lo;
