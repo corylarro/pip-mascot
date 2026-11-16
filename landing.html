@@ -52,7 +52,9 @@ p{margin:0}
 .stage{position:relative;aspect-ratio:1/1;max-width:500px;width:100%;justify-self:center;display:grid;place-items:center}
 .stage::before{content:"";position:absolute;inset:6% 4% 10%;background:var(--butter);border-radius:46% 54% 50% 50%/52% 46% 54% 48%;border:2px solid var(--ink)}
 .stage::after{content:"";position:absolute;left:18%;right:18%;bottom:12%;height:22px;background:var(--ink);opacity:.12;border-radius:50%;filter:blur(2px)}
-.stage pip-mascot{position:relative;z-index:1;--pip-size:min(300px,62vw);margin-top:6%}
+.stage{--pip-size:min(300px,62vw)}
+.spot{position:relative;z-index:1;width:var(--pip-size);aspect-ratio:1/1.12;margin-top:6%}
+#pip{transition:width .3s ease}#pip.small{--pip-size:132px}
 .play{position:absolute;z-index:2;bottom:-6px;left:50%;transform:translateX(-50%);display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:100%}
 .play button{font:600 .92rem var(--body);padding:7px 13px;border-radius:999px;border:2px solid var(--ink);background:var(--white);color:var(--ink);cursor:pointer}
 .play button:hover{background:var(--haze)}
@@ -106,7 +108,7 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
   .stage{order:-1;max-width:320px;aspect-ratio:auto;padding:8px 0 4px}
   .stage::before{inset:0 6% 52px}
   .stage::after{bottom:52px}
-  .stage pip-mascot{--pip-size:200px;margin-top:22px}
+  .stage{--pip-size:200px}.spot{margin-top:22px}#pip.small{--pip-size:104px}
   .play{position:static;transform:none;margin-top:14px;flex-wrap:nowrap}
   .play button{padding:6px 10px;font-size:.85rem}
   .play-label{display:none}
@@ -115,7 +117,7 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
   section{padding:60px 0}
   .moments{border-radius:28px;margin:0 8px}
 }
-@media (prefers-reduced-motion:reduce){.btn{transition:none}}
+@media (prefers-reduced-motion:reduce){.btn,#pip{transition:none}}
 </style>
 </head>
 <body>
@@ -139,7 +141,8 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
     </div>
     <div class="stage">
       <span class="play-label">Hi, I'm Pip. Poke me.</span>
-      <pip-mascot id="pip" mascot="fd89vpfu99qm" greet greeting="Hi! I'm Pip."></pip-mascot>
+      <div class="spot" id="pipHome" aria-hidden="true"></div>
+      <pip-mascot id="pip" mascot="fd89vpfu99qm" dock="#pipHome" greet greeting="Hi! I'm Pip."></pip-mascot>
       <div class="play" role="group" aria-label="Make Pip react">
         <button data-r="wave">Wave</button><button data-r="success">Cheer</button><button data-r="error">Oops</button><button data-r="love">Love</button><button data-r="sleeping">Nap</button>
       </div>
@@ -229,6 +232,45 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 const m = () => pip._m;
 const say = (t, ms = 2200) => m() && m().say(t, { hold: ms });
 const pointAt = el => { const r = el.getBoundingClientRect(); try { m() && m().point && m().point(r.left + r.width / 2, r.top + r.height / 2); } catch (e) {} };
+const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+// Resize Pip while keeping its feet planted where they are
+async function resizePip(small) {
+  if (pip.classList.contains('small') === small) return;
+  const [w0, h0] = pip._size(), [x, y] = pip._pos;
+  pip.style.transition = 'none'; pip.classList.toggle('small', small); await frame();
+  const [w1, h1] = pip._size(); pip._setPos(x + (w0 - w1) / 2, y + (h0 - h1)); pip.style.transition = '';
+}
+// Hop out of the circle, walk to a field, point at it, then go home
+let roamTok = 0, homeT;
+async function roamTo(input, text) {
+  if (!pip._m || !pip._pos) { pointAt(input); say(text); return; }
+  const tok = ++roamTok; clearTimeout(homeT);
+  const r0 = input.getBoundingClientRect();
+  if (r0.top < 80 || r0.bottom > innerHeight - 80) { input.scrollIntoView({ block: 'center', behavior: 'smooth' }); await wait(500); }
+  if (tok !== roamTok) return;
+  m().unpoint && m().unpoint();
+  await resizePip(true);
+  const [w, h] = pip._size(), r = input.getBoundingClientRect(), f = input.form.getBoundingClientRect();
+  let x, y;
+  if (f.right + w + 16 < innerWidth) { x = f.right + 10; y = r.top + r.height / 2 - h * .62; }   // beside the form, pointing back at the field
+  else { x = r.right - w - 6; y = r.top - h * .93; }                                              // sitting on top of the field
+  pip.react('surprised', 700);
+  await pip.walkTo(Math.max(4, x), Math.max(4, y));
+  if (tok !== roamTok) return;
+  pip.react('error', 2400); pointAt(input); say(text, 2600);
+  homeT = setTimeout(goHome, 3600);
+}
+async function goHome() {
+  const tok = ++roamTok; if (!pip._pos) return;
+  m().unpoint && m().unpoint();
+  const [w, h] = pip._size(), a = document.getElementById('pipHome').getBoundingClientRect();
+  await pip.walkTo(a.left + a.width / 2 - w / 2, a.bottom - h);
+  if (tok !== roamTok) return;
+  await resizePip(false); const d = pip._dock(); pip._setPos(d[0], d[1]); pip._docked = true;
+}
+// Typing in the field sends Pip home happy
+document.querySelectorAll('.join input').forEach(i => i.addEventListener('input', () => { if (pip.classList.contains('small') && !pip._walking) { clearTimeout(homeT); homeT = setTimeout(goHome, 900); } }));
 
 // Reaction chips
 document.querySelectorAll('.play button').forEach(b => b.addEventListener('click', () => {
@@ -239,9 +281,9 @@ document.querySelectorAll('.play button').forEach(b => b.addEventListener('click
 
 // Moments: replay what autopilot does, on the hero Pip
 const hero = document.querySelector('.stage');
-const toHero = async () => { if (hero.getBoundingClientRect().top < -40) { hero.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' }); await wait(600); } };
+const toHero = async () => { if (pip.classList.contains('small')) goHome(); if (hero.getBoundingClientRect().top < -40) { hero.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' }); await wait(600); } };
 const moments = {
-  field: async () => { const i = document.getElementById('email1'); i.scrollIntoView({ block: 'center', behavior: 'smooth' }); await wait(500); pip.react('error', 2400); pointAt(i); say('Pop your email in here!', 2600); i.focus({ preventScroll: true }); },
+  field: async () => { const i = document.getElementById('email1'); await roamTo(i, 'Pop your email in here!'); i.focus({ preventScroll: true }); },
   success: async () => { await toHero(); pip.react('success', 2600); say('It worked! Nice one.'); },
   error: async () => { await toHero(); pip.react('error', 2600); say("Our server's having a moment. Not your fault!", 2800); },
   back: async () => { await toHero(); pip.setState('sleeping'); await wait(1800); pip.setState('idle'); pip.react('wave', 2200); say('Oh! Welcome back.'); },
@@ -260,8 +302,8 @@ function wire(formId, noteId) {
     const email = input.value.trim();
     if (!EMAIL.test(email)) {
       note.className = 'note bad'; note.textContent = email ? 'That email looks off. Check for a typo.' : 'Add your email to join.';
-      input.focus();
-      if (inHero) { pip.react('confused', 2200); pointAt(input); say(email ? 'Hmm, is that right?' : 'Your email goes here!'); }
+      input.focus({ preventScroll: true });
+      roamTo(input, email ? 'Hmm, is that right?' : 'Your email goes here!');
       return;
     }
     btn.disabled = true; btn.textContent = 'Joining…';
@@ -271,7 +313,7 @@ function wire(formId, noteId) {
       if (!r.ok) throw new Error(d.error || 'Something went wrong. Try again in a moment.');
       note.className = 'note ok'; note.textContent = "You're on the list. We'll email you when early access opens.";
       input.value = ''; btn.textContent = 'Joined';
-      await toHero(); pip.react('love', 2600); say("Yay! You're in. See you soon.", 2800);
+      if (pip.classList.contains('small')) await goHome(); await toHero(); pip.react('love', 2600); say("Yay! You're in. See you soon.", 2800);
     } catch (err) {
       note.className = 'note bad'; note.textContent = err.message; btn.disabled = false; btn.textContent = 'Join the waitlist';
       if (inHero) { pip.react('error', 2200); say("That didn't go through. Try again?"); }

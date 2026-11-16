@@ -757,7 +757,8 @@ var paintedEngine=PipPaintedEngine();
     static get observedAttributes(){return ['state']}
     connectedCallback(){
       if(this._m)return;const root=this.shadowRoot||this.attachShadow({mode:'open'});
-      this._float=this.hasAttribute('float')||this.hasAttribute('autopilot');
+      this._anchor=this.hasAttribute('dock')?(this.getAttribute('dock')?document.querySelector(this.getAttribute('dock')):this.parentElement):null;
+      this._float=!!this._anchor||this.hasAttribute('float')||this.hasAttribute('autopilot');
       const mid=this.getAttribute('mascot'),isPainted=!!(mid&&painted);this.toggleAttribute('painted',isPainted);this._ratio=isPainted?1.12:254/240;
       root.innerHTML=`<style>:host{display:inline-block;position:relative;width:var(--pip-size,${this._float?'118px':'180px'});vertical-align:bottom;-webkit-tap-highlight-color:transparent}
         svg{width:100%;height:auto;display:block;overflow:visible;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none}
@@ -784,16 +785,18 @@ var paintedEngine=PipPaintedEngine();
         Object.assign(this.style,{position:'fixed',left:'0',top:'0',margin:'0',zIndex:'2147483000',visibility:'hidden'});
         this._pos=[0,0];this._docked=true;
         this._onResize=()=>{if(this._docked&&!this._walking){const d=this._dock();this._setPos(d[0],d[1])}};addEventListener('resize',this._onResize);
-        requestAnimationFrame(()=>{const d=this._dock();this._setPos(d[0],innerHeight+20);this.style.visibility='';
+        if(this._anchor){addEventListener('scroll',this._onResize,{passive:true});if(typeof ResizeObserver!=='undefined'){this._aro=new ResizeObserver(this._onResize);this._aro.observe(this._anchor)}
+          requestAnimationFrame(()=>{const d=this._dock();this._setPos(d[0],d[1]);this.style.visibility='';setTimeout(greet,500)})}
+        else requestAnimationFrame(()=>{const d=this._dock();this._setPos(d[0],innerHeight+20);this.style.visibility='';
           this.walkTo(d[0],d[1],{ms:700,hops:false}).then(()=>{this._docked=true;setTimeout(greet,150)})});
       }else setTimeout(greet,500);
       if(this.hasAttribute('autopilot'))this._ap=autopilot(this);
     }
     disconnectedCallback(){if(this._ap){this._ap();this._ap=null}if(this._m){this._m.destroy();this._m=null}
-      if(this._onResize)removeEventListener('resize',this._onResize);clearTimeout(this._homeT);this._walkTok=(this._walkTok||0)+1}
+      if(this._onResize){removeEventListener('resize',this._onResize);removeEventListener('scroll',this._onResize)}if(this._aro)this._aro.disconnect();clearTimeout(this._homeT);this._walkTok=(this._walkTok||0)+1}
     attributeChangedCallback(n,o,v){if(this._m&&n==='state'&&v)this._m.setState(v)}
     _size(){const w=this.getBoundingClientRect().width||118;return [w,w*(this._ratio||RATIO)]}
-    _dock(){const [w,h]=this._size();return [innerWidth-w-10,innerHeight-h-6]}
+    _dock(){const [w,h]=this._size();if(this._anchor){const r=this._anchor.getBoundingClientRect();return [r.left+r.width/2-w/2,r.bottom-h]}return [innerWidth-w-10,innerHeight-h-6]}
     _setPos(x,y){this._pos=[x,y];this.style.transform=`translate(${x}px,${y}px)`;this._placeBubble()}
     _placeBubble(){const b=this.shadowRoot&&this.shadowRoot.querySelector('.bubble');if(!b)return;const r=this.getBoundingClientRect(),c=r.left+r.width/2;
       b.classList.toggle('below',r.top<90);b.classList.toggle('r',c>innerWidth*.6);b.classList.toggle('l',c<innerWidth*.4)}
