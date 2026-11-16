@@ -155,6 +155,13 @@ function keyOut(img){
       // pull the background tint out of the soft edge
       for(let k=0;k<3;k++)d[i+k]=clamp(Math.round((d[i+k]-key[k]*(1-a))/Math.max(a,.35)),0,255)}
     if(px<minX)minX=px;if(px>maxX)maxX=px;if(py<minY)minY=py;if(py>maxY)maxY=py}
+  // remove key-colour spill (pink/green fringe) in a band around the edge
+  const band=new Uint8Array(W*H);let fr=[];for(let p=0;p<W*H;p++)if(bg[p])fr.push(p);
+  for(let layer=1;layer<=4;layer++){const nx=[];for(const p of fr){const px=p%W;for(const q of [px>0?p-1:-1,px<W-1?p+1:-1,p-W,p+W]){if(q<0||q>=W*H||bg[q]||band[q])continue;band[q]=layer;nx.push(q)}}fr=nx}
+  const magenta=key[0]>key[1]&&key[2]>key[1];
+  for(let p=0;p<W*H;p++){if(!band[p])continue;const i=p*4,r=d[i],g=d[i+1],b=d[i+2],k=1-(band[p]-1)*.18;
+    if(magenta){const m=Math.min(r,b);if(m>g){d[i]=r-(m-g)*k;d[i+2]=b-(m-g)*k}}
+    else{const m=Math.max(r,b);if(g>m)d[i+1]=g-(g-m)*k}}
   x.putImageData(id,0,0);
   return {canvas:c,bbox:{x:minX,y:minY,w:Math.max(1,maxX-minX),h:Math.max(1,maxY-minY)},key}}
 function b64ToDataUrl(b64,mime){return `data:${mime||'image/webp'};base64,${b64}`}
@@ -316,7 +323,8 @@ This must be recognisably the SAME individual: identical face shape, age, skin t
 Keep everything else pixel-identical: pose, body, clothing, proportions, colours, materials, lighting, camera angle, framing, and the same flat background colour. The face stays in exactly the same place and size.`}
 
 let current={},busy=false;
-async function api(body){const pass=$('pass').value.trim();
+try{const sp=localStorage.getItem('pip-pass');if(sp){$('pass').value=sp}}catch(e){}
+async function api(body){const pass=$('pass').value.trim();try{if(pass)localStorage.setItem('pip-pass',pass)}catch(e){}
   const r=await fetch('/api/paint',{method:'POST',headers:{'Content-Type':'application/json',...(pass?{'x-pip-pass':pass}:{})},body:JSON.stringify(body)});
   let j={};try{j=await r.json()}catch(e){}
   if(!r.ok)throw {status:r.status,msg:j.error||r.statusText||'Request failed'};return j}
@@ -382,7 +390,10 @@ $('go').addEventListener('click',paint);$('redo').addEventListener('click',redoE
 // restore the last painted mascot for free
 (async()=>{const m=await DB.get();if(!m||!m.base)return;try{
   current=m;$('desc').value=m.desc||'';const k=keyOut(await loadImg(b64ToDataUrl(m.base,m.mime)));$('empty').hidden=true;$('badge').hidden=false;rig.setBase(k);
-  if(m.face){rig.setFace(m.face);for(const [n,b64] of Object.entries(m.exprs||{}))rig.addExpr(n,keyOut(await loadImg(b64ToDataUrl(b64,m.mime))))}
+  let f=m.face;
+  if(f&&!(f.eyes&&f.eyes.length&&f.mouth)){try{const r=await api({step:'face',image:m.base,mime:m.mime}),F=r.face,S=1024,px=b=>b&&b.w>0?{x:b.x*S,y:b.y*S,w:b.w*S,h:b.h*S}:null;
+    if(F&&F.face){f={box:px(F.face),eyes:(F.eyes||[]).map(px).filter(Boolean),mouth:px(F.mouth)};m.face=f;DB.put(m)}}catch(e){}}
+  if(f){rig.setFace(f);for(const [n,b64] of Object.entries(m.exprs||{}))rig.addExpr(n,keyOut(await loadImg(b64ToDataUrl(b64,m.mime))))}
   $('redo').disabled=false;setStatus('Loaded your last painted mascot. “Redo expressions” keeps this character and repaints only its faces (about 5 images).','ok');$('meta').textContent=m.model?`Image model: ${m.model}`:''}catch(e){}})();
 })();
 </script>
