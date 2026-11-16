@@ -741,16 +741,21 @@ function definePipElement(engine,defaultConfig,painted,origin){
       if(state)this._m.react(state,2600);if(text)this._m.say(text,{hold:2600});
       if(!stay)this._homeT=setTimeout(()=>this.home(),Math.max(3400,(text||'').length*45+2600))}
     // Phones: hop onto the focused field so the keyboard doesn't hide the mascot
+    // Switch between floating over the screen (fixed) and riding along with the page (absolute), keeping the same spot
+    _setAbs(abs){if(!!this._abs===abs)return;const p=this._pos;this._abs=abs;this.style.position=abs?'absolute':'fixed';this._setPos(p[0],p[1])}
     _perch(el){if(!this._float||!this._m||!el||!el.isConnected)return Promise.resolve();
-      const vv=window.visualViewport,r=el.getBoundingClientRect(),[w,h]=this._size(),top=vv?vv.offsetTop:0,bot=top+(vv?vv.height:innerHeight);
+      // While perched, ride along with the page so the keyboard sliding things around can't knock the mascot off the field
+      if(!this._anchor)this._setAbs(true);
+      const vv=window.visualViewport,r=el.getBoundingClientRect(),[w,h]=this._size(),top=vv?vv.offsetTop:0;
       let x=clamp(r.right-w-6,4,innerWidth-w-4),y=r.top-h*.93+4;
-      if(y<top+4)y=r.bottom+2;
-      if(y+h>bot-4)y=Math.max(top+4,bot-h-4);
+      if(y<top+2)y=r.bottom+2;
       this._perched=el;clearTimeout(this._homeT);
       if(Math.hypot(x-this._pos[0],y-this._pos[1])<3)return Promise.resolve();
       return this.walkTo(x,y,{ms:Math.min(520,Math.max(260,Math.hypot(x-this._pos[0],y-this._pos[1])))})}
-    home(){clearTimeout(this._homeT);this._perched=null;if(!this._float||!this._m)return Promise.resolve();this._m.unpoint();const d=this._dock();
-      return this.walkTo(d[0],d[1]).then(()=>{if(this._m&&!this._walking)this._docked=true})}
+    home(){clearTimeout(this._homeT);this._perched=null;if(!this._float||!this._m)return Promise.resolve();this._m.unpoint();
+      if(!this._anchor&&this._abs){const p=this._pos;if(p[1]>innerHeight||p[1]<-this._size()[1])this._setAbs(false)}
+      const d=this._dock();
+      return this.walkTo(d[0],d[1]).then(()=>{if(this._m&&!this._walking){if(!this._anchor)this._setAbs(false);const e=this._dock();this._setPos(e[0],e[1]);this._docked=true}})}
     setState(s){this._m&&this._m.setState(s)} react(s,ms){this._m&&this._m.react(s,ms)} say(t,o){this._m&&this._m.say(t,o)}
     cover(on,peek){this._m&&this._m.cover(on,peek)} lookAt(x,y){this._m&&this._m.lookAt(x,y)} watch(input){this._m&&this._m.watch(input);return this}
     point(el,text){return this.goTo(el,{text})}
@@ -823,10 +828,7 @@ function definePipElement(engine,defaultConfig,painted,origin){
         perchT=setTimeout(()=>{if(document.activeElement===el)host._perch(el)},380)},true);
       on(document,'focusout',e=>{if(!host._perched)return;clearTimeout(perchT);
         perchT=setTimeout(()=>{const a=document.activeElement;if(!isField(a)&&host._perched){host.home()}},300)},true);
-      const re=()=>{if(!host._perched)return;clearTimeout(reT);reT=setTimeout(()=>{const a=document.activeElement;
-        if(isField(a)&&a===host._perched&&!host._walking)host._perch(a)},140)};
-      if(window.visualViewport){on(visualViewport,'resize',re);on(visualViewport,'scroll',re)}
-      on(window,'scroll',re,{passive:true})}
+    }
 
     /* clicks: rage-click detection + remember what was pressed */
     let clicks=[];
