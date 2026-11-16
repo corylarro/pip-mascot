@@ -676,13 +676,13 @@ function definePipElement(engine,defaultConfig,painted,origin){
         .bubble.r{left:auto;right:4px;transform:translate(0,4px)}.bubble.l{left:4px;transform:translate(0,4px)}.bubble.r.show,.bubble.l.show{transform:none}
         .bubble.below{bottom:auto;top:92%}
         @media (prefers-reduced-motion: reduce){.bubble{transition:none}}
-        canvas{width:180%;margin-left:-40%;aspect-ratio:1.8/1.12;display:block;pointer-events:none}:host([painted]){cursor:pointer;touch-action:manipulation}
+        canvas{width:180%;margin-left:-40%;margin-top:-50.4%;aspect-ratio:1.8/1.624;display:block;pointer-events:none}:host([painted]){cursor:pointer;touch-action:manipulation}
         </style><div class="bubble" part="bubble" aria-live="polite"></div>${isPainted?'<canvas role="img" aria-label="Animated mascot"></canvas>':'<svg viewBox="0 -22 240 254" role="img"></svg>'}`;
       let cfg=defaultConfig;try{const a=this.getAttribute('config');if(a)cfg=JSON.parse(a)}catch(e){}
       const sa=this.getAttribute('sleep-after');
       const onState=(s,why)=>this.dispatchEvent(new CustomEvent('statechange',{detail:{state:s,reason:why||null}}));
       const sleepAfter=sa===null?20000:Number(sa)*1000;let m;
-      if(isPainted){const rig=new painted.PaintRig(root.querySelector('canvas'),{bubble:root.querySelector('.bubble'),fit:.94,pad:.4,hit:this,sleepAfter,onState});m=this._m=adapt(rig);
+      if(isPainted){const rig=new painted.PaintRig(root.querySelector('canvas'),{bubble:root.querySelector('.bubble'),fit:.94,pad:.4,padTop:.45,hit:this,sleepAfter,onState});m=this._m=adapt(rig);
         this._ready=fetch(`${this.getAttribute('api')||origin}/api/mascot?id=${encodeURIComponent(mid)}`).then(r=>{if(!r.ok)throw new Error('Mascot not found');return r.json()})
           .then(d=>painted.mountMascot(rig,d)).then(()=>this.dispatchEvent(new CustomEvent('ready'))).catch(e=>{console.warn('pip-mascot:',e);this.dispatchEvent(new CustomEvent('error',{detail:String(e)}))})}
       else{m=this._m=new engine.Mascot(root.querySelector('svg'),cfg,{bubble:root.querySelector('.bubble'),sleepAfter,onState});this._ready=Promise.resolve()}
