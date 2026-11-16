@@ -822,13 +822,20 @@ function definePipElement(engine,defaultConfig,painted,origin){
     on(document,'focusin',e=>{const el=e.target,m=M();if(!m||mine(e)||!isField(el))return;m.focusEl=el;sync();m.lookAtCaret(el)},true);
     on(document,'input',e=>{const el=e.target,m=M();if(!m||!isField(el)||m.focusEl!==el)return;m.lookAtCaret(el);m.bump();sync()},true);
     on(document,'focusout',e=>{const m=M();if(!m||m.focusEl!==e.target)return;m.focusEl=null;setTimeout(sync,0)},true);
-    const coarse=matchMedia('(pointer: coarse)').matches;let perchT=0,reT=0;
-    if(coarse&&!host._anchor){
-      on(document,'focusin',e=>{const el=e.target;if(mine(e)||!isField(el))return;clearTimeout(perchT);
-        perchT=setTimeout(()=>{if(document.activeElement===el)host._perch(el)},380)},true);
-      on(document,'focusout',e=>{if(!host._perched)return;clearTimeout(perchT);
-        perchT=setTimeout(()=>{const a=document.activeElement;if(!isField(a)&&host._perched){host.home()}},300)},true);
-    }
+    // Phones: when the on-screen keyboard is up, sit on top of it (one steady spot) and watch whichever field is being typed in
+    const coarse=matchMedia('(pointer: coarse)').matches,VV=window.visualViewport;let kbT=0,onKb=false;
+    if(coarse&&VV&&!host._anchor){
+      const kbUp=()=>innerHeight-VV.height>120;
+      const spot=()=>{const [w,h]=host._size();return [VV.offsetLeft+Math.min(VV.width,innerWidth)-w-10,VV.offsetTop+VV.height-h+6]};
+      const follow=()=>{if(!onKb||host._walking)return;const p=spot();host._setPos(p[0],p[1])};
+      const sitOnKb=()=>{if(!isField(document.activeElement)||!kbUp()||!host._m)return;
+        if(onKb)return follow();onKb=true;clearTimeout(host._homeT);if(host._abs)host._setAbs(false);
+        const p=spot();host.walkTo(p[0],p[1],{ms:360}).then(follow)};
+      const leave=()=>{if(!onKb)return;onKb=false;host.home()};
+      on(document,'focusin',e=>{if(mine(e)||!isField(e.target))return;clearTimeout(kbT);kbT=setTimeout(sitOnKb,350)},true);
+      on(document,'focusout',()=>{clearTimeout(kbT);kbT=setTimeout(()=>{if(!isField(document.activeElement))leave()},300)},true);
+      const vvChange=()=>{if(onKb){if(!kbUp())leave();else follow()}else if(kbUp()&&isField(document.activeElement))sitOnKb()};
+      on(VV,'resize',vvChange);on(VV,'scroll',vvChange)}
 
     /* clicks: rage-click detection + remember what was pressed */
     let clicks=[];
