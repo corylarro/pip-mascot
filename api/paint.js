@@ -29,6 +29,10 @@ function parseJson(t) {
   try { return JSON.parse(t.slice(a, b + 1)); } catch (e) { return null; }
 }
 
+const BLANK_PROMPT = `This image shows one cartoon mascot character on a plain background. Its face is intentionally blank (no eyes or mouth drawn yet). Decide where its eyes and mouth SHOULD go so it looks natural and appealing for this character, like a well-designed animated character.
+Reply with ONLY this JSON (no prose). All numbers are fractions of the image width/height from 0 to 1; x,y is the top-left corner of each box:
+{"face":{"x":0,"y":0,"w":0,"h":0},"eyes":[{"x":0,"y":0,"w":0,"h":0},{"x":0,"y":0,"w":0,"h":0}],"mouth":{"x":0,"y":0,"w":0,"h":0},"eyeColor":"#4a2e1c"}
+"eyes" are two boxes (left then right) sized like the character's eyes should be (fairly large and cute), placed on the face area. "mouth" is where the mouth should be (below the eyes, above any chin or beard edge; if there is a beard, place it where the lips would show). "eyeColor" is an iris colour that suits the character.`;
 const FACE_PROMPT = `This image shows one cartoon mascot character on a plain background. Locate its face features.
 Reply with ONLY this JSON (no prose). All numbers are fractions of the image width/height from 0 to 1; x,y is the top-left corner of each box:
 {"face":{"x":0,"y":0,"w":0,"h":0},"eyes":[{"x":0,"y":0,"w":0,"h":0}],"mouth":{"x":0,"y":0,"w":0,"h":0}}
@@ -47,15 +51,21 @@ export default async function handler(req, res) {
 
   try {
     if (b.step === 'base') {
-      const prompt = String(b.prompt || '').slice(0, 4000);
+      const prompt = String(b.prompt || '').slice(0, 6000);
+      const sizes = uniq([b.size, ...(b.fallbackSizes || []), '1024x1024']).filter(x => /^\d{3,4}x\d{3,4}$/.test(x));
       let last = null;
-      for (const model of IMAGE_MODELS()) {
-        const r = await call(`${API}/images/generations`, {
-          method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model, prompt, size: '1024x1024', quality, output_format: 'webp', n: 1 })
-        });
-        if (r.ok && r.json && r.json.data && r.json.data[0]) { res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model }); return; }
-        last = r; if (!tryNext(r.status, r.msg)) break;
+      outer: for (const model of IMAGE_MODELS()) {
+        for (const size of sizes) {
+          const r = await call(`${API}/images/generations`, {
+            method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model, prompt, size, quality, output_format: 'webp', n: 1 })
+          });
+          if (r.ok && r.json && r.json.data && r.json.data[0]) { res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model, size }); return; }
+          last = r;
+          if (/size|resolution|dimension/i.test(r.msg || '') && r.status === 400) continue;   // try the next size
+          if (!tryNext(r.status, r.msg)) break outer;
+          break;
+        }
       }
       res.status(last.status || 500).json({ error: last.msg, status: last.status }); return;
     }
@@ -92,7 +102,7 @@ export default async function handler(req, res) {
         const r = await call(`${API}/responses`, {
           method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },
           body: JSON.stringify({ model, input: [{ role: 'user', content: [
-            { type: 'input_text', text: FACE_PROMPT },
+            { type: 'input_text', text: b.blank ? BLANK_PROMPT : FACE_PROMPT },
             { type: 'input_image', image_url: `data:${b.mime || 'image/webp'};base64,${b.image}` }
           ] }] })
         });
