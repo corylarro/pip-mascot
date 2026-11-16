@@ -818,10 +818,12 @@ var paintedEngine=PipPaintedEngine();
       const st=this.getAttribute('state');if(st)m.setState(st);
       const greet=()=>this._ready.then(()=>{if(this.hasAttribute('greet')&&this._m){m.react('wave',2400);m.say(this.getAttribute('greeting')||m.cfg.greeting,{hold:2600})}});
       if(this._float){
-        Object.assign(this.style,{position:'fixed',left:'0',top:'0',margin:'0',zIndex:'2147483000',visibility:'hidden'});
+        // With a home spot on the page, ride along with the page (absolute) so scrolling never lags; otherwise float over the screen (fixed).
+        this._abs=!!this._anchor;
+        Object.assign(this.style,{position:this._abs?'absolute':'fixed',left:'0',top:'0',margin:'0',zIndex:'2147483000',visibility:'hidden'});
         this._pos=[0,0];this._docked=true;
         this._onResize=()=>{if(this._docked&&!this._walking){const d=this._dock();this._setPos(d[0],d[1])}};addEventListener('resize',this._onResize);
-        if(this._anchor){addEventListener('scroll',this._onResize,{passive:true});if(typeof ResizeObserver!=='undefined'){this._aro=new ResizeObserver(this._onResize);this._aro.observe(this._anchor)}
+        if(this._anchor){if(typeof ResizeObserver!=='undefined'){this._aro=new ResizeObserver(this._onResize);this._aro.observe(this._anchor)}
           requestAnimationFrame(()=>{const d=this._dock();this._setPos(d[0],d[1]);this.style.visibility='';setTimeout(greet,500)})}
         else requestAnimationFrame(()=>{const d=this._dock();this._setPos(d[0],innerHeight+20);this.style.visibility='';
           this.walkTo(d[0],d[1],{ms:700,hops:false}).then(()=>{this._docked=true;setTimeout(greet,150)})});
@@ -833,7 +835,13 @@ var paintedEngine=PipPaintedEngine();
     attributeChangedCallback(n,o,v){if(this._m&&n==='state'&&v)this._m.setState(v)}
     _size(){const w=this.getBoundingClientRect().width||118;return [w,w*(this._ratio||RATIO)]}
     _dock(){const [w,h]=this._size();if(this._anchor){const r=this._anchor.getBoundingClientRect();return [r.left+r.width/2-w/2,r.bottom-h]}return [innerWidth-w-10,innerHeight-h-6]}
-    _setPos(x,y){this._pos=[x,y];this.style.transform=`translate(${x}px,${y}px)`;this._placeBubble()}
+    // Positions are given in screen coordinates; when riding along with the page they're stored relative to the positioned parent.
+    _origin(){if(!this._abs)return [0,0];const p=this.offsetParent;
+      if(!p||(p===document.body&&getComputedStyle(p).position==='static'))return [-scrollX,-scrollY];
+      const r=p.getBoundingClientRect();return [r.left+p.clientLeft,r.top+p.clientTop]}
+    get _pos(){const o=this._origin(),r=this._rel||[0,0];return [r[0]+o[0],r[1]+o[1]]}
+    set _pos(v){const o=this._origin();this._rel=[v[0]-o[0],v[1]-o[1]]}
+    _setPos(x,y){this._pos=[x,y];this.style.transform=`translate(${this._rel[0]}px,${this._rel[1]}px)`;this._placeBubble()}
     _placeBubble(){const b=this.shadowRoot&&this.shadowRoot.querySelector('.bubble');if(!b)return;const r=this.getBoundingClientRect(),c=r.left+r.width/2;
       b.classList.toggle('below',r.top<90);b.classList.toggle('r',c>innerWidth*.6);b.classList.toggle('l',c<innerWidth*.4)}
     walkTo(x,y,{ms,hops=true}={}){
