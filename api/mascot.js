@@ -78,9 +78,12 @@ export default async function handler(req, res) {
         const atlas = req.query.img === 'atlas' && meta.atlasUrl;
         const r = await fetch(atlas ? meta.atlasUrl : meta.imageUrl);
         if (!r.ok) { res.status(502).json({ error: 'Could not load the painting.' }); return; }
-        res.setHeader('Content-Type', (atlas ? meta.atlasMime : meta.mime) || 'image/webp');
+        const bytes = Buffer.from(await r.arrayBuffer()), type = (atlas ? meta.atlasMime : meta.mime) || 'image/webp';
+        // ?b64=1 returns the image as text (handy for tools that can't read binary)
+        if (req.query.b64) { res.setHeader('Cache-Control', 'no-store'); res.json({ type, b64: bytes.toString('base64') }); return; }
+        res.setHeader('Content-Type', type);
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-        res.send(Buffer.from(await r.arrayBuffer())); return;
+        res.send(bytes); return;
       }
       const host = req.headers['x-forwarded-host'] || req.headers.host;
       res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=60, stale-while-revalidate=600');
