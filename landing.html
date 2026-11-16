@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pip: give your app a character</title>
+<meta name="description" content="Describe a mascot in a sentence. Pip paints it, brings it to life, and drops it into your app with one line of code.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,500..800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="/pip-mascot.js"></script>
+<style>
+:root{
+  --haze:#ECEBFF;--ink:#221E3F;--ink-2:#4A4570;--peach:#FF9466;--peach-deep:#E8703F;--sprout:#2FAF74;--butter:#FFD35A;--white:#fff;
+  --display:'Bricolage Grotesque',ui-rounded,system-ui,sans-serif;--body:'Figtree',system-ui,-apple-system,sans-serif;
+  --step-0:1.0625rem;--step-1:1.333rem;--step-2:1.777rem;--step-3:2.369rem;--step-4:clamp(2.6rem,6.4vw,4.75rem);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--haze);color:var(--ink);font:400 var(--step-0)/1.55 var(--body);-webkit-font-smoothing:antialiased}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:6px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+h1,h2,h3{font-family:var(--display);font-weight:800;line-height:1.02;letter-spacing:-.02em;margin:0;font-stretch:88%}
+h1{font-size:var(--step-4);max-width:11ch}
+h2{font-size:var(--step-3);max-width:18ch}
+h3{font-size:var(--step-1);font-weight:700;letter-spacing:-.01em}
+p{margin:0}
+.lede{font-size:var(--step-1);line-height:1.45;color:var(--ink-2);max-width:34ch}
+
+/* top bar */
+.bar{display:flex;align-items:center;justify-content:space-between;padding:22px 0}
+.mark{font:800 1.6rem/1 var(--display);letter-spacing:-.03em;text-decoration:none;display:flex;align-items:center;gap:8px}
+.mark i{width:14px;height:18px;background:var(--peach);border-radius:50% 50% 46% 46%/60% 60% 40% 40%;position:relative;display:inline-block}
+.mark i::after{content:"";position:absolute;left:5px;top:-7px;width:9px;height:7px;background:var(--sprout);border-radius:0 100% 0 100%}
+.bar nav{display:flex;gap:22px;font-weight:500}
+.bar nav a{text-decoration:none;color:var(--ink-2)}.bar nav a:hover{color:var(--ink)}
+
+/* hero */
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;padding:36px 0 72px}
+.hero-copy{display:flex;flex-direction:column;gap:22px}
+.join{display:flex;gap:10px;flex-wrap:wrap;max-width:470px;margin-top:6px}
+.join input{flex:1 1 220px;min-width:0;font:500 1.05rem var(--body);padding:15px 18px;border-radius:14px;border:2px solid var(--ink);background:var(--white);color:var(--ink)}
+.join input::placeholder{color:#8B87A8}
+.btn{font:700 1.05rem var(--body);padding:15px 22px;border-radius:14px;border:2px solid var(--ink);background:var(--peach);color:var(--ink);cursor:pointer;
+  box-shadow:0 4px 0 var(--ink);transition:transform .08s,box-shadow .08s;text-decoration:none;display:inline-block;text-align:center}
+.btn:hover{background:#FFA27A}.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.btn.ghost{background:var(--white)}.btn.ghost:hover{background:#F6F5FF}
+.btn[disabled]{opacity:.6;cursor:progress}
+.note{font-size:.95rem;color:var(--ink-2);min-height:1.5em}
+.note.ok{color:#17784C;font-weight:600}.note.bad{color:#B4381A;font-weight:600}
+
+.stage{position:relative;aspect-ratio:1/1;max-width:500px;width:100%;justify-self:center;display:grid;place-items:center}
+.stage::before{content:"";position:absolute;inset:6% 4% 10%;background:var(--butter);border-radius:46% 54% 50% 50%/52% 46% 54% 48%;border:2px solid var(--ink)}
+.stage::after{content:"";position:absolute;left:18%;right:18%;bottom:12%;height:22px;background:var(--ink);opacity:.12;border-radius:50%;filter:blur(2px)}
+.stage pip-mascot{position:relative;z-index:1;--pip-size:min(300px,62vw);margin-top:6%}
+.play{position:absolute;z-index:2;bottom:-6px;left:50%;transform:translateX(-50%);display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:100%}
+.play button{font:600 .92rem var(--body);padding:7px 13px;border-radius:999px;border:2px solid var(--ink);background:var(--white);color:var(--ink);cursor:pointer}
+.play button:hover{background:var(--haze)}
+.play-label{position:absolute;z-index:2;bottom:22%;left:0;font:600 .9rem var(--body);background:var(--white);border:2px solid var(--ink);border-radius:12px;padding:6px 10px;transform:rotate(-4deg)}
+
+/* moments */
+section{padding:80px 0}
+.moments{background:var(--ink);color:var(--white);border-radius:36px;margin:0 12px}
+.moments h2{color:var(--white)}
+.moments .lede{color:#C9C5EA}
+.mgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:0 56px;margin-top:44px}
+.moment{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 16px;padding:22px 0;border-top:1px solid #3D3866}
+.moment b{font:700 var(--step-1)/1.2 var(--display);letter-spacing:-.01em}
+.moment span{color:#C9C5EA;grid-column:1/-1}
+.moment button{grid-row:1;grid-column:2;align-self:start;font:600 .88rem var(--body);background:transparent;color:var(--butter);border:1.5px solid var(--butter);border-radius:999px;padding:5px 12px;cursor:pointer}
+.moment button:hover{background:var(--butter);color:var(--ink)}
+
+/* how */
+.how-head{display:flex;justify-content:space-between;align-items:end;gap:24px;flex-wrap:wrap}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:44px;counter-reset:s}
+.step{counter-increment:s;display:flex;flex-direction:column;gap:10px}
+.step::before{content:counter(s);font:800 3.2rem/1 var(--display);color:var(--peach);-webkit-text-stroke:2px var(--ink)}
+.step p{color:var(--ink-2)}
+.prompt{background:var(--white);border:2px solid var(--ink);border-radius:14px;padding:12px 14px;font-style:italic;color:var(--ink);margin-top:4px}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+pre{margin:4px 0 0;background:var(--ink);color:#F1EFFF;border-radius:14px;padding:14px 16px;font-size:.84rem;line-height:1.6;overflow-x:auto}
+pre .t{color:var(--butter)}pre .a{color:#9EE6C2}
+.sheet{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--white);border:2px solid var(--ink);border-radius:14px;padding:8px;margin-top:4px}
+.sheet img{grid-column:1/-1;width:100%;border-radius:8px;display:block}
+.sheet div{aspect-ratio:1;border-radius:8px;background:var(--haze);display:grid;place-items:center;font-size:1.3rem}
+
+/* pricing */
+.plans{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:44px;max-width:900px}
+.plan{border:2px solid var(--ink);border-radius:24px;padding:28px;background:var(--white);display:flex;flex-direction:column;gap:14px}
+.plan.paint{background:var(--peach)}
+.price{font:800 var(--step-3)/1 var(--display);letter-spacing:-.02em}
+.price small{font:500 1rem var(--body);letter-spacing:0;margin-left:4px}
+.plan ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.plan li{padding-left:26px;position:relative}
+.plan li::before{content:"";position:absolute;left:2px;top:.45em;width:12px;height:8px;border-left:3px solid var(--ink);border-bottom:3px solid var(--ink);transform:rotate(-45deg)}
+.plan .btn{margin-top:auto}
+
+/* end */
+.end{text-align:center;display:flex;flex-direction:column;align-items:center;gap:20px}
+.end h2{max-width:16ch}
+.end .join{justify-content:center}
+footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+@media (max-width:860px){
+  .hero{grid-template-columns:1fr;padding-top:12px}
+  .stage{order:-1;max-width:320px;aspect-ratio:auto;padding:8px 0 4px}
+  .stage::before{inset:0 6% 52px}
+  .stage::after{bottom:52px}
+  .stage pip-mascot{--pip-size:200px;margin-top:22px}
+  .play{position:static;transform:none;margin-top:14px;flex-wrap:nowrap}
+  .play button{padding:6px 10px;font-size:.85rem}
+  .play-label{display:none}
+  .mgrid,.steps,.plans{grid-template-columns:1fr}
+  .bar nav{display:none}
+  section{padding:60px 0}
+  .moments{border-radius:28px;margin:0 8px}
+}
+@media (prefers-reduced-motion:reduce){.btn{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="mark" href="/landing" aria-label="Pip home"><i aria-hidden="true"></i>pip</a>
+    <nav aria-label="Page"><a href="#how">How it works</a><a href="#pricing">Pricing</a><a href="/">Try the builder</a></nav>
+  </header>
+
+  <main>
+  <div class="hero">
+    <div class="hero-copy">
+      <h1>Give your app a character people remember.</h1>
+      <p class="lede">Describe a mascot in a sentence. Pip paints it, brings it to life, and adds it to your app with one line of code.</p>
+      <form class="join" id="join1" novalidate>
+        <label for="email1" class="sr">Email</label>
+        <input id="email1" name="email" type="email" required placeholder="you@yourapp.com" autocomplete="email">
+        <button class="btn" type="submit">Join the waitlist</button>
+      </form>
+      <p class="note" id="note1" aria-live="polite">Early access opens soon. Waitlist members get the launch price.</p>
+    </div>
+    <div class="stage">
+      <span class="play-label">Hi, I'm Pip. Poke me.</span>
+      <pip-mascot id="pip" greet greeting="Hi! I'm Pip."></pip-mascot>
+      <div class="play" role="group" aria-label="Make Pip react">
+        <button data-r="wave">Wave</button><button data-r="success">Cheer</button><button data-r="error">Oops</button><button data-r="love">Love</button><button data-r="sleeping">Nap</button>
+      </div>
+    </div>
+  </div>
+  </main>
+</div>
+
+<section class="moments" aria-labelledby="mh">
+  <div class="wrap">
+    <h2 id="mh">A friend who notices what's happening.</h2>
+    <p class="lede" style="margin-top:16px">Pip watches your app and reacts on its own. No event wiring, no state machine. Try a few.</p>
+    <div class="mgrid">
+      <div class="moment"><b>Someone misses a field</b><button data-m="field">Show me</button><span>Pip walks over, points at it, and says what's missing.</span></div>
+      <div class="moment"><b>Something finally works</b><button data-m="success">Show me</button><span>A save, a signup, a first task done. Pip celebrates with them.</span></div>
+      <div class="moment"><b>The server has a bad day</b><button data-m="error">Show me</button><span>Pip catches failed requests and lets people know it isn't their fault.</span></div>
+      <div class="moment"><b>They come back after a while</b><button data-m="back">Show me</button><span>A sleepy stretch and a welcome back. The small moment people screenshot.</span></div>
+      <div class="moment"><b>They're typing a password</b><button data-m="pass">Show me</button><span>Pip covers its eyes. Nobody asked for this, and everybody loves it.</span></div>
+      <div class="moment"><b>They tap the button six times</b><button data-m="rage">Show me</button><span>Pip notices the frustration and calms things down.</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+<section id="how" aria-labelledby="hh">
+  <div class="how-head"><h2 id="hh">From a sentence to your app in a few minutes.</h2></div>
+  <div class="steps">
+    <div class="step"><h3>Describe it</h3><p>Write what your mascot looks like and how it feels. A gnome, a plush monster, a little robot, your logo with legs.</p>
+      <div class="prompt">“A tiny seed sprite with a sprout on its head and a mint scarf.”</div></div>
+    <div class="step"><h3>Watch it get painted</h3><p>Pip paints twelve poses and expressions in one go, so your character looks like itself in every one of them.</p>
+      <div class="sheet" aria-hidden="true"><div>🙂</div><div>😌</div><div>😄</div><div>🗣️</div><div>😟</div><div>😮</div><div>🤨</div><div>👋</div><div>👋</div><div>👈</div><div>👉</div><div>😁</div></div></div>
+    <div class="step"><h3>Add one line</h3><p>Paste it into any site. React, Next, Svelte, plain HTML, or whatever your AI builder made.</p>
+<pre><span class="t">&lt;script</span> <span class="a">src</span>="https://pip-mascot.vercel.app/pip-mascot.js"<span class="t">&gt;&lt;/script&gt;</span>
+<span class="t">&lt;pip-mascot</span> <span class="a">mascot</span>="your-id" <span class="a">autopilot</span><span class="t">&gt;&lt;/pip-mascot&gt;</span></pre></div>
+  </div>
+</section>
+
+<section id="pricing" aria-labelledby="ph">
+  <h2 id="ph">Start free. Paint your own when you're ready.</h2>
+  <div class="plans">
+    <div class="plan">
+      <h3>Starter</h3>
+      <div class="price">Free</div>
+      <ul><li>Build a mascot from shapes and colours</li><li>Autopilot reactions on any site</li><li>Small “Made with Pip” badge</li></ul>
+      <a class="btn ghost" href="/">Build one now</a>
+    </div>
+    <div class="plan paint">
+      <h3>Painted</h3>
+      <div class="price">$39<small>one time, per mascot</small></div>
+      <ul><li>Your own painted character, twelve poses</li><li>Repaints until it feels right</li><li>Hosted for you, no badge</li></ul>
+      <a class="btn" href="#join2" id="paintCta">Get launch pricing</a>
+    </div>
+  </div>
+</section>
+
+<section class="end" aria-labelledby="eh">
+  <h2 id="eh">Your users will remember who helped them.</h2>
+  <form class="join" id="join2" novalidate>
+    <label for="email2" class="sr">Email</label>
+    <input id="email2" name="email" type="email" required placeholder="you@yourapp.com" autocomplete="email">
+    <button class="btn" type="submit">Join the waitlist</button>
+  </form>
+  <p class="note" id="note2" aria-live="polite"></p>
+</section>
+
+<footer><span>Pip. Made for people who ship.</span><a href="/">Open the builder</a></footer>
+</div>
+
+<style>.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}</style>
+<script>
+// When Pip has been painted, put its saved ID here and the hero switches to the painted character.
+const PIP_ID = '';
+// Optional: a Stripe Payment Link for pre-orders. Leave empty to use the waitlist only.
+const PREORDER_URL = '';
+
+const pip = document.getElementById('pip');
+if (PIP_ID) {
+  pip.setAttribute('mascot', PIP_ID);
+  // Show Pip's real painted sheet in "Watch it get painted"
+  fetch('/api/mascot?id=' + PIP_ID).then(r => r.ok ? r.json() : null).then(d => {
+    if (!d || !d.image) return; const sh = document.querySelector('.sheet'), img = new Image();
+    img.alt = 'The sheet of twelve poses and expressions painted for Pip'; img.onload = () => { sh.replaceChildren(img); sh.removeAttribute('aria-hidden'); }; img.src = d.image;
+  }).catch(() => {});
+}
+if (PREORDER_URL) { const c = document.getElementById('paintCta'); c.href = PREORDER_URL; c.textContent = 'Pre-order for $39'; }
+
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const m = () => pip._m;
+const say = (t, ms = 2200) => m() && m().say(t, { hold: ms });
+const pointAt = el => { const r = el.getBoundingClientRect(); try { m() && m().point && m().point(r.left + r.width / 2, r.top + r.height / 2); } catch (e) {} };
+
+// Reaction chips
+document.querySelectorAll('.play button').forEach(b => b.addEventListener('click', () => {
+  const r = b.dataset.r, lines = { wave: 'Hello there!', success: 'We did it!', error: 'Uh oh.', love: 'I like you.', sleeping: '' };
+  if (r === 'sleeping') { pip.setState('sleeping'); return; }
+  pip.setState('idle'); pip.react(r, 2400); if (lines[r]) say(lines[r]);
+}));
+
+// Moments: replay what autopilot does, on the hero Pip
+const hero = document.querySelector('.stage');
+const toHero = async () => { if (hero.getBoundingClientRect().top < -40) { hero.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' }); await wait(600); } };
+const moments = {
+  field: async () => { const i = document.getElementById('email1'); i.scrollIntoView({ block: 'center', behavior: 'smooth' }); await wait(500); pip.react('error', 2400); pointAt(i); say('Pop your email in here!', 2600); i.focus({ preventScroll: true }); },
+  success: async () => { await toHero(); pip.react('success', 2600); say('It worked! Nice one.'); },
+  error: async () => { await toHero(); pip.react('error', 2600); say("Our server's having a moment. Not your fault!", 2800); },
+  back: async () => { await toHero(); pip.setState('sleeping'); await wait(1800); pip.setState('idle'); pip.react('wave', 2200); say('Oh! Welcome back.'); },
+  pass: async () => { await toHero(); pip.cover(true); say("I'm not looking!", 2000); await wait(2400); pip.cover(false); },
+  rage: async () => { await toHero(); pip.react('surprised', 1600); say('Easy there. I think it heard you.', 2600); },
+};
+document.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', () => moments[b.dataset.m]()));
+
+// Waitlist
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+function wire(formId, noteId) {
+  const f = document.getElementById(formId), note = document.getElementById(noteId), input = f.querySelector('input'), btn = f.querySelector('button');
+  const inHero = formId === 'join1';
+  f.addEventListener('submit', async e => {
+    e.preventDefault();
+    const email = input.value.trim();
+    if (!EMAIL.test(email)) {
+      note.className = 'note bad'; note.textContent = email ? 'That email looks off. Check for a typo.' : 'Add your email to join.';
+      input.focus();
+      if (inHero) { pip.react('confused', 2200); pointAt(input); say(email ? 'Hmm, is that right?' : 'Your email goes here!'); }
+      return;
+    }
+    btn.disabled = true; btn.textContent = 'Joining…';
+    try {
+      const r = await fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, source: formId }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Something went wrong. Try again in a moment.');
+      note.className = 'note ok'; note.textContent = "You're on the list. We'll email you when early access opens.";
+      input.value = ''; btn.textContent = 'Joined';
+      await toHero(); pip.react('love', 2600); say("Yay! You're in. See you soon.", 2800);
+    } catch (err) {
+      note.className = 'note bad'; note.textContent = err.message; btn.disabled = false; btn.textContent = 'Join the waitlist';
+      if (inHero) { pip.react('error', 2200); say("That didn't go through. Try again?"); }
+    }
+  });
+  input.addEventListener('input', () => { if (note.classList.contains('bad')) { note.className = 'note'; note.textContent = ''; } });
+}
+wire('join1', 'note1'); wire('join2', 'note2');
+document.getElementById('email1').addEventListener('focus', () => { const i = document.getElementById('email1'), r = i.getBoundingClientRect(); pip.lookAt(r.left + r.width / 2, r.top); });
+</script>
+</body>
+</html>
