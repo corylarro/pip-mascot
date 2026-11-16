@@ -111,12 +111,12 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     </div>
     <div class="row">
       <div class="field" style="flex:1"><label for="quality">Quality</label>
-        <select id="quality"><option value="low">Draft (cheapest)</option><option value="medium" selected>Standard</option><option value="high">High (slower)</option></select></div>
+        <select id="quality"><option value="low">Draft (fastest)</option><option value="medium" selected>Standard</option><option value="high">High (slower)</option></select></div>
     </div>
     <p class="hint" id="modeHint"></p>
     <div class="field" id="passWrap" hidden><label for="pass">Passcode</label><input type="password" id="pass" autocomplete="off" placeholder="The PAINT_PASSCODE you set in Vercel"></div>
     <button type="button" class="primary" id="go">Paint it</button>
-    <p class="hint" id="status">Painting makes about 6 images on your OpenAI account (roughly $0.20 to $0.50 at Standard) and takes 1 to 3 minutes.</p>
+    <p class="hint" id="status">Describe your character and pick a look. Painting takes about a minute.</p>
     <ol class="steps" id="steps"></ol>
   </section>
 
@@ -367,8 +367,8 @@ const pw=$('tryPw');pw.addEventListener('focus',()=>{rig.cover=true});pw.addEven
 
 const SHEET_NAMES=['neutral','blink','happy','talk','worried','surprised','confused','waveA','waveB'];
 const MODES={sheet:{steps:[['sheet','Sheet'],['face','Find face'],['f0','Neutral'],['f1','Blink'],['f2','Happy'],['f3','Talking'],['f4','Worried'],['f5','Surprised'],['f6','Confused'],['f7','Wave'],['f8','Wave 2']],
-    hint:'Paints all nine poses and expressions together in one image so they stay the same character. One image, about $0.10 to $0.30.'},
-  simple:{steps:[['base','Character'],['face','Place face']],hint:'Paints the character with a blank face, then Pip draws the eyes and mouth live, so expressions, blinking, eye-tracking and talking are perfectly smooth. One image, about $0.03 to $0.10. Best for toys, creatures and stylized characters.'}};
+    hint:'Paints all nine poses and expressions together, so they always look like the same character.'},
+  simple:{steps:[['base','Character'],['face','Place face']],hint:'Paints the character with a blank face, then Pip draws the eyes and mouth live, so expressions, blinking, eye-tracking and talking are perfectly smooth. Best for toys, creatures and stylized characters.'}};
 let STEP_LIST=MODES.sheet.steps;
 function renderSteps(mode){STEP_LIST=MODES[mode].steps;stepsEl.innerHTML=STEP_LIST.map(([k,l])=>`<li data-k="${k}" data-s="wait"><span class="th"></span><span>${l}</span></li>`).join('')}
 function stepState(k,s,thumb){const li=stepsEl.querySelector(`[data-k="${k}"]`);if(!li)return;li.dataset.s=s;if(thumb){li.querySelector('.th').innerHTML='';const im=new Image();im.alt='';im.src=thumb;li.querySelector('.th').appendChild(im)}}
