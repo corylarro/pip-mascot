@@ -24,7 +24,7 @@ function palette(hex){let [h,s,l]=hexToHsl(hex);l=clamp(l,46,86);s=clamp(s,22,95
 
 const OPT={shape:['bean','round','tall','cube','pear','custom'],topper:['none','sprout','antenna','cat','bunny','horns','tuft'],
   eyes:['round','tall','small','dot','anime','cyclops'],pattern:['none','belly','spots','stripes'],accessory:['none','glasses','bowtie','crown','headphones'],
-  style:['glossy','flat','soft','bold'],hands:['mitten','nub','none'],feet:['feet','none']};
+  style:['3d','plush','glossy','flat','soft','bold'],hands:['mitten','nub','none'],feet:['feet','none']};
 const DEFAULT={name:'Pip',shape:'bean',color:'#FFC23D',accent:'#6BCB77',eyeColor:'#5A3A1E',topper:'sprout',eyes:'round',pattern:'none',accessory:'none',style:'glossy',hands:'mitten',feet:'feet',tooth:false,hat:'',item:'',body:null,greeting:"Hi, I'm Pip!"};
 const HEX=/^#[0-9a-f]{6}$/i;
 const TAGS=new Set(['g','path','circle','ellipse','rect','line','polyline','polygon']);
@@ -84,7 +84,8 @@ function render(cfg,uid){
   const es=cfg.shape==='custom'&&cfg.body?cfg.body.eyeSize:1,E={...E0,rx:E0.rx*es,ry:E0.ry*es,ir:E0.ir*es};
   const eyes=cfg.eyes==='cyclops'?[{cx:120,cy:G.eyeY+2,rx:E.rx,ry:E.ry,ir:E.ir}]:[-1,1].map(s=>({cx:120+s*(G.dx+E.adj*es),cy:G.eyeY,rx:E.rx,ry:E.ry,ir:E.ir}));
   const ST={glossy:{fill:`url(#${u}grad)`,w:4.5,inner:.35,hl:true,oc:ol},flat:{fill:P.base,w:5,inner:0,hl:false,oc:ol},
-    soft:{fill:`url(#${u}grad)`,w:3,inner:.22,hl:true,oc:P.deep},bold:{fill:P.base,w:7,inner:.5,hl:true,oc:ol}}[cfg.style]||{fill:`url(#${u}grad)`,w:4.5,inner:.35,hl:true,oc:ol};
+    soft:{fill:`url(#${u}grad)`,w:3,inner:.22,hl:true,oc:P.deep},
+    '3d':{fill:P.base,w:2.2,inner:0,hl:false,oc:P.deep,fx:`url(#${u}lit)`},plush:{fill:P.base,w:0,inner:0,hl:false,oc:P.shade,fx:`url(#${u}fur)`},bold:{fill:P.base,w:7,inner:.5,hl:true,oc:ol}}[cfg.style]||{fill:`url(#${u}grad)`,w:4.5,inner:.35,hl:true,oc:ol};
   const hw=Math.max(3,ST.w*.85);const ih=hexToHsl(cfg.eyeColor),irisL=hsl(ih[0],Math.min(ih[1]+10,90),Math.min(ih[2]+24,70)),irisD=hsl(ih[0],ih[1],Math.max(ih[2]-10,6));
   let top='';const parts=[];
   if(cfg.topper==='sprout')top=`<path d="M120 ${t+6} C119 ${t-6} 121 ${t-14} 124 ${t-22}" stroke="${ol}" stroke-width="4" fill="none" stroke-linecap="round"/>
@@ -118,11 +119,12 @@ function render(cfg,uid){
         <circle cx="${e.cx+e.ir*.38}" cy="${e.cy-e.ir*.38}" r="${Math.max(2.2,e.ir*.3)}" fill="#fff"/><circle cx="${e.cx-e.ir*.35}" cy="${e.cy+e.ir*.42}" r="${Math.max(1.2,e.ir*.13)}" fill="#fff" opacity=".85"/>
         ${E.sparkle?`<ellipse cx="${e.cx}" cy="${e.cy+e.ir*.75}" rx="${e.ir*.7}" ry="${e.ir*.28}" fill="#fff" opacity=".35"/><circle cx="${e.cx-e.ir*.45}" cy="${e.cy-e.ir*.55}" r="${e.ir*.16}" fill="#fff"/>`:''}`}</g>
       <g id="${u}lidT${i}"><rect x="${e.cx-e.rx-3}" y="${e.cy-e.ry-2-H}" width="${2*e.rx+6}" height="${H}" fill="${P.base}"/>
+        <rect x="${e.cx-e.rx-3}" y="${e.cy-e.ry-2}" width="${2*e.rx+6}" height="${Math.max(5,e.ry*.45)}" fill="url(#${u}lidsh)"/>
         <path d="M${e.cx-e.rx-3} ${e.cy-e.ry-2} L${e.cx+e.rx+3} ${e.cy-e.ry-2}" stroke="${ol}" stroke-width="3.5"/></g>
       <g id="${u}lidB${i}"><rect x="${e.cx-e.rx-3}" y="${e.cy+e.ry+2}" width="${2*e.rx+6}" height="${H}" fill="${P.base}"/>
         <path d="M${e.cx-e.rx-3} ${e.cy+e.ry+2} L${e.cx+e.rx+3} ${e.cy+e.ry+2}" stroke="${ol}" stroke-width="3"/></g>
     </g>
-    ${E.dark?'':`<ellipse cx="${e.cx}" cy="${e.cy}" rx="${e.rx}" ry="${e.ry}" fill="none" stroke="${ol}" stroke-width="3.5"/>`}</g>
+    ${E.dark?'':`<ellipse cx="${e.cx-e.rx*.2}" cy="${e.cy-e.ry*.42}" rx="${e.rx*.62}" ry="${e.ry*.3}" fill="#fff" opacity=".22"/><ellipse cx="${e.cx}" cy="${e.cy}" rx="${e.rx}" ry="${e.ry}" fill="none" stroke="${ol}" stroke-width="${cfg.style==='3d'||cfg.style==='plush'?2.6:3.5}"/>`}</g>
     <path id="${u}hap${i}" d="M${e.cx-e.rx+1} ${e.cy+4} Q${e.cx} ${e.cy-e.ry} ${e.cx+e.rx-1} ${e.cy+4}" stroke="${ol}" stroke-width="5" fill="none" stroke-linecap="round" opacity="0"/>
     <path id="${u}heart${i}" d="${heartD(e.cx,e.cy,Math.max(e.rx,e.ry)*.72)}" fill="#FF4D6D" stroke="${ol}" stroke-width="3" stroke-linejoin="round" opacity="0"/>`}).join('');
   const brows=eyes.map((e,i)=>`<path id="${u}brow${i}" stroke="${ol}" stroke-width="${eyes.length===1?5.5:5}" fill="none" stroke-linecap="round"/>`).join('');
@@ -140,8 +142,9 @@ function render(cfg,uid){
     behind=`<path d="M${L} ${y} C${L} ${t-30} ${R} ${t-30} ${R} ${y}" stroke="${ol}" stroke-width="11" fill="none" stroke-linecap="round"/><path d="M${L} ${y} C${L} ${t-30} ${R} ${t-30} ${R} ${y}" stroke="${acc}" stroke-width="5" fill="none" stroke-linecap="round"/>`;
     front=[L,R].map(x=>`<rect x="${x-11}" y="${y-18}" width="22" height="36" rx="10" fill="${acc}" stroke="${ol}" stroke-width="3.5"/><rect x="${x-5}" y="${y-11}" width="10" height="22" rx="5" fill="${ol}" opacity=".25"/>`).join('')}
   if(cfg.shape==='custom'&&cfg.body&&cfg.body.parts)cfg.body.parts.forEach(p=>parts.push({svg:p.svg,pivot:[p.pivot[0],p.pivot[1]+sh],motion:p.motion,shift:sh,ai:true}));
+  const pol=cfg.style==='plush'?P.deep:ol;
   const paint=sv=>sv.replace(/(fill|stroke)="(outline|body|accent|shade|light)"/g,(m,k,tk)=>k+'="'+({outline:ol,body:P.base,accent:acc,shade:P.shade,light:P.light}[tk])+'"');
-  const paintB=sv=>sv.replace(/(fill|stroke)="(outline|body|accent|shade|light)"/g,(m,k,tk)=>k+'="'+({outline:ol,body:P.back,accent:acc,shade:P.shade,light:P.light}[tk])+'"');
+  const paintB=sv=>sv.replace(/(fill|stroke)="(outline|body|accent|shade|light)"/g,(m,k,tk)=>k+'="'+({outline:pol,body:P.back,accent:acc,shade:P.shade,light:P.light}[tk])+'"');
   const partMk=parts.map((p,i)=>`<g id="${u}part${i}"><g transform="translate(0 ${p.ai?sh:0})">${p.ai?paintB(p.svg):p.svg}</g></g>`).join('');
   const hat=cfg.hat?`<g id="${u}hat" transform="translate(${120-45} ${t+14-66*.9}) scale(.9)">${paint(cfg.hat)}</g>`:'';
   const item=cfg.item?`<g transform="rotate(-20) translate(-12 -40) scale(.9)">${paint(cfg.item)}</g>`:'';
@@ -149,20 +152,39 @@ function render(cfg,uid){
     <radialGradient id="${u}grad" cx=".36" cy=".26" r=".9"><stop offset="0" stop-color="${P.light}"/><stop offset=".55" stop-color="${P.base}"/><stop offset="1" stop-color="${P.shade}"/></radialGradient>
     <radialGradient id="${u}iris" cx=".5" cy=".38" r=".62"><stop offset="0" stop-color="${irisL}"/><stop offset=".72" stop-color="${cfg.eyeColor}"/><stop offset="1" stop-color="${irisD}"/></radialGradient>
     <radialGradient id="${u}cheek"><stop offset="0" stop-color="#FF7F95" stop-opacity=".95"/><stop offset="1" stop-color="#FF7F95" stop-opacity="0"/></radialGradient>
+    <filter id="${u}lit" x="-12%" y="-12%" width="124%" height="124%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="11" result="h"/>
+      <feDiffuseLighting in="h" surfaceScale="4.5" diffuseConstant="1.08" lighting-color="#ffffff" result="d"><feDistantLight azimuth="235" elevation="52"/></feDiffuseLighting>
+      <feComposite in="d" in2="SourceAlpha" operator="in" result="di"/>
+      <feBlend in="SourceGraphic" in2="di" mode="multiply" result="sh"/>
+      <feSpecularLighting in="h" surfaceScale="4.5" specularConstant=".8" specularExponent="22" lighting-color="#ffffff" result="sp"><fePointLight x="70" y="30" z="160"/></feSpecularLighting>
+      <feComposite in="sp" in2="SourceAlpha" operator="in" result="spi"/>
+      <feComposite in="sh" in2="spi" operator="arithmetic" k1="0" k2="1" k3=".7" k4="0"/></filter>
+    <filter id="${u}fur" x="-12%" y="-12%" width="124%" height="124%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="1.3" numOctaves="2" seed="4" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="4" xChannelSelector="R" yChannelSelector="G" result="fz"/>
+      <feGaussianBlur in="SourceAlpha" stdDeviation="12" result="h"/>
+      <feDiffuseLighting in="h" surfaceScale="4" diffuseConstant="1.12" lighting-color="#ffffff" result="d"><feDistantLight azimuth="235" elevation="55"/></feDiffuseLighting>
+      <feComposite in="d" in2="fz" operator="in" result="di"/>
+      <feBlend in="fz" in2="di" mode="multiply" result="sh"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .07 0" result="spk"/>
+      <feComposite in="spk" in2="fz" operator="in" result="spki"/>
+      <feMerge><feMergeNode in="sh"/><feMergeNode in="spki"/></feMerge></filter>
+    <linearGradient id="${u}lidsh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2A1A30" stop-opacity=".35"/><stop offset="1" stop-color="#2A1A30" stop-opacity="0"/></linearGradient>
     <filter id="${u}blur" x="-30%" y="-200%" width="160%" height="500%"><feGaussianBlur stdDeviation="3.2"/></filter>
     <clipPath id="${u}bclip"><path d="${G.d}" transform="translate(0 ${sh})"/></clipPath><clipPath id="${u}mclip"><path id="${u}mclipPath"/></clipPath></defs>
   <g id="${u}shadow"><ellipse cx="120" cy="213" rx="70" ry="9" fill="rgba(25,25,60,.22)" filter="url(#${u}blur)"/><ellipse cx="120" cy="209" rx="44" ry="4" fill="rgba(25,25,60,.18)"/></g>
   <g id="${u}zzz" font-family="Fredoka, ui-rounded, sans-serif" font-weight="600" fill="${ol}"><text>z</text><text>z</text><text>z</text></g>
   <text id="${u}q" x="${G.sideR-4}" y="${t+4}" font-family="Fredoka, ui-rounded, sans-serif" font-size="34" font-weight="700" fill="${ol}" opacity="0">?</text>
   <g id="${u}dots" fill="${ol}"><circle cx="168" cy="${t-18}" r="5"/><circle cx="184" cy="${t-18}" r="5"/><circle cx="200" cy="${t-18}" r="5"/></g>
-  <g id="${u}body">
+  <g id="${u}body"><g${ST.fx?` filter="${ST.fx}"`:''}>
     <g id="${u}topper">${top}</g>${behind}
     ${cfg.body&&cfg.shape==='custom'&&cfg.body.back?`<g transform="translate(0 ${sh})">${paintB(cfg.body.back)}</g>`:''}${partMk}
     ${cfg.feet==='none'?'':`<ellipse cx="94" cy="205" rx="17" ry="8" fill="${P.shade}" stroke="${ST.oc}" stroke-width="${hw}"/>
     <ellipse cx="146" cy="205" rx="17" ry="8" fill="${P.shade}" stroke="${ST.oc}" stroke-width="${hw}"/>`}
     <path d="${G.d}" fill="${ST.fill}" transform="translate(0 ${sh})"/>
-    <g clip-path="url(#${u}bclip)">${pat}${cfg.body&&cfg.shape==='custom'&&cfg.body.marks?`<g transform="translate(0 ${sh})">${paint(cfg.body.marks)}</g>`:''}${ST.inner?`<path d="${G.d}" fill="none" stroke="${P.deep}" stroke-opacity="${ST.inner}" stroke-width="16" transform="translate(-5 ${sh-7})"/>`:''}${ST.hl?`<path d="${G.d}" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="7" transform="translate(4 ${sh+5})"/>`:''}</g>
-    <path d="${G.d}" fill="none" stroke="${ST.oc}" stroke-width="${ST.w}" stroke-linejoin="round" transform="translate(0 ${sh})"/>
+    <g clip-path="url(#${u}bclip)">${pat}${cfg.body&&cfg.shape==='custom'&&cfg.body.marks?`<g transform="translate(0 ${sh})">${paint(cfg.body.marks)}</g>`:''}${ST.inner?`<path d="${G.d}" fill="none" stroke="${P.deep}" stroke-opacity="${ST.inner}" stroke-width="16" transform="translate(-5 ${sh-7})"/>`:''}${ST.hl?`<path d="${G.d}" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="7" transform="translate(4 ${sh+5})"/>`:''}</g></g>
+    ${ST.w?`<path d="${G.d}" fill="none" stroke="${ST.oc}" stroke-width="${ST.w}" stroke-linejoin="round" transform="translate(0 ${sh})"/>`:''}
     ${ST.hl?`<ellipse cx="${120-G.ex-4}" cy="${t+26}" rx="15" ry="7" fill="#fff" opacity=".55" transform="rotate(-28 ${120-G.ex-4} ${t+26})"/><circle cx="${120-G.ex+14}" cy="${t+16}" r="3" fill="#fff" opacity=".6"/>`:''}
     ${hat}
     <g id="${u}face">
@@ -173,7 +195,7 @@ function render(cfg,uid){
       <path id="${u}sweat" d="M0 -13 C0 -13 -8 -1 -8 4 C-8 9 -4 12 0 12 C4 12 8 9 8 4 C8 -1 0 -13 0 -13 Z" fill="#8FD3FF" stroke="${ol}" stroke-width="2.5" opacity="0"/>
     </g>${front}
   </g>
-  ${[0,1].map(i=>{const nb=cfg.hands==='nub',hide=cfg.hands==='none';return `<g id="${u}hand${i}">${i?item:''}${hide?'':`<ellipse rx="${nb?10:16}" ry="${nb?9:14}" fill="${P.base}" stroke="${ST.oc}" stroke-width="${hw}"/>${ST.hl?`<ellipse cx="${nb?-2.5:-4}" cy="${nb?-2.5:-4}" rx="${nb?3:5}" ry="${nb?2:3}" fill="#fff" opacity=".45"/>`:''}`}</g>`}).join('')}
+  ${[0,1].map(i=>{const nb=cfg.hands==='nub',hide=cfg.hands==='none';return `<g id="${u}hand${i}">${i?item:''}${hide?'':`<g${ST.fx?` filter="${ST.fx}"`:''}><ellipse rx="${nb?10:16}" ry="${nb?9:14}" fill="${P.base}" stroke="${ST.oc}" stroke-width="${hw}"/>${ST.hl?`<ellipse cx="${nb?-2.5:-4}" cy="${nb?-2.5:-4}" rx="${nb?3:5}" ry="${nb?2:3}" fill="#fff" opacity=".45"/>`:''}</g>`}</g>`}).join('')}
   <g id="${u}fx"></g>`;
   return {markup,geom:{...G,eyes,parts:parts.map(p=>({pivot:p.pivot,motion:p.motion}))}};
 }
