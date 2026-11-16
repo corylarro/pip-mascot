@@ -147,7 +147,7 @@ a.ghost{display:inline-flex;align-items:center;text-decoration:none;border-radiu
 (function(){
 "use strict";
 const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),pick=a=>a[Math.floor(Math.random()*a.length)];
-const P=PipPaintedEngine(),{PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES}=P;
+const P=PipPaintedEngine(),{refineFace,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES}=P;
 /* ---------- storage (so a refresh doesn't cost another painting) ---------- */
 const DB={open(){return new Promise((res,rej)=>{const r=indexedDB.open('pip-paint',1);r.onupgradeneeded=()=>r.result.createObjectStore('m');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})},
   async put(v){try{const db=await this.open();await new Promise((res,rej)=>{const tx=db.transaction('m','readwrite');tx.objectStore('m').put(v,'last');tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}catch(e){}},
@@ -246,8 +246,9 @@ async function loadSheet(m,fresh){
   let f=m.face;
   if(!f){setStatus('Finding the face…','ok');stepState('face','work');let face=null;
     try{const r=await api({step:'face',image:canvasB64(frames[0].canvas,'image/webp'),mime:'image/webp'});face=r.face}catch(e){if(e.status===401)throw e}
-    f=faceFrom(face,L,frames[0].bbox);m.face=f;stepState('face',face?'done':'fail',faceThumb(frames[0],f))}
-  rig.setFace(f);
+    f=faceFrom(face,L,frames[0].bbox);m.face=f}
+  const rf=refineFace(frames,f,SHEET_NAMES);if(fresh||!m.face.refined)stepState('face',rf.refined?'done':(f?'done':'fail'),faceThumb(frames[0],rf));
+  rig.setFace(rf);
   frames.forEach((fr,i)=>{const n=SHEET_NAMES[i];if(!n||n==='neutral')return;if(n.startsWith('wave'))rig.addFull(n,fr);else rig.addExpr(n,fr)});
   if(rig.full.waveA&&rig.full.waveB){const a=raisedSide(frames[0],rig.full.waveA,f.box),b=raisedSide(frames[0],rig.full.waveB,f.box);if(!a||!b||a!==b)delete rig.full.waveB}
   document.querySelector('#states [data-s="wave"]').title=rig.full&&rig.full.waveA?'':'Paint a new sheet to get a real wave'}

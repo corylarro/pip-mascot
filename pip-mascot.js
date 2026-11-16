@@ -676,16 +676,48 @@ function raisedSide(base,full,face){const S=200,f=S/base.canvas.width,alpha=(c,d
   const A=alpha(base.canvas,0,0),B=alpha(full.canvas,full.off.dx,full.off.dy),y0=Math.max(0,(base.bbox.y-base.bbox.h*.2)*f),y1=(face.y+face.h*1.3)*f,xl=face.x*f,xr=(face.x+face.w)*f;
   let L=0,R=0;for(let y=Math.floor(y0);y<Math.min(S,y1);y++)for(let x=0;x<S;x++){const i=(y*S+x)*4+3;if(B[i]>128&&A[i]<60){if(x<xl)L++;else if(x>xr)R++}}
   if(L+R<12)return null;return L>R*1.6?'L':R>L*1.6?'R':null}
+// Measure where the eyes and mouth really are by comparing frames: neutral vs blink finds the eyes,
+// neutral vs talking/surprised finds the mouth. Falls back to the rough face if the measurement looks wrong.
+function refineFace(frames,face,names){
+  try{const base=frames[0],L=base.canvas.width,S=256,f=S/L,BB=base.bbox,idx=n=>names.indexOf(n);
+    const grab=(fr,off)=>{const t=canvasOf(S,S),x=t.getContext('2d',{willReadFrequently:true});x.fillStyle='#808080';x.fillRect(0,0,S,S);
+      x.drawImage(fr.canvas,-(off?off.dx:0)*f,-(off?off.dy:0)*f,S,S);const d=x.getImageData(0,0,S,S).data,g=new Float32Array(S*S);
+      for(let i=0;i<S*S;i++)g[i]=d[i*4]*.3+d[i*4+1]*.59+d[i*4+2]*.11;
+      const b=new Float32Array(S*S);for(let y=1;y<S-1;y++)for(let xx=1;xx<S-1;xx++){let a=0;for(let j=-1;j<=1;j++)for(let k=-1;k<=1;k++)a+=g[(y+j)*S+xx+k];b[y*S+xx]=a/9}return b};
+    const G0=grab(base),x0=BB.x*f,y0=BB.y*f,x1=(BB.x+BB.w)*f,y1=(BB.y+BB.h)*f;
+    const diff=name=>{const i=idx(name);if(i<1||!frames[i])return null;const off=alignFrames(base,frames[i],face.box),G=grab(frames[i],off),D=new Float32Array(S*S);
+      for(let y=Math.floor(y0);y<y1;y++)for(let x=Math.floor(x0);x<x1;x++){const p=y*S+x;D[p]=Math.abs(G0[p]-G[p])}return D};
+    const blobs=(D,yMin,yMax)=>{let sum=0,sq=0,n=0;for(let y=Math.floor(y0);y<y1;y++)for(let x=Math.floor(x0);x<x1;x++){const v=D[y*S+x];sum+=v;sq+=v*v;n++}
+      const mean=sum/n,sd=Math.sqrt(Math.max(0,sq/n-mean*mean)),thr=Math.max(20,mean+2.6*sd);
+      const lab=new Int32Array(S*S),out=[];let id=0;const q=[];
+      for(let y=Math.max(0,Math.floor(yMin));y<Math.min(S,yMax);y++)for(let x=Math.floor(x0);x<x1;x++){const p=y*S+x;if(D[p]<thr||lab[p])continue;
+        id++;lab[p]=id;q.length=0;q.push(p);let a=0,bx0=S,by0=S,bx1=0,by1=0;
+        while(q.length){const c=q.pop(),cx=c%S,cy=(c/S)|0;a++;if(cx<bx0)bx0=cx;if(cx>bx1)bx1=cx;if(cy<by0)by0=cy;if(cy>by1)by1=cy;
+          for(const nb of [c-1,c+1,c-S,c+S]){const nx=nb%S,ny=(nb/S)|0;if(nb<0||nb>=S*S||lab[nb]||D[nb]<thr||ny<yMin||ny>=yMax||nx<x0||nx>=x1)continue;lab[nb]=id;q.push(nb)}}
+        out.push({a,x:bx0,y:by0,w:bx1-bx0+1,h:by1-by0+1})}
+      out.sort((a,b)=>b.a-a.a);return out.filter(o=>o.a>=Math.max(6,out.length?out[0].a*.18:0))};
+    const union=bs=>bs.length?bs.reduce((u,b)=>{const X=Math.min(u.x,b.x),Y=Math.min(u.y,b.y);return {x:X,y:Y,w:Math.max(u.x+u.w,b.x+b.w)-X,h:Math.max(u.y+u.h,b.y+b.h)-Y}}):null;
+    const Db=diff('blink');if(!Db)return face;
+    const eb=blobs(Db,y0,y0+(y1-y0)*.75).slice(0,2);const eyes=union(eb);if(!eyes)return face;
+    const Dm=[diff('talk'),diff('surprised')].filter(Boolean);if(!Dm.length)return face;
+    const mb=[];Dm.forEach(D=>mb.push(...blobs(D,eyes.y+eyes.h*.9,y1).slice(0,1)));let mouth=union(mb);
+    const bw=(x1-x0);
+    if(!mouth||eyes.w<bw*.06||eyes.w>bw*.85||mouth.w<bw*.03||mouth.w>bw*.7||mouth.y<eyes.y+eyes.h*.5)return face;
+    const px=b=>({x:b.x/f,y:b.y/f,w:b.w/f,h:b.h/f});const E=px(eyes),M=px(mouth);
+    const bx=Math.min(E.x,M.x),by=Math.min(E.y,M.y),bx2=Math.max(E.x+E.w,M.x+M.w),by2=Math.max(E.y+E.h,M.y+M.h);
+    return {box:{x:bx-(bx2-bx)*.12,y:by-(by2-by)*.15,w:(bx2-bx)*1.24,h:(by2-by)*1.3},eyes:[E],mouth:M,refined:true,eyeColor:face.eyeColor}}
+  catch(e){return face}}
+
 // Load a saved mascot ({mode, image, face, grid, name, greeting}) into a rig.
 async function mountMascot(rig,data){
   const k=keyOut(await loadImg(data.image));rig.cfg={name:data.name||'',greeting:data.greeting||`Hi${data.name?", I'm "+data.name:''}!`};
   if(data.mode==='simple'){rig.setBase(k);rig.setSimple(simpleInfo(data.face,k.canvas));return rig}
-  const [c,r]=data.grid||[3,2],frames=splitSheet(k,c,r);rig.simple=null;rig.setBase(frames[0]);rig.setFace(data.face);
+  const [c,r]=data.grid||[3,2],frames=splitSheet(k,c,r);rig.simple=null;rig.setBase(frames[0]);const face=refineFace(frames,data.face,SHEET_NAMES);rig.setFace(face);data.face=face;
   frames.forEach((fr,i)=>{const n=SHEET_NAMES[i];if(!n||n==='neutral')return;if(n.startsWith('wave'))rig.addFull(n,fr);else rig.addExpr(n,fr)});
   if(rig.full.waveA&&rig.full.waveB){const a=raisedSide(frames[0],rig.full.waveA,data.face.box),b=raisedSide(frames[0],rig.full.waveB,data.face.box);if(!a||!b||a!==b)delete rig.full.waveB}
   return rig}
 const SHEET_NAMES=['neutral','blink','happy','talk','worried','surprised','confused','waveA','waveB'];
-return {mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
+return {refineFace,mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
 }
 
 var paintedEngine=PipPaintedEngine();
