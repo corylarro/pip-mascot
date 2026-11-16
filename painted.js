@@ -127,9 +127,10 @@ class PaintRig{
   destroy(){this._dead=true;cancelAnimationFrame(this._raf);clearInterval(this._iv);clearTimeout(this.timer);clearTimeout(this._hopT);if(this._ro)this._ro.disconnect();this._ls.forEach(([t,ev,fn,o])=>t.removeEventListener(ev,fn,o))}
   get lean(){return this.s.lean.t}set lean(v){this.s.lean.t=v}
   bump(){this.squash.v-=1.4}
-  point(x,y){const r=this.cv.getBoundingClientRect();this.lookAt(x,y);this.focusLook=performance.now()+2600;this.s.lean.t=Math.sign(x-(r.left+r.width/2))*6;
-    clearTimeout(this._pt);this._pt=setTimeout(()=>{this.s.lean.t=0},1400)}
-  unpoint(){this.s.lean.t=0}
+  point(x,y){const r=this.cv.getBoundingClientRect(),side=x<r.left+r.width/2?'L':'R';this.lookAt(x,y);this.focusLook=performance.now()+2600;
+    if(this.full&&this.full['point'+side]){this.pointSide=side;this.pointUntil=performance.now()+3400;this.squash.v-=1.6;this.s.lean.t=0}
+    else{this.s.lean.t=(side==='L'?-1:1)*6;clearTimeout(this._pt);this._pt=setTimeout(()=>{this.s.lean.t=0},1400)}}
+  unpoint(){this.s.lean.t=0;this.pointSide=null}
   lookAtCaret(inp){const r=inp.getBoundingClientRect(),cs=getComputedStyle(inp);const m=PaintRig._m||(PaintRig._m=document.createElement('canvas').getContext('2d'));m.font=cs.font;
     const txt=inp.type==='password'?'•'.repeat(inp.value.length):inp.value;this.lookAt(r.left+parseFloat(cs.paddingLeft||0)+Math.min(m.measureText(txt).width,r.width-24),r.top+r.height/2)}
   _act(){this.lastAct=performance.now();if(this.state==='sleeping')this.setState('idle'),this.hop(160)}
@@ -144,7 +145,7 @@ class PaintRig{
     if(!F.eyeR||!F.mouthR){F.eyeR=null;F.mouthR=null}
     this.pos={};if(this.base){this.patches.neutral=this._patches(this.base.canvas,'neutral',{dx:0,dy:0})}}
   setSimple(info){this.simple=info;this.face=null;this.patches={}}
-  regionsFor(name){const F=this.face;if(!F.eyeR)return [F.box];if(name==='blink')return [F.eyeR];if(name==='talk')return [F.mouthR];if(name==='neutral')return [F.eyeR,F.mouthR];return [F.eyeR,F.mouthR]}
+  regionsFor(name){const F=this.face;if(!F.eyeR)return [F.box];if(name==='blink')return [F.eyeR];if(name==='talk'||name==='talkE')return [F.mouthR];if(name==='neutral')return [F.eyeR,F.mouthR];return [F.eyeR,F.mouthR]}
   addExpr(name,k){if(!this.base||!this.face)return;const off=alignFrames(this.base,k,this.face.box);this.patches[name]=this._patches(k.canvas,name,off);
     if(name==='surprised'&&this.face.mouthR)this.patches.oMouth=this._patches(k.canvas,'talk',off);
     if(name==='happy'&&this.state==='idle')this.react('success',1400)}
@@ -176,7 +177,7 @@ class PaintRig{
   say(text,{speed=40,hold=2400}={}){const tok=this.sayTok=(this.sayTok||0)+1,b=this.bubble;b.textContent='';b.classList.add('show');let i=0;
     const tick=()=>{if(tok!==this.sayTok)return;if(i>=text.length){this.s.talk.t=0;this.mouth=null;setTimeout(()=>{if(tok===this.sayTok)b.classList.remove('show')},hold);return}
       const ch=text[i++];b.textContent=text.slice(0,i);this.s.talk.t=/[aeiouy]/i.test(ch)?1:/\s/.test(ch)?0:/[.,!?]/.test(ch)?0:.45;
-      this.mouth=/[ouw]/i.test(ch)?'o':/[aeiy]/i.test(ch)?'a':/[bmp]/i.test(ch)?null:(/[a-z]/i.test(ch)&&this.mouth?this.mouth:null);setTimeout(tick,/[.,!?]/.test(ch)?speed*4:speed)};tick()}
+      this.mouth=/[ouw]/i.test(ch)?'o':/[eiy]/i.test(ch)?'e':/[a]/i.test(ch)?'a':/[bmp]/i.test(ch)?null:(/[a-z]/i.test(ch)&&this.mouth?this.mouth:null);setTimeout(tick,/[.,!?]/.test(ch)?speed*4:speed)};tick()}
   burst(kind){if(RM<1)return;const cols=['#FF6B7A','#6E9BFF','#7DDC8A','#FFC23D','#B58CFF'];
     for(let i=0;i<(kind==='hearts'?7:34);i++)this.parts.push(kind==='hearts'?{h:1,x:(Math.random()-.5)*80,y:-150,vx:(Math.random()-.5)*30,vy:-50-Math.random()*50,life:1.8,g:-15,c:'#FF4D6D',a:0,va:0}:
       {x:0,y:-120,vx:(Math.random()-.5)*480,vy:-260-Math.random()*320,life:1.7,g:900,c:cols[i%5],a:Math.random()*6,va:(Math.random()-.5)*14})}
@@ -209,15 +210,16 @@ class PaintRig{
     ctx.save();ctx.translate(W/2,ground);ctx.scale(1-lift*.4,.16);ctx.translate(-W/2,-ground);ctx.fillStyle=sg;ctx.beginPath();ctx.arc(W/2,ground,B.w*scale*.5,0,Math.PI*2);ctx.fill();ctx.restore();
     // body
     ctx.save();ctx.translate(W/2+shx,ground+this.jumpY+wb);ctx.rotate((v.tilt+giggle+v.lean+wr)*Math.PI/180);ctx.scale(sx*scale,sy*scale);ctx.translate(-footX,-footY);
-    const FF=this.full||{},waving=this.state==='wave'&&FF.waveA;
-    if(waving){const fr=(FF.waveB&&Math.floor(t*3.4)%2)?FF.waveB:FF.waveA;ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
+    const FF=this.full||{},pointing=this.pointSide&&performance.now()<this.pointUntil&&FF['point'+this.pointSide],waving=!pointing&&this.state==='wave'&&FF.waveA;
+    if(pointing){const fr=FF['point'+this.pointSide];ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
+    else if(waving){const fr=(FF.waveB&&Math.floor(t*3.4)%2)?FF.waveB:FF.waveA;ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
     else ctx.drawImage(this.base.canvas,0,0);
     if(this.simple)drawSimpleFace(ctx,this.simple,v,blink,t);
-    if(this.face&&!waving){const P=this.patches,FB=this.face.box,ox=v.lookX*FB.w*.035,oy=v.lookY*FB.h*.03;
+    if(this.face&&!waving&&!pointing){const P=this.patches,FB=this.face.box,ox=v.lookX*FB.w*.035,oy=v.lookY*FB.h*.03;
       const draw=(ps,a)=>{if(ps&&a>.01){ctx.globalAlpha=Math.min(1,a);for(const p of ps)ctx.drawImage(p.c,p.x+ox,p.y+oy)}};
       draw(P.neutral,1);draw(P.happy,v.happy);draw(P.worried,v.worried);draw(P.surprised,v.surprised);draw(P.confused,v.confused);
       // lip-sync: snap between closed, "ah" and "oh" mouths (fall back to a fade if a shape is missing)
-      if(this.mouth==='o'&&P.oMouth)draw(P.oMouth,1);else if(this.mouth&&P.talk)draw(P.talk,1);else if(!P.talk)draw(P.talk,v.talk);
+      if(this.mouth==='o'&&P.oMouth)draw(P.oMouth,1);else if(this.mouth==='e'&&P.talkE)draw(P.talkE,1);else if(this.mouth&&P.talk)draw(P.talk,1);else if(!P.talk)draw(P.talk,v.talk);
       draw(P.blink,Math.max(blink,v.blinkHold));ctx.globalAlpha=1}
     ctx.restore();
     // extras
@@ -242,22 +244,32 @@ function splitSheet(k,cols=3,rows=2){const N=cols*rows,W=k.canvas.width,H=k.canv
       for(const nb of [cx>0?c-1:-1,cx<w-1?c+1:-1,cy>0?c-w:-1,cy<h-1?c+w:-1])if(nb>=0&&m[nb]&&!lab[nb]){lab[nb]=id;q[qt++]=nb}}
     comps.push({id,n,x:x0*D,y:y0*D,w:(x1-x0+1)*D,h:(y1-y0+1)*D})}
   comps.sort((a,b)=>b.n-a.n);let big=comps.filter(c=>c.n>comps[0].n*.25);
+  // where the feet are: the average x of the bottom third of each big piece (arms don't move this)
+  for(const c of big){const x0=c.x/D,y0=c.y/D,ww=c.w/D,hh=c.h/D,yy0=Math.floor(y0+hh*.66);let sx=0,n=0;
+    for(let y=yy0;y<y0+hh;y++)for(let x=x0;x<x0+ww;x++)if(lab[y*w+x]===c.id){sx+=x;n++}c.foot=n?(sx/n)*D+D/2:c.x+c.w/2}
   // merge small detached bits (a hat tip, a held item) into the nearest big piece
   if(big.length>N)big=big.slice(0,N);
   let boxes;
-  if(big.length===N){boxes=big.map(c=>({x:c.x,y:c.y,w:c.w,h:c.h}));
+  if(big.length===N){boxes=big.map(c=>({x:c.x,y:c.y,w:c.w,h:c.h,foot:c.foot}));
     for(const c of comps){if(big.includes(c)||c.n<comps[0].n*.004)continue;const cx=c.x+c.w/2,cy=c.y+c.h/2;
       const t=boxes.find(b=>cx>b.x-b.w*.15&&cx<b.x+b.w*1.15&&cy>b.y-b.h*.25&&cy<b.y+b.h*1.1);if(t){const x2=Math.max(t.x+t.w,c.x+c.w),y2=Math.max(t.y+t.h,c.y+c.h);t.x=Math.min(t.x,c.x);t.y=Math.min(t.y,c.y);t.w=x2-t.x;t.h=y2-t.y}}
     boxes.sort((a,b)=>(a.y+a.h/2)-(b.y+b.h/2));let out=[];for(let r=0;r<rows;r++)out=out.concat(boxes.slice(r*cols,(r+1)*cols).sort((a,b)=>a.x-b.x));boxes=out}
   else{boxes=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const cx0=c*W/cols,cy0=r*H/rows;boxes.push(tightBox(a,W,cx0,cy0,W/cols,H/rows))}}
-  const mg=10,L=Math.ceil(Math.max(...boxes.map(b=>Math.max(b.w,b.h)))+2*mg);
-  return boxes.map(b=>{const c=canvasOf(L,L),x=c.getContext('2d');const dx=L/2-(b.x+b.w/2),dy=L-mg-(b.y+b.h);
-    x.save();x.beginPath();x.rect(L/2-b.w/2-2,L-mg-b.h-2,b.w+4,b.h+4);x.clip();x.drawImage(k.canvas,dx,dy);x.restore();
-    return {canvas:c,bbox:{x:L/2-b.w/2,y:L-mg-b.h,w:b.w,h:b.h}}})}
+  boxes.forEach(b=>{if(b.foot===undefined)b.foot=b.x+b.w/2});
+  const mg=10,L=Math.ceil(Math.max(...boxes.map(b=>Math.max(2*Math.max(b.foot-b.x,b.x+b.w-b.foot),b.h)))+2*mg);
+  return boxes.map(b=>{const c=canvasOf(L,L),x=c.getContext('2d');const dx=L/2-b.foot,dy=L-mg-(b.y+b.h);
+    x.save();x.beginPath();x.rect(b.x+dx-2,L-mg-b.h-2,b.w+4,b.h+4);x.clip();x.drawImage(k.canvas,dx,dy);x.restore();
+    return {canvas:c,bbox:{x:b.x+dx,y:L-mg-b.h,w:b.w,h:b.h}}})}
 function tightBox(a,W,x0,y0,cw,ch){let minX=1e9,minY=1e9,maxX=0,maxY=0;for(let y=Math.floor(y0);y<y0+ch;y+=2)for(let x=Math.floor(x0);x<x0+cw;x+=2){if(a[(y*W+x)*4+3]>60){if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y}}
   return minX>maxX?{x:x0,y:y0,w:cw,h:ch}:{x:minX,y:minY,w:maxX-minX+1,h:maxY-minY+1}}
 
 const px1=(b,L)=>b&&b.w>0?{x:b.x*L,y:b.y*L,w:b.w*L,h:b.h*L}:null;
+function reachSide(base,full){const S=200,f=S/base.canvas.width,alpha=(c,dx,dy)=>{const t=canvasOf(S,S),x=t.getContext('2d',{willReadFrequently:true});x.drawImage(c,-dx*f,-dy*f,S,S);return x.getImageData(0,0,S,S).data};
+  const A=alpha(base.canvas,0,0),B=alpha(full.canvas,full.off.dx,full.off.dy),bb=base.bbox,xl=(bb.x+bb.w*.15)*f,xr=(bb.x+bb.w*.85)*f,y0=(bb.y+bb.h*.15)*f,y1=(bb.y+bb.h*.85)*f;
+  let L=0,R=0;for(let y=Math.floor(y0);y<y1;y++)for(let x=0;x<S;x++){const i=(y*S+x)*4+3;if(B[i]>128&&A[i]<60){if(x<xl)L++;else if(x>xr)R++}}
+  if(L+R<12)return null;return L>R*1.5?'L':R>L*1.5?'R':null}
+function mirrorFrame(fr){const c=canvasOf(fr.canvas.width,fr.canvas.height),x=c.getContext('2d');x.translate(c.width,0);x.scale(-1,1);x.drawImage(fr.canvas,0,0);
+  return {canvas:c,bbox:{x:c.width-fr.bbox.x-fr.bbox.w,y:fr.bbox.y,w:fr.bbox.w,h:fr.bbox.h}}}
 function faceFrom(face,L,bb){let box=face&&face.face&&face.face.w>0?px1(face.face,L):{x:bb.x+bb.w*.2,y:bb.y+bb.h*.14,w:bb.w*.6,h:bb.h*.38};
   box.w=Math.max(box.w,bb.w*.18);box.h=Math.max(box.h,bb.h*.12);
   return {box,eyes:face&&Array.isArray(face.eyes)?face.eyes.map(e=>px1(e,L)).filter(Boolean):[],mouth:face?px1(face.mouth,L):null,eyeColor:face&&face.eyeColor}}
@@ -314,9 +326,17 @@ async function mountMascot(rig,data){
   const k=keyOut(await loadImg(data.image));rig.cfg={name:data.name||'',greeting:data.greeting||`Hi${data.name?", I'm "+data.name:''}!`};
   if(data.mode==='simple'){rig.setBase(k);rig.setSimple(simpleInfo(data.face,k.canvas));return rig}
   const [c,r]=data.grid||[3,2],frames=splitSheet(k,c,r);rig.simple=null;rig.setBase(frames[0]);const face=refineFace(frames,data.face,SHEET_NAMES);rig.setFace(face);data.face=face;
-  frames.forEach((fr,i)=>{const n=SHEET_NAMES[i];if(!n||n==='neutral')return;if(n.startsWith('wave'))rig.addFull(n,fr);else rig.addExpr(n,fr)});
-  if(rig.full.waveA&&rig.full.waveB){const a=raisedSide(frames[0],rig.full.waveA,data.face.box),b=raisedSide(frames[0],rig.full.waveB,data.face.box);if(!a||!b||a!==b)delete rig.full.waveB}
-  return rig}
-const SHEET_NAMES=['neutral','blink','happy','talk','worried','surprised','confused','waveA','waveB'];
-return {refineFace,mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
+  attachFrames(rig,frames,face);return rig}
+const SHEET_NAMES=['neutral','blink','happy','talk','worried','surprised','confused','waveA','waveB','pointL','pointR','talkE'];
+const FULL_FRAMES=['waveA','waveB','pointL','pointR'];
+// Attach every frame of a split sheet to a rig (expressions as face patches, poses as full frames), with sanity checks.
+function attachFrames(rig,frames,face){
+  frames.forEach((fr,i)=>{const n=SHEET_NAMES[i];if(!n||n==='neutral')return;if(FULL_FRAMES.includes(n))rig.addFull(n,fr);else rig.addExpr(n,fr)});
+  if(rig.full.waveA&&rig.full.waveB){const a=raisedSide(frames[0],rig.full.waveA,face.box),b=raisedSide(frames[0],rig.full.waveB,face.box);if(!a||!b||a!==b)delete rig.full.waveB}
+  const pl=frames[9],pr=frames[10];
+  if(pl||pr){const sl=rig.full.pointL&&reachSide(frames[0],rig.full.pointL),sr=rig.full.pointR&&reachSide(frames[0],rig.full.pointR);delete rig.full.pointL;delete rig.full.pointR;
+    const byside={};if(sl)byside[sl]=pl;if(sr&&!byside[sr])byside[sr]=pr;
+    if(byside.L&&!byside.R)byside.R=mirrorFrame(byside.L);if(byside.R&&!byside.L)byside.L=mirrorFrame(byside.R);
+    if(byside.L)rig.addFull('pointL',byside.L);if(byside.R)rig.addFull('pointR',byside.R)}}
+return {attachFrames,refineFace,mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
 }

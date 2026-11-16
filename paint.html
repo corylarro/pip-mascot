@@ -147,7 +147,7 @@ a.ghost{display:inline-flex;align-items:center;text-decoration:none;border-radiu
 (function(){
 "use strict";
 const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),pick=a=>a[Math.floor(Math.random()*a.length)];
-const P=PipPaintedEngine(),{refineFace,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES}=P;
+const P=PipPaintedEngine(),{attachFrames,refineFace,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES}=P;
 /* ---------- storage (so a refresh doesn't cost another painting) ---------- */
 const DB={open(){return new Promise((res,rej)=>{const r=indexedDB.open('pip-paint',1);r.onupgradeneeded=()=>r.result.createObjectStore('m');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})},
   async put(v){try{const db=await this.open();await new Promise((res,rej)=>{const tx=db.transaction('m','readwrite');tx.objectStore('m').put(v,'last');tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}catch(e){}},
@@ -156,13 +156,14 @@ const DB={open(){return new Promise((res,rej)=>{const r=indexedDB.open('pip-pain
 /* ---------- UI ---------- */
 const badge=$('badge'),statesEl=$('states'),status=$('status'),stepsEl=$('steps');
 const rig=new PaintRig($('cv'),{bubble:$('bubble'),onState:s=>{badge.textContent=s;[...statesEl.children].forEach(c=>c.setAttribute('aria-pressed',String(c.dataset.s===s)))}});
-['idle','thinking','success','error','surprised','talking','love','wave','confused','sleeping'].forEach(s=>{const b=document.createElement('button');b.type='button';b.className='chip';b.dataset.s=s;
+['idle','thinking','success','error','surprised','talking','love','wave','point','confused','sleeping'].forEach(s=>{const b=document.createElement('button');b.type='button';b.className='chip';b.dataset.s=s;
   b.textContent=s[0].toUpperCase()+s.slice(1);b.setAttribute('aria-pressed',String(s==='idle'));
-  b.addEventListener('click',()=>{if(['success','error','surprised','love','wave','confused'].includes(s))rig.react(s);else if(s==='talking'){rig.setState('idle');rig.say(`Hi! I'm ${current.name||'your mascot'}. I was painted, then rigged to move.`)}else rig.setState(s)});statesEl.appendChild(b)});
+  b.addEventListener('click',()=>{if(s==='point'){const r=$('cv').getBoundingClientRect(),left=Math.random()<.5;rig.point(left?r.left-200:r.right+200,r.top+r.height*.5);rig.say(left?'Over there!':'Right here!',{hold:1200});return}
+    if(['success','error','surprised','love','wave','confused'].includes(s))rig.react(s);else if(s==='talking'){rig.setState('idle');rig.say(`Hi! I'm ${current.name||'your mascot'}. I was painted, then rigged to move.`)}else rig.setState(s)});statesEl.appendChild(b)});
 const pw=$('tryPw');pw.addEventListener('focus',()=>{rig.cover=true});pw.addEventListener('blur',()=>{rig.cover=false});pw.addEventListener('input',()=>rig.squash.v-=1.2);
 
-const MODES={sheet:{steps:[['sheet','Sheet'],['face','Find face'],['f0','Neutral'],['f1','Blink'],['f2','Happy'],['f3','Talking'],['f4','Worried'],['f5','Surprised'],['f6','Confused'],['f7','Wave'],['f8','Wave 2']],
-    hint:'Paints all nine poses and expressions together, so they always look like the same character.'},
+const MODES={sheet:{steps:[['sheet','Sheet'],['face','Find face'],['f0','Neutral'],['f1','Blink'],['f2','Happy'],['f3','Talking'],['f4','Worried'],['f5','Surprised'],['f6','Confused'],['f7','Wave'],['f8','Wave 2'],['f9','Point'],['f10','Point 2'],['f11','Talk (ee)']],
+    hint:'Paints all twelve poses and expressions together, so they always look like the same character.'},
   simple:{steps:[['base','Character'],['face','Place face']],hint:'Paints the character with a blank face, then Pip draws the eyes and mouth live, so expressions, blinking, eye-tracking and talking are perfectly smooth. Best for toys, creatures and stylized characters.'}};
 let STEP_LIST=MODES.sheet.steps;
 function renderSteps(mode){STEP_LIST=MODES[mode].steps;stepsEl.innerHTML=STEP_LIST.map(([k,l])=>`<li data-k="${k}" data-s="wait"><span class="th"></span><span>${l}</span></li>`).join('')}
@@ -183,19 +184,25 @@ ${STYLE[style]||STYLE['3d']}.
 Composition: one character only, full body, standing upright and facing the viewer straight on, centered, the whole character visible with generous empty margin on all sides. Arms (if any) relaxed at the sides.
 IMPORTANT: draw the character with a completely BLANK face: NO eyes, NO eyebrows, NO mouth (a small nose is fine). The face area must be clean, smooth and evenly lit, with plenty of open space, so eyes and a mouth can be added later. If the character has a beard or fur, keep the area where the eyes and mouth go clear and smooth.
 ${bgLine(desc)}`}
-function sheetPrompt(desc,style){return `Character expression sheet for an app mascot: ${desc}.
+function sheetPrompt(desc,style){return `Character sheet for an app mascot: ${desc}.
 ${STYLE[style]||STYLE['3d']}.
-Layout: exactly nine panels in a grid of 3 columns and 3 rows. Every panel shows the SAME character, full body, standing upright and facing the viewer straight on, at the IDENTICAL size and position within its panel, with the same lighting. The body, clothing, hair and accessories are identical in every panel. In panels 1 to 7 the pose is IDENTICAL and only the facial expression changes.
-Panel 1 (row 1, left): neutral, friendly; both eyes open looking at the viewer, mouth closed in a gentle smile.
-Panel 2 (row 1, middle): blinking; eyes gently closed, calm neutral mouth.
-Panel 3 (row 1, right): overjoyed; big open-mouth smile, happy squinting eyes.
-Panel 4 (row 2, left): talking; neutral eyes, mouth open as if saying "ah".
-Panel 5 (row 2, middle): worried; eyebrows raised and pinched in the middle, small frown.
-Panel 6 (row 2, right): shocked; eyes wide open, eyebrows high, small round "O" mouth.
-Panel 7 (row 3, left): confused; one eyebrow raised and the other lowered, mouth pulled to one side in a puzzled half-frown.
-Panel 8 (row 3, middle): waving hello; the same pose except the hand on the RIGHT side of the image is raised high beside the head, palm open toward the viewer; big friendly smile. The other arm stays down exactly as in panel 1.
-Panel 9 (row 3, right): the next moment of the same wave: identical to panel 8 with the SAME hand (the one on the right side of the image) still raised, but a little lower (about one hand's height lower) and tilted slightly outward. Do NOT switch hands; the other arm stays down.
-Leave clear empty space between panels and around each character. No panel borders, no grid lines, no text, no labels, no numbers.
+Layout: exactly twelve panels in a grid of 4 columns and 3 rows. Every panel shows the SAME character, full body, standing upright on the same spot and facing the viewer straight on, at the IDENTICAL size and position within its panel, with the same lighting. Body, clothing, hair and accessories are identical in every panel. In panels 1 to 7 and 12 the pose is IDENTICAL and only the face changes.
+Row 1:
+Panel 1: neutral, friendly; both eyes open looking at the viewer, mouth closed in a gentle smile.
+Panel 2: blinking; eyes gently closed, calm neutral mouth.
+Panel 3: overjoyed; big open-mouth smile, happy squinting eyes.
+Panel 4: talking; neutral eyes, mouth open as if saying "ah".
+Row 2:
+Panel 5: worried; eyebrows raised and pinched in the middle, small frown.
+Panel 6: shocked; eyes wide open, eyebrows high, small round "O" mouth.
+Panel 7: confused; one eyebrow raised and the other lowered, mouth pulled to one side.
+Panel 8: waving hello; the hand on the RIGHT side of the image raised high beside the head, palm open toward the viewer; big friendly smile; the other arm down as in panel 1.
+Row 3:
+Panel 9: the next moment of the same wave: identical to panel 8 with the SAME hand still raised, a little lower and tilted slightly outward. Do NOT switch hands.
+Panel 10: pointing to the LEFT side of the image: the arm on that side stretched straight out sideways with the index finger pointing left, looking toward where it points, helpful expression. The other arm down. Keep the whole arm inside this panel.
+Panel 11: the mirror of panel 10: pointing to the RIGHT side of the image with the arm on that side stretched straight out, looking right, helpful expression. Keep the whole arm inside this panel.
+Panel 12: talking; neutral eyes, smiling mouth slightly open with teeth showing, as if saying "ee".
+Leave generous empty space between panels and around each character so nothing touches. No panel borders, no grid lines, no text, no labels, no numbers.
 ${bgLine(desc)} The background is the same flat colour across the entire sheet.`}
 
 let current={},busy=false;
@@ -219,9 +226,9 @@ async function paint(){
   const tick=setInterval(()=>{$('go').textContent=`Painting… ${Math.round((Date.now()-t0)/1000)}s`},1000);
   try{
     if(mode==='sheet'){
-      setStatus('Painting all nine poses and expressions in one image…','ok');stepState('sheet','work');
-      const r=await withRetry(()=>api({step:'base',prompt:sheetPrompt(desc,style),quality,size:'2304x2304',fallbackSizes:['2048x2048','1536x1536','1536x1024']}),'painting');
-      current={mode,desc,style,quality,sheet:r.image,mime:r.mime,model:r.model,grid:[3,3]};
+      setStatus('Painting all twelve poses and expressions in one image…','ok');stepState('sheet','work');
+      const r=await withRetry(()=>api({step:'base',prompt:sheetPrompt(desc,style),quality,size:'2560x1920',fallbackSizes:['2304x1728','2048x1536','1536x1024']}),'painting');
+      current={mode,desc,style,quality,sheet:r.image,mime:r.mime,model:r.model,grid:[4,3]};
       $('meta').textContent=`Image model: ${r.model} · ${r.size}`;
       await loadSheet(current,true);
     }else{
@@ -249,8 +256,7 @@ async function loadSheet(m,fresh){
     f=faceFrom(face,L,frames[0].bbox);m.face=f}
   const rf=refineFace(frames,f,SHEET_NAMES);if(fresh||!m.face.refined)stepState('face',rf.refined?'done':(f?'done':'fail'),faceThumb(frames[0],rf));
   rig.setFace(rf);
-  frames.forEach((fr,i)=>{const n=SHEET_NAMES[i];if(!n||n==='neutral')return;if(n.startsWith('wave'))rig.addFull(n,fr);else rig.addExpr(n,fr)});
-  if(rig.full.waveA&&rig.full.waveB){const a=raisedSide(frames[0],rig.full.waveA,f.box),b=raisedSide(frames[0],rig.full.waveB,f.box);if(!a||!b||a!==b)delete rig.full.waveB}
+  attachFrames(rig,frames,rf);
   document.querySelector('#states [data-s="wave"]').title=rig.full&&rig.full.waveA?'':'Paint a new sheet to get a real wave'}
 function faceThumb(fr,f){const c=canvasOf(fr.canvas.width,fr.canvas.height),x=c.getContext('2d');x.drawImage(fr.canvas,0,0);x.lineWidth=Math.max(2,c.width/120);
   const box=(b,col)=>{if(!b)return;x.strokeStyle=col;x.strokeRect(b.x,b.y,b.w,b.h)};box(f.box,'#FFC23D');(f.eyes||[]).forEach(e=>box(e,'#6E9BFF'));box(f.mouth,'#FF6B7A');
