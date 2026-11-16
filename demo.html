@@ -54,6 +54,11 @@ button{font:inherit;color:inherit}
 .seg button[aria-selected="true"],.seg button[aria-pressed="true"]{background:var(--ink);color:var(--white)}
 .seg.small button{padding:6px 14px;font-size:.92rem}
 .toggle-wrap{display:flex;align-items:center;gap:10px;font-weight:600;color:var(--ink-2)}
+.opts{display:flex;flex-wrap:wrap;gap:12px 22px}
+.corners button{padding:6px 9px;display:grid;place-items:center}
+.corners i{display:block;width:24px;height:18px;border:2px solid currentColor;border-radius:4px;position:relative}
+.corners i::after{content:"";position:absolute;width:9px;height:7px;border-radius:2px;background:currentColor}
+.corners i.tl::after{left:1px;top:1px}.corners i.tr::after{right:1px;top:1px}.corners i.bl::after{left:1px;bottom:1px}.corners i.br::after{right:1px;bottom:1px}
 
 .grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:22px;align-items:start}
 .grid>*,.appbody>*,.calm>*,.panel>*{min-width:0}
@@ -147,10 +152,20 @@ pre .c{color:#9C97C9}pre .t{color:var(--butter)}pre .a{color:#9EE6C2}
       <button role="tab" id="tabTaskly" aria-controls="viewTaskly" aria-selected="true">Taskly</button>
       <button role="tab" id="tabCalm" aria-controls="viewCalm" aria-selected="false">Stillwater</button>
     </div>
-    <div class="toggle-wrap"><span id="mlab">Mascot</span>
-      <div class="seg small" role="group" aria-labelledby="mlab">
-        <button type="button" data-kind="painted" aria-pressed="true">Painted</button>
-        <button type="button" data-kind="drawn" aria-pressed="false">Drawn</button>
+    <div class="opts">
+      <div class="toggle-wrap"><span id="mlab">Mascot</span>
+        <div class="seg small" role="group" aria-labelledby="mlab">
+          <button type="button" data-kind="painted" aria-pressed="true">Painted</button>
+          <button type="button" data-kind="drawn" aria-pressed="false">Drawn</button>
+        </div>
+      </div>
+      <div class="toggle-wrap"><span id="clab">Corner</span>
+        <div class="seg small corners" role="group" aria-labelledby="clab">
+          <button type="button" data-pos="top-left" aria-pressed="false" aria-label="Top left" title="Top left"><i class="tl"></i></button>
+          <button type="button" data-pos="top-right" aria-pressed="false" aria-label="Top right" title="Top right"><i class="tr"></i></button>
+          <button type="button" data-pos="bottom-left" aria-pressed="false" aria-label="Bottom left" title="Bottom left"><i class="bl"></i></button>
+          <button type="button" data-pos="bottom-right" aria-pressed="true" aria-label="Bottom right" title="Bottom right"><i class="br"></i></button>
+        </div>
       </div>
     </div>
   </div>
@@ -268,10 +283,10 @@ const API = { outage: false, tasks: ['Ship the landing page', 'Reply to beta tes
 })();
 
 /* ---- the mascot: painted or drawn, swapped by the toggle ---- */
-let pip = null, kind = 'painted';
+let pip = null, kind = 'painted', corner = 'bottom-right';
 const esc = s => s.replace(/</g, '&lt;');
 function code() {
-  const attrs = kind === 'painted' ? ` <span class="a">mascot</span>="your-mascot-id"` : '';
+  const attrs = (kind === 'painted' ? ` <span class="a">mascot</span>="your-mascot-id"` : '') + (corner !== 'bottom-right' ? ` <span class="a">position</span>="${corner}"` : '');
   $('codeTaskly').innerHTML = `<span class="t">&lt;script</span> <span class="a">src</span>="https://pip-mascot.vercel.app/pip-mascot.js"<span class="t">&gt;&lt;/script&gt;</span>\n<span class="t">&lt;pip-mascot</span>${attrs} <span class="a">autopilot</span> <span class="a">greet</span><span class="t">&gt;&lt;/pip-mascot&gt;</span>`;
 }
 function logIt(d) {
@@ -283,7 +298,7 @@ function logIt(d) {
 function mount() {
   if (pip) pip.remove();
   pip = document.createElement('pip-mascot');
-  pip.setAttribute('autopilot', ''); pip.setAttribute('greet', '');
+  pip.setAttribute('autopilot', ''); pip.setAttribute('greet', ''); pip.setAttribute('position', corner);
   if (kind === 'painted') {
     pip.setAttribute('mascot', PAINTED_ID); pip.style.setProperty('--pip-size', innerWidth < 600 ? '104px' : '140px');
     pip.setAttribute('greeting', "Hi, I'm Pip! I'm watching this app. Try breaking something.");
@@ -296,6 +311,12 @@ function mount() {
   code();
 }
 function syncToggle() { document.querySelectorAll('[data-kind]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === kind))); }
+document.querySelectorAll('[data-pos]').forEach(b => b.addEventListener('click', () => {
+  if (corner === b.dataset.pos) return; corner = b.dataset.pos;
+  document.querySelectorAll('[data-pos]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  if (pip) { pip.setAttribute('position', corner); setTimeout(() => pip && pip.say && pip.say('How about here?', { hold: 1600 }), 650); }
+  code();
+}));
 document.querySelectorAll('[data-kind]').forEach(b => b.addEventListener('click', () => { if (kind === b.dataset.kind) return; kind = b.dataset.kind; syncToggle(); mount(); }));
 
 /* ---- tabs ---- */
