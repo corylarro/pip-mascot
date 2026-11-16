@@ -58,6 +58,10 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 @keyframes pulse{50%{opacity:.55}}
 .mono{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
 [hidden]{display:none!important}
+.tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;margin-top:10px}
+.tabs a,.tabs .cur{display:flex;align-items:center;justify-content:center;gap:5px;font-weight:700;font-size:15px;padding:9px 6px;border-radius:9px;text-decoration:none;color:var(--muted)}
+.tabs a:hover{color:var(--ink)}.tabs .cur{background:var(--accent);color:var(--accent-ink)}
+.beta{font:600 10px var(--font-mono);text-transform:uppercase;border:1px solid currentColor;border-radius:999px;padding:0 5px}
 @media (prefers-reduced-motion: reduce){.bubble{transition:none}.steps li .th{animation:none!important}}
 /* Desktop: Figma-style split. Settings panel on the left, a large canvas on the right. */
 @media (min-width: 920px){
@@ -76,7 +80,8 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 <main>
   <header>
     <h1>Pip <span>painted mascots · beta</span></h1>
-    <p>An image model paints your mascot and its expressions, then Pip rigs the painting so it moves and reacts. <a href="/">Back to the vector builder</a></p>
+    <p>An image model paints your mascot and its expressions, then Pip rigs the painting so it moves and reacts.</p>
+    <nav class="tabs" aria-label="Views"><a href="/">Build</a><a href="/#live" id="liveLink">See it live</a><span class="cur" aria-current="page">Paint <span class="beta">beta</span></span></nav>
   </header>
 
   <section class="stage" aria-label="Painted mascot stage">

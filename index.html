@@ -72,9 +72,12 @@ pre{margin:0;background:var(--bg);border:1px solid var(--line);border-radius:10p
 .sub{font-size:13px;color:var(--muted);margin:-6px 0 0}
 footer{font-size:13px;color:var(--muted)}
 [hidden]{display:none!important}
-.tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px}
+.tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px}
 .tabs button{border:none;background:transparent;color:var(--muted);font-weight:700;font-size:15px;padding:9px 6px;border-radius:9px}
 .tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.tablink{display:flex;align-items:center;justify-content:center;gap:5px;color:var(--muted);font-weight:700;font-size:15px;padding:9px 6px;border-radius:9px;text-decoration:none}
+.tablink:hover{color:var(--ink)}.tablink:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.beta{font:600 10px var(--font-mono);text-transform:uppercase;border:1px solid currentColor;border-radius:999px;padding:0 5px}
 .view{display:flex;flex-direction:column;gap:14px}
 .try{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:14px}
 .app{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#F7F8FB;color:#1B1A26;display:flex;flex-direction:column;gap:12px;padding:0 0 14px}
@@ -127,6 +130,7 @@ footer{font-size:13px;color:var(--muted)}
   <nav class="tabs" role="tablist" aria-label="Views">
     <button type="button" role="tab" id="tabBuild" aria-selected="true" aria-controls="buildView">Build your mascot</button>
     <button type="button" role="tab" id="tabLive" aria-selected="false" aria-controls="liveView">See it live</button>
+    <a class="tablink" id="tabPaint" href="https://pip-mascot.vercel.app/paint">Paint <span class="beta">beta</span></a>
   </nav>
   <div id="buildView" class="view" role="tabpanel" aria-labelledby="tabBuild">
 
@@ -1108,6 +1112,7 @@ $('login').addEventListener('submit',e=>{e.preventDefault();pw.blur();email.blur
 
 
 /* ---------- live view ---------- */
+if(/vercel\.app$/.test(location.hostname))$('tabPaint').setAttribute('href','/paint');
 definePipElement(engine,PRESETS[0]);
 const API={outage:false,tasks:['Ship the landing page','Reply to beta testers','Record the demo clip']};
 (function installFakeServer(){const real=window.fetch?window.fetch.bind(window):null;
@@ -1134,6 +1139,7 @@ function stopLive(){if(liveEl){liveEl.remove();liveEl=null}}
 function showTab(live){$('tabBuild').setAttribute('aria-selected',String(!live));$('tabLive').setAttribute('aria-selected',String(live));
   $('buildView').hidden=live;$('liveView').hidden=!live;if(live){mascot.setState('idle');startLive()}else stopLive();scrollTo({top:0})}
 $('tabBuild').addEventListener('click',()=>showTab(false));$('tabLive').addEventListener('click',()=>showTab(true));
+if(location.hash==='#live')setTimeout(()=>showTab(true),300);
 
 $('signup').addEventListener('submit',async e=>{e.preventDefault();const al=$('su-alert'),ok=$('su-ok'),btn=$('su-btn');al.textContent='';ok.hidden=true;
   btn.disabled=true;btn.textContent='Creating account…';
