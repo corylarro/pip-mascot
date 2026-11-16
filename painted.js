@@ -45,8 +45,13 @@ function alignFrames(base,frame,face){const S=256,f=S/base.canvas.width,gray=c=>
     const d=x.getImageData(0,0,S,S).data,g=new Float32Array(S*S);for(let i=0;i<S*S;i++)g[i]=d[i*4]*.3+d[i*4+1]*.59+d[i*4+2]*.11;return g};
   const A=gray(base.canvas),B=gray(frame.canvas),bb=base.bbox,ex={x:(face.x-face.w*.4)*f,y:(face.y-face.h*.5)*f,x2:(face.x+face.w*1.4)*f,y2:(face.y+face.h*1.5)*f};
   const pts=[];for(let y=Math.max(4,bb.y*f);y<Math.min(S-4,(bb.y+bb.h)*f);y+=2)for(let x=Math.max(4,bb.x*f);x<Math.min(S-4,(bb.x+bb.w)*f);x+=2){if(x>ex.x&&x<ex.x2&&y>ex.y&&y<ex.y2)continue;pts.push(y*S+x)}
+  // coarse-to-fine: sparse points on a 3px grid of offsets, then every point around the best one
+  const P=Int32Array.from(pts),N=S*S,sparse=P.filter((_,i)=>i%5===0);
+  const err=(set,dx,dy,cap)=>{let e=0;const o=dy*S+dx;for(let i=0;i<set.length;i++){const p=set[i],q=p+o;e+=Math.abs(A[p]-(q>=0&&q<N?B[q]:128));if(e>cap)return e}return e};
   let best={e:1e18,dx:0,dy:0};const R=12;
-  for(let dy=-R;dy<=R;dy++)for(let dx=-R;dx<=R;dx++){let e=0;for(const p of pts){const q=p+dy*S+dx;e+=Math.abs(A[p]-(B[q]===undefined?128:B[q]))}if(e<best.e)best={e,dx,dy}}
+  for(let dy=-R;dy<=R;dy+=3)for(let dx=-R;dx<=R;dx+=3){const e=err(sparse,dx,dy,best.e);if(e<best.e)best={e,dx,dy}}
+  const c0=best;best={e:1e18,dx:0,dy:0};
+  for(let dy=c0.dy-2;dy<=c0.dy+2;dy++)for(let dx=c0.dx-2;dx<=c0.dx+2;dx++){const e=err(P,dx,dy,best.e);if(e<best.e)best={e,dx,dy}}
   return {dx:best.dx/f,dy:best.dy/f}}
 
 /* ---------- live-drawn face for "simple face" mode ---------- */
