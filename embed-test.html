@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pip one-line embed test</title>
+<style>
+  body{font-family:system-ui,-apple-system,sans-serif;max-width:440px;margin:0 auto;padding:24px 16px 180px;color:#1B1A26;background:#F6F7FB;line-height:1.5}
+  h1{font-size:24px;margin:0 0 4px} p{color:#5D5C70;margin:0 0 16px}
+  form{background:#fff;border:1px solid #E1E4EE;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}
+  label{font-weight:600;font-size:14px} input{font:inherit;font-size:16px;padding:10px 12px;border:1.5px solid #DADDE7;border-radius:10px}
+  button{font:inherit;font-weight:700;padding:12px;border-radius:10px;border:2px solid #2A2140;background:#FFC23D;cursor:pointer}
+  code{background:#fff;border:1px solid #E1E4EE;border-radius:6px;padding:2px 6px;font-size:13px}
+  #msg{color:#B4233A;font-size:14px} #msg:empty{display:none}
+</style>
+</head>
+<body>
+  <h1>Plain page, one line</h1>
+  <p>This page has no mascot code of its own. It just loads <code>/pip-mascot.js</code> and adds <code>&lt;pip-mascot autopilot greet&gt;</code>. Try submitting empty, typing a password, or tapping the button really fast.</p>
+  <form id="f">
+    <label for="e">Email</label><input id="e" type="email" required placeholder="you@example.com">
+    <label for="p">Password</label><input id="p" type="password" required minlength="8" placeholder="8+ characters">
+    <div id="msg" role="alert"></div>
+    <button type="submit">Sign in</button>
+  </form>
+  <script>
+    document.getElementById('f').addEventListener('submit',function(e){e.preventDefault();
+      var m=document.getElementById('msg');m.textContent='';
+      setTimeout(function(){m.textContent='Wrong password for that account. Try again or reset it.'},900);});
+  </script>
+
+  <!-- The only two lines added for the mascot -->
+  <script src="/pip-mascot.js"></script>
+  <pip-mascot autopilot greet></pip-mascot>
+</body>
+</html>
