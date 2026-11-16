@@ -56,7 +56,7 @@ p{margin:0}
 .play{position:absolute;z-index:2;bottom:-6px;left:50%;transform:translateX(-50%);display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:100%}
 .play button{font:600 .92rem var(--body);padding:7px 13px;border-radius:999px;border:2px solid var(--ink);background:var(--white);color:var(--ink);cursor:pointer}
 .play button:hover{background:var(--haze)}
-.play-label{position:absolute;z-index:2;bottom:22%;left:0;font:600 .9rem var(--body);background:var(--white);border:2px solid var(--ink);border-radius:12px;padding:6px 10px;transform:rotate(-4deg)}
+.play-label{position:absolute;z-index:2;top:3%;left:0;font:600 .9rem var(--body);background:var(--white);border:2px solid var(--ink);border-radius:12px;padding:6px 10px;transform:rotate(-4deg)}
 
 /* moments */
 section{padding:80px 0}
@@ -139,7 +139,7 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
     </div>
     <div class="stage">
       <span class="play-label">Hi, I'm Pip. Poke me.</span>
-      <pip-mascot id="pip" greet greeting="Hi! I'm Pip."></pip-mascot>
+      <pip-mascot id="pip" mascot="fd89vpfu99qm" greet greeting="Hi! I'm Pip."></pip-mascot>
       <div class="play" role="group" aria-label="Make Pip react">
         <button data-r="wave">Wave</button><button data-r="success">Cheer</button><button data-r="error">Oops</button><button data-r="love">Love</button><button data-r="sleeping">Nap</button>
       </div>
@@ -210,14 +210,13 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
 
 <style>.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}</style>
 <script>
-// When Pip has been painted, put its saved ID here and the hero switches to the painted character.
-const PIP_ID = 'fd89vpfu99qm';
+// Pip's saved painted mascot (set in the <pip-mascot mascot="…"> tag above).
+const PIP_ID = document.getElementById('pip').getAttribute('mascot');
 // Optional: a Stripe Payment Link for pre-orders. Leave empty to use the waitlist only.
 const PREORDER_URL = '';
 
 const pip = document.getElementById('pip');
 if (PIP_ID) {
-  pip.setAttribute('mascot', PIP_ID);
   // Show Pip's real painted sheet in "Watch it get painted"
   fetch('/api/mascot?id=' + PIP_ID).then(r => r.ok ? r.json() : null).then(d => {
     if (!d || !d.image) return; const sh = document.querySelector('.sheet'), img = new Image();
