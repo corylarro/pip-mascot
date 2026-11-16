@@ -125,7 +125,7 @@ a.ghost{display:inline-flex;align-items:center;text-decoration:none;border-radiu
   <section class="card" id="useCard" aria-labelledby="use" hidden>
     <h2 id="use">Use it in your app</h2>
     <p class="sub">Saves this mascot and gives you two lines to paste into any website. It runs on autopilot: it reacts to loading, saves, errors and forms, and walks over to point at problems.</p>
-    <div class="field"><label for="mname">Mascot name</label><input type="text" id="mname" maxlength="24" placeholder="e.g. Basil"></div>
+    <div class="field"><label for="mname">Mascot name</label><input type="text" id="mname" maxlength="24" autocomplete="off" placeholder="e.g. Basil"></div>
     <button type="button" class="primary" id="save">Save and get the code</button>
     <p class="hint" id="saveMsg"></p>
     <pre class="snippet" id="snippet" hidden></pre>
@@ -228,13 +228,13 @@ async function paint(){
     if(mode==='sheet'){
       setStatus('Painting all twelve poses and expressions in one image…','ok');stepState('sheet','work');
       const r=await withRetry(()=>api({step:'base',prompt:sheetPrompt(desc,style),quality,size:'2560x1920',fallbackSizes:['2304x1728','2048x1536','1536x1024']}),'painting');
-      current={mode,desc,style,quality,sheet:r.image,mime:r.mime,model:r.model,grid:[4,3]};
+      current={mode,desc,style,quality,sheet:r.image,mime:r.mime,model:r.model,grid:[4,3]};$('mname').value='';
       $('meta').textContent=`Image model: ${r.model} · ${r.size}`;
       await loadSheet(current,true);
     }else{
       setStatus('Painting your character with a blank face…','ok');stepState('base','work');
       const r=await withRetry(()=>api({step:'base',prompt:simplePrompt(desc,style),quality}),'painting');
-      current={mode,desc,style,quality,base:r.image,mime:r.mime,model:r.model};
+      current={mode,desc,style,quality,base:r.image,mime:r.mime,model:r.model};$('mname').value='';
       $('meta').textContent=`Image model: ${r.model}`;
       await loadSimple(current,true);
     }
