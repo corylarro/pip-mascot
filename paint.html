@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pip Painted Mascots</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fredoka:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: phone-width column, painted stage pinned on top, controls below. */
+:root{
+  --bg:#EEF0F5;--surface:#FFFFFF;--stage:#DFE4F0;--ink:#1B1A26;--muted:#5D5C70;--line:#D7DAE6;--accent:#FFC23D;--accent-ink:#2A2140;--edge:#2A2140;--bad:#B4233A;--good:#1E7A45;
+  --font-display:"Fredoka",ui-rounded,system-ui,sans-serif;--font-body:"DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--font-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#111118;--surface:#1B1B25;--stage:#252535;--ink:#F1F0F7;--muted:#A4A3B9;--line:#30303F;--edge:#FFC23D;--bad:#FF7A8A;--good:#5BD08A;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#111118;--surface:#1B1B25;--stage:#252535;--ink:#F1F0F7;--muted:#A4A3B9;--line:#30303F;--edge:#FFC23D;--bad:#FF7A8A;--good:#5BD08A;color-scheme:dark}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.5;-webkit-tap-highlight-color:transparent}
+main{max-width:460px;margin:0 auto;padding:16px 16px 48px;display:flex;flex-direction:column;gap:14px}
+h1{font-family:var(--font-display);font-weight:600;font-size:28px;line-height:1.1;margin:0}
+h1 span{color:var(--muted);font:500 15px var(--font-body);margin-left:6px}
+header p{margin:2px 0 0;color:var(--muted);font-size:15px}
+header a{color:var(--ink)}
+.stage{position:sticky;top:8px;z-index:5;border-radius:20px;overflow:hidden;background:radial-gradient(90% 70% at 50% 38%,color-mix(in srgb,var(--stage) 55%,#fff) 0%,var(--stage) 70%);box-shadow:0 6px 20px -10px rgba(20,20,50,.35)}
+#cv{display:block;width:100%;height:min(320px,40vh);touch-action:manipulation;cursor:pointer}
+.empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--muted);font-size:15px;pointer-events:none}
+.bubble{position:absolute;left:12px;top:12px;max-width:62%;background:var(--surface);color:var(--ink);border:2px solid var(--edge);border-radius:14px 14px 14px 4px;padding:7px 11px;font-size:14px;line-height:1.35;font-weight:500;opacity:0;transform:translateY(4px);transition:opacity .18s,transform .18s;pointer-events:none}
+.bubble.show{opacity:1;transform:none}
+.badge{position:absolute;right:10px;top:10px;font-family:var(--font-mono);font-size:12px;background:var(--surface);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.card h2{font-family:var(--font-display);font-weight:500;font-size:19px;margin:0}
+.sub{font-size:14px;color:var(--muted);margin:-4px 0 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.field{display:flex;flex-direction:column;gap:6px}
+label{font-size:14px;font-weight:500}
+input[type=text],input[type=email],input[type=password],select,textarea{flex:1;min-width:0;font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px}
+textarea{resize:vertical;min-height:64px}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--edge);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 50%,transparent)}
+button{font:inherit;cursor:pointer;border-radius:10px}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.primary{background:var(--accent);color:var(--accent-ink);border:2px solid #2A2140;padding:11px 16px;font-weight:700}
+.primary:disabled{opacity:.6;cursor:progress}
+.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line);padding:8px 12px;font-size:14px;font-weight:500}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--bg);color:var(--ink);border:1.5px solid var(--line);border-radius:999px;padding:6px 13px;font-size:14px;font-weight:500}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:#2A2140}
+.hint{margin:0;font-size:13px;color:var(--muted)}
+.hint.err{color:var(--bad)}.hint.ok{color:var(--ink)}
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.steps li{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:var(--muted);text-align:center}
+.steps .th{width:100%;aspect-ratio:1;border-radius:10px;background:var(--bg);border:1.5px dashed var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.steps .th img{width:100%;height:100%;object-fit:contain}
+.steps li[data-s="work"] .th{border-style:solid;border-color:var(--accent);animation:pulse 1.2s infinite ease-in-out}
+.steps li[data-s="done"] .th{border-style:solid;border-color:var(--line)}
+.steps li[data-s="fail"] .th{border-color:var(--bad)}
+.steps li[data-s="fail"]{color:var(--bad)}
+@keyframes pulse{50%{opacity:.55}}
+.mono{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion: reduce){.bubble{transition:none}.steps li .th{animation:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Pip <span>painted mascots · beta</span></h1>
+    <p>An image model paints your mascot and its expressions, then Pip rigs the painting so it moves and reacts. <a href="/">Back to the vector builder</a></p>
+  </header>
+
+  <section class="stage" aria-label="Painted mascot stage">
+    <canvas id="cv" aria-label="Painted mascot"></canvas>
+    <div class="empty" id="empty">Your painted mascot will appear here.</div>
+    <div class="bubble" id="bubble" aria-live="polite"></div>
+    <div class="badge" id="badge" hidden>idle</div>
+  </section>
+
+  <section class="card" aria-labelledby="mk">
+    <h2 id="mk">Paint a mascot</h2>
+    <div class="field">
+      <label for="desc">Describe your character</label>
+      <textarea id="desc" rows="2" placeholder="e.g. a sleepy baby dragon barista with a tiny apron"></textarea>
+    </div>
+    <div class="row">
+      <div class="field" style="flex:1"><label for="style">Look</label>
+        <select id="style">
+          <option value="3d">3D animated film</option>
+          <option value="plush">Plush toy</option>
+          <option value="clay">Clay figure</option>
+          <option value="vinyl">Vinyl collectible</option>
+          <option value="illustration">2D illustration</option>
+        </select></div>
+      <div class="field" style="flex:1"><label for="quality">Quality</label>
+        <select id="quality"><option value="low">Draft (cheapest)</option><option value="medium" selected>Standard</option><option value="high">High (slower)</option></select></div>
+    </div>
+    <div class="field" id="passWrap" hidden><label for="pass">Passcode</label><input type="password" id="pass" autocomplete="off" placeholder="The PAINT_PASSCODE you set in Vercel"></div>
+    <button type="button" class="primary" id="go">Paint it</button>
+    <p class="hint" id="status">Painting makes about 6 images on your OpenAI account (roughly $0.20 to $0.50 at Standard) and takes 1 to 3 minutes.</p>
+    <ol class="steps" id="steps"></ol>
+  </section>
+
+  <section class="card" aria-labelledby="ctl">
+    <h2 id="ctl">Make it react</h2>
+    <div class="chips" id="states"></div>
+    <div class="field"><label for="tryPw">Type a password (it closes its eyes)</label><input type="password" id="tryPw" placeholder="Try typing here" autocomplete="off"></div>
+    <p class="hint">Tap the mascot to poke it. It follows your cursor or finger, blinks, breathes and falls asleep after 20 seconds.</p>
+  </section>
+
+  <p class="mono" id="meta"></p>
+</main>
+
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),pick=a=>a[Math.floor(Math.random()*a.length)];
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches?0.3:1;
+
+/* ---------- image utilities ---------- */
+const loadImg=src=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Image failed to load'));i.src=src});
+function canvasOf(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c}
+// Remove the flat background by flood-filling from the edges, with a soft edge.
+function keyOut(img){
+  const W=img.naturalWidth||img.width,H=img.naturalHeight||img.height,c=canvasOf(W,H),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0);
+  const id=x.getImageData(0,0,W,H),d=id.data;
+  const samp=(sx,sy)=>{let r=0,g=0,b=0,n=0;for(let y=sy;y<sy+10;y++)for(let xx=sx;xx<sx+10;xx++){const i=(y*W+xx)*4;r+=d[i];g+=d[i+1];b+=d[i+2];n++}return [r/n,g/n,b/n]};
+  const cs=[samp(2,2),samp(W-12,2),samp(2,H-12),samp(W-12,H-12)];
+  const key=[0,1,2].map(k=>cs.map(c=>c[k]).sort((a,b)=>a-b).slice(1,3).reduce((a,b)=>a+b)/2);
+  const dist=i=>Math.hypot(d[i]-key[0],d[i+1]-key[1],d[i+2]-key[2]);
+  const T1=58,T2=120,bg=new Uint8Array(W*H),q=new Int32Array(W*H);let qh=0,qt=0;
+  const push=p=>{if(!bg[p]&&dist(p*4)<T1){bg[p]=1;q[qt++]=p}};
+  for(let i=0;i<W;i++){push(i);push((H-1)*W+i)}for(let j=0;j<H;j++){push(j*W);push(j*W+W-1)}
+  while(qh<qt){const p=q[qh++],px=p%W,py=(p/W)|0;if(px>0)push(p-1);if(px<W-1)push(p+1);if(py>0)push(p-W);if(py<H-1)push(p+W)}
+  let minX=W,minY=H,maxX=0,maxY=0;
+  for(let p=0;p<W*H;p++){const i=p*4;
+    if(bg[p]){d[i+3]=0;continue}
+    const px=p%W,py=(p/W)|0;
+    const nearBg=(px>0&&bg[p-1])||(px<W-1&&bg[p+1])||(py>0&&bg[p-W])||(py<H-1&&bg[p+W]);
+    if(nearBg){const a=clamp((dist(i)-T1)/(T2-T1),0,1);d[i+3]=Math.round(255*Math.max(a,.15));
+      // pull the background tint out of the soft edge
+      for(let k=0;k<3;k++)d[i+k]=clamp(Math.round((d[i+k]-key[k]*(1-a))/Math.max(a,.35)),0,255)}
+    if(px<minX)minX=px;if(px>maxX)maxX=px;if(py<minY)minY=py;if(py>maxY)maxY=py}
+  x.putImageData(id,0,0);
+  return {canvas:c,bbox:{x:minX,y:minY,w:Math.max(1,maxX-minX),h:Math.max(1,maxY-minY)},key}}
+function b64ToDataUrl(b64,mime){return `data:${mime||'image/webp'};base64,${b64}`}
+function canvasB64(c,type){return c.toDataURL(type||'image/png').split(',')[1]}
+
+/* ---------- the painted rig ---------- */
+class Spring{constructor(x,k=170,d=20){this.x=x;this.v=0;this.t=x;this.k=k;this.d=d}step(dt){const a=this.k*(this.t-this.x)-this.d*this.v;this.v+=a*dt;this.x+=this.v*dt;return this.x}}
+const EXPRS=['happy','worried','surprised','talk','blink'];
+const STATES={idle:{},thinking:{look:[.5,-.85],tilt:-3},success:{happy:1},error:{worried:1},surprised:{surprised:1},talking:{},
+  sleeping:{blink:1,tilt:4,zzz:1},love:{happy:1},wave:{happy:.7},confused:{worried:.5,tilt:7,q:1},giggle:{happy:1}};
+class PaintRig{
+  constructor(canvas,{bubble,onState}={}){
+    this.cv=canvas;this.ctx=canvas.getContext('2d');this.bubble=bubble;this.onState=onState||(()=>{});
+    this.base=null;this.patches={};this.face=null;
+    this.s={happy:new Spring(0,140,18),worried:new Spring(0,140,18),surprised:new Spring(0,160,18),talk:new Spring(0,700,32),blinkHold:new Spring(0,200,22),
+      lookX:new Spring(0,120,16),lookY:new Spring(0,120,16),tilt:new Spring(0,90,12),lean:new Spring(0,90,12),zzz:new Spring(0),q:new Spring(0)};
+    this.squash=new Spring(1,320,13);this.state='idle';this.look=[0,0];this.timer=null;this.cover=false;
+    this.jumpY=0;this.jumpV=0;this.shake=0;this.t=0;this.nextBlink=1.2;this.blinkStart=-1;this.parts=[];this.pokes=[];this.lastAct=performance.now();this.lastPointer=0;this.nextGlance=0;
+    this._resize();addEventListener('resize',()=>this._resize());
+    addEventListener('pointermove',e=>{this._act();this.lastPointer=performance.now();if(!this.focusEl)this.lookAt(e.clientX,e.clientY)},{passive:true});
+    ['pointerdown','keydown'].forEach(ev=>addEventListener(ev,()=>this._act(),{passive:true}));
+    canvas.addEventListener('pointerdown',()=>this.poke());
+    setInterval(()=>this._tick(),250);
+    this._last=performance.now();requestAnimationFrame(this._frame.bind(this));
+  }
+  _resize(){const r=this.cv.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2.5);this.cv.width=Math.round(r.width*dpr);this.cv.height=Math.round(r.height*dpr);this.dpr=dpr;this.W=r.width;this.H=r.height}
+  _act(){this.lastAct=performance.now();if(this.state==='sleeping')this.setState('idle'),this.hop(160)}
+  setBase(k){this.base=k;this.patches={};this.hop(220)}
+  setFace(box){this.face=box;if(this.base)this.patches.neutral=this._patch(this.base.canvas,this.base.bbox)}
+  addExpr(name,k){if(!this.base||!this.face)return;this.patches[name]=this._patch(k.canvas,k.bbox);if(name==='happy'&&this.state==='idle')this.react('success',1400)}
+  // Cut a feathered face patch out of a frame, aligned to the base character.
+  _patch(src,bb){const B=this.base.bbox,F=this.face;
+    const sx=B.w/bb.w,sy=B.h/bb.h,ox=B.x-bb.x*sx,oy=B.y-bb.y*sy;
+    const pad=.32,px=F.x-F.w*pad,py=F.y-F.h*pad,pw=F.w*(1+2*pad),ph=F.h*(1+2*pad);
+    const c=canvasOf(Math.ceil(pw),Math.ceil(ph)),x=c.getContext('2d');
+    x.setTransform(sx,0,0,sy,ox-px,oy-py);x.drawImage(src,0,0);x.setTransform(1,0,0,1,0,0);
+    x.globalCompositeOperation='destination-in';x.save();x.translate(pw/2,ph/2);x.scale(1,ph/pw);
+    const g=x.createRadialGradient(0,0,0,0,0,pw/2);g.addColorStop(0,'#000');g.addColorStop(.8,'#000');g.addColorStop(1,'rgba(0,0,0,0)');
+    x.fillStyle=g;x.fillRect(-pw/2,-pw/2,pw,pw);x.restore();
+    // keep only pixels that are part of the character (avoid painting background-coloured halos)
+    return {c,x:px,y:py}}
+  setState(n){clearTimeout(this.timer);this._enter(n)}
+  react(n,ms=2300){this._enter(n);clearTimeout(this.timer);this.timer=setTimeout(()=>this._enter('idle'),ms)}
+  _enter(n){if(!STATES[n])return;this.state=n;this.onState(n);
+    if(n==='success'){this.hop(360);setTimeout(()=>this.hop(250),560);this.burst('confetti')}
+    if(n==='error'){this.shake=10;this.squash.v-=3}
+    if(n==='surprised'){this.hop(220);this.squash.v+=2}
+    if(n==='love')this.burst('hearts');if(n==='wave')this.hop(140)}
+  lookAt(x,y){const r=this.cv.getBoundingClientRect();if(!r.width)return;this.look=[clamp((x-(r.left+r.width/2))/(r.width*.7),-1,1),clamp((y-(r.top+r.height*.45))/(r.height*.8),-1,1)]}
+  hop(v){if(this.jumpY>-1&&this.jumpV>=0&&!this._hopT){if(RM<1){this.jumpV=-v*Math.sqrt(RM);return}this.squash.v-=v*.0075;this._hopT=setTimeout(()=>{this._hopT=null;this.jumpV=-v},75)}}
+  poke(){if(!this.base)return;const now=performance.now();this.pokes=this.pokes.filter(p=>now-p<4000);this.pokes.push(now);this.squash.v-=4;
+    if(this.pokes.length>=5){this.pokes=[];this.react('confused',2400);this.say("Okay, okay! I'm awake!");return}
+    const n=this.pokes.length;if(n===3){this.react('love',1800);this.say('Aww, thanks!');return}
+    this.react(n===1?'surprised':'giggle',n===1?900:1400);this.say(n===1?'Boop!':pick(['Hee hee, that tickles!','Hey there!','Again? Okay!']))}
+  say(text,{speed=40,hold=2400}={}){const tok=this.sayTok=(this.sayTok||0)+1,b=this.bubble;b.textContent='';b.classList.add('show');let i=0;
+    const tick=()=>{if(tok!==this.sayTok)return;if(i>=text.length){this.s.talk.t=0;setTimeout(()=>{if(tok===this.sayTok)b.classList.remove('show')},hold);return}
+      const ch=text[i++];b.textContent=text.slice(0,i);this.s.talk.t=/[aeiouy]/i.test(ch)?1:/\s/.test(ch)?0:/[.,!?]/.test(ch)?0:.45;setTimeout(tick,/[.,!?]/.test(ch)?speed*4:speed)};tick()}
+  burst(kind){if(RM<1)return;const cols=['#FF6B7A','#6E9BFF','#7DDC8A','#FFC23D','#B58CFF'];
+    for(let i=0;i<(kind==='hearts'?7:34);i++)this.parts.push(kind==='hearts'?{h:1,x:(Math.random()-.5)*80,y:-150,vx:(Math.random()-.5)*30,vy:-50-Math.random()*50,life:1.8,g:-15,c:'#FF4D6D',a:0,va:0}:
+      {x:0,y:-120,vx:(Math.random()-.5)*480,vy:-260-Math.random()*320,life:1.7,g:900,c:cols[i%5],a:Math.random()*6,va:(Math.random()-.5)*14})}
+  _tick(){const now=performance.now();
+    if(this.state==='idle'&&!this.focusEl&&now-this.lastPointer>3500&&now>this.nextGlance){this.look=[(Math.random()-.5)*1.4,(Math.random()-.5)*.8];this.nextGlance=now+1800+Math.random()*2500}
+    if(this.base&&this.state==='idle'&&!this.cover&&!this.focusEl&&now-this.lastAct>20000)this._enter('sleeping')}
+  _frame(now){
+    const dt=Math.min((now-this._last)/1000,.05);this._last=now;this.t+=dt;const t=this.t,S=STATES[this.state]||{};
+    for(const k of ['happy','worried','surprised'])this.s[k].t=S[k]||0;
+    this.s.blinkHold.t=(S.blink||(this.cover?1:0));this.s.tilt.t=S.tilt||0;this.s.zzz.t=S.zzz||0;this.s.q.t=S.q||0;
+    const lk=S.look||this.look;this.s.lookX.t=lk[0];this.s.lookY.t=lk[1];
+    const v={};for(const k in this.s)v[k]=this.s[k].step(dt);const sq=this.squash.step(dt);
+    if(t>this.nextBlink){this.blinkStart=t;this.nextBlink=t+2.2+Math.random()*3.5}
+    let blink=0;if(this.blinkStart>=0){const p=(t-this.blinkStart)/.16;blink=p<1?(p<.5?p*2:(1-p)*2):0}
+    if(this.jumpY<0||this.jumpV<0){this.jumpV+=1500*dt;this.jumpY+=this.jumpV*dt;if(this.jumpY>=0){this.jumpY=0;if(this.jumpV>120)this.squash.v-=this.jumpV*.011;this.jumpV=0}}
+    this.shake*=Math.pow(.02,dt);const shx=this.shake*Math.sin(t*55)*RM;
+    const sleeping=this.state==='sleeping',breathe=(sleeping?Math.sin(t*1.2)*.03:Math.sin(t*2.3)*.015)*RM,air=this.jumpY<0?Math.min(Math.abs(this.jumpV)/2600,.1):0;
+    const sy=sq+breathe+air,sx=1+(1-sy)*.9;const giggle=this.state==='giggle'?Math.sin(t*22)*2.5*RM:0;
+    const ctx=this.ctx,W=this.W,H=this.H;ctx.setTransform(this.dpr,0,0,this.dpr,0,0);ctx.clearRect(0,0,W,H);
+    if(!this.base){requestAnimationFrame(this._frame.bind(this));return}
+    const B=this.base.bbox,ground=H*.9,scale=Math.min(W*.66/B.w,H*.68/B.h),footX=B.x+B.w/2,footY=B.y+B.h;
+    // shadow
+    const lift=Math.min(-this.jumpY/260,1);const sg=ctx.createRadialGradient(W/2,ground,0,W/2,ground,B.w*scale*.5);sg.addColorStop(0,'rgba(25,25,60,.28)');sg.addColorStop(1,'rgba(25,25,60,0)');
+    ctx.save();ctx.translate(W/2,ground);ctx.scale(1-lift*.4,.16);ctx.translate(-W/2,-ground);ctx.fillStyle=sg;ctx.beginPath();ctx.arc(W/2,ground,B.w*scale*.5,0,Math.PI*2);ctx.fill();ctx.restore();
+    // body
+    ctx.save();ctx.translate(W/2+shx,ground+this.jumpY);ctx.rotate((v.tilt+giggle+v.lean)*Math.PI/180);ctx.scale(sx*scale,sy*scale);ctx.translate(-footX,-footY);
+    ctx.drawImage(this.base.canvas,0,0);
+    if(this.face){const P=this.patches,ox=v.lookX*this.face.w*.06,oy=v.lookY*this.face.h*.05;
+      const draw=(p,a)=>{if(p&&a>.01){ctx.globalAlpha=Math.min(1,a);ctx.drawImage(p.c,p.x+ox,p.y+oy)}};
+      draw(P.neutral,1);draw(P.happy,v.happy);draw(P.worried,v.worried);draw(P.surprised,v.surprised);
+      draw(P.talk,v.talk*(1-v.happy*.5));draw(P.blink,Math.max(blink,v.blinkHold));ctx.globalAlpha=1}
+    ctx.restore();
+    // extras
+    const headY=ground-B.h*scale;
+    if(v.zzz>.05){ctx.fillStyle='rgba(60,50,90,.75)';for(let i=0;i<3;i++){const p=(t*.45+i/3)%1;ctx.globalAlpha=v.zzz*Math.sin(p*Math.PI);ctx.font=`600 ${12+p*12}px Fredoka, sans-serif`;ctx.fillText('z',W/2+B.w*scale*.3+p*30,headY+20-p*40)}ctx.globalAlpha=1}
+    if(v.q>.05){ctx.globalAlpha=v.q;ctx.fillStyle='rgba(40,30,60,.85)';ctx.font='700 30px Fredoka, sans-serif';ctx.fillText('?',W/2+B.w*scale*.36,headY+24+Math.sin(t*3)*3);ctx.globalAlpha=1}
+    if(this.state==='thinking'){ctx.fillStyle='rgba(40,30,60,.8)';for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(W/2+B.w*scale*.3+i*14,headY+8+Math.sin(t*7-i*.9)*4,4.5,0,Math.PI*2);ctx.fill()}}
+    this.parts=this.parts.filter(p=>{p.life-=dt;p.vy+=p.g*dt;p.vx*=Math.pow(.4,dt);p.x+=p.vx*dt;p.y+=p.vy*dt;p.a+=p.va*dt;
+      ctx.save();ctx.globalAlpha=clamp(p.life*1.5,0,1);ctx.translate(W/2+p.x+(p.h?Math.sin(t*4+p.life*3)*6:0),ground+p.y);ctx.rotate(p.a);ctx.fillStyle=p.c;
+      if(p.h){ctx.beginPath();ctx.moveTo(0,5);ctx.bezierCurveTo(-9,-1,-6,-8,0,-3);ctx.bezierCurveTo(6,-8,9,-1,0,5);ctx.fill()}else ctx.fillRect(-3.5,-2.5,7,5);ctx.restore();return p.life>0});
+    requestAnimationFrame(this._frame.bind(this));
+  }
+}
+
+/* ---------- storage (so a refresh doesn't cost another painting) ---------- */
+const DB={open(){return new Promise((res,rej)=>{const r=indexedDB.open('pip-paint',1);r.onupgradeneeded=()=>r.result.createObjectStore('m');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})},
+  async put(v){try{const db=await this.open();await new Promise((res,rej)=>{const tx=db.transaction('m','readwrite');tx.objectStore('m').put(v,'last');tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}catch(e){}},
+  async get(){try{const db=await this.open();return await new Promise((res,rej)=>{const tx=db.transaction('m');const r=tx.objectStore('m').get('last');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}catch(e){return null}}};
+
+/* ---------- UI ---------- */
+const badge=$('badge'),statesEl=$('states'),status=$('status'),stepsEl=$('steps');
+const rig=new PaintRig($('cv'),{bubble:$('bubble'),onState:s=>{badge.textContent=s;[...statesEl.children].forEach(c=>c.setAttribute('aria-pressed',String(c.dataset.s===s)))}});
+['idle','thinking','success','error','surprised','talking','love','wave','confused','sleeping'].forEach(s=>{const b=document.createElement('button');b.type='button';b.className='chip';b.dataset.s=s;
+  b.textContent=s[0].toUpperCase()+s.slice(1);b.setAttribute('aria-pressed',String(s==='idle'));
+  b.addEventListener('click',()=>{if(['success','error','surprised','love','wave','confused'].includes(s))rig.react(s);else if(s==='talking'){rig.setState('idle');rig.say(`Hi! I'm ${current.name||'your mascot'}. I was painted, then rigged to move.`)}else rig.setState(s)});statesEl.appendChild(b)});
+const pw=$('tryPw');pw.addEventListener('focus',()=>{rig.cover=true});pw.addEventListener('blur',()=>{rig.cover=false});pw.addEventListener('input',()=>rig.squash.v-=1.2);
+
+const STEP_LIST=[['base','Character'],['face','Find face'],['blink','Blink'],['happy','Happy'],['talk','Talking'],['worried','Worried'],['surprised','Surprised']];
+function renderSteps(){stepsEl.innerHTML=STEP_LIST.map(([k,l])=>`<li data-k="${k}" data-s="wait"><span class="th"></span><span>${l}</span></li>`).join('')}
+function stepState(k,s,thumb){const li=stepsEl.querySelector(`[data-k="${k}"]`);if(!li)return;li.dataset.s=s;if(thumb){li.querySelector('.th').innerHTML='';const im=new Image();im.alt='';im.src=thumb;li.querySelector('.th').appendChild(im)}}
+const setStatus=(t,kind)=>{status.textContent=t;status.className='hint'+(kind?' '+kind:'')};
+
+const STYLE={
+  '3d':'High-quality 3D animated film character render, appealing stylized proportions, soft global illumination, subtle subsurface scattering, crisp details',
+  plush:'Photorealistic plush stuffed toy, soft fuzzy fabric texture, visible stitching, felt details, soft studio lighting',
+  clay:'Handmade claymation figure, soft polymer clay texture with subtle fingerprints, warm studio lighting',
+  vinyl:'Glossy vinyl designer-toy collectible figure, smooth plastic, soft reflections, studio product lighting',
+  illustration:'Polished 2D digital illustration, clean shapes, soft cel shading, bold readable silhouette'};
+function keyColor(desc){return /pink|magenta|purple|violet|fuchsia|lavender/i.test(desc)?{name:'pure green',hex:'#00FF00'}:{name:'pure magenta',hex:'#FF00FF'}}
+function basePrompt(desc,style){const k=keyColor(desc);
+  return `Mascot character for an app: ${desc}.
+${STYLE[style]||STYLE['3d']}.
+Composition: one character only, full body, standing upright and facing the viewer straight on, centered, the whole character visible with generous empty margin on all sides. Friendly neutral expression: both eyes open looking at the viewer, mouth closed in a gentle smile. Arms (if any) relaxed at the sides, not covering the face.
+Background: a completely flat, uniform ${k.name} (${k.hex}) background filling the whole image, with no gradient, no floor, no cast shadow, no reflections, no props, no text. Do not use ${k.name} anywhere on the character.`}
+const EXPR={
+  blink:'eyes gently closed with relaxed closed eyelids, calm neutral closed mouth',
+  happy:'overjoyed: a big open-mouth smile and happy squinting eyes, eyebrows raised',
+  talk:'mid-sentence: the same neutral eyes, mouth open as if saying "ah"',
+  worried:'worried and upset: eyebrows raised and pinched in the middle, a small frown, nervous eyes',
+  surprised:'shocked: eyes wide open, eyebrows very high, a small round open "O" mouth'};
+function editPrompt(name){return `Change ONLY the facial expression of this exact character to: ${EXPR[name]}.
+Keep everything else identical: the same character, pose, body, proportions, colors, materials, lighting, camera angle, framing and the same flat background color. The face stays in exactly the same place and size.`}
+
+let current={},busy=false;
+async function api(body){const pass=$('pass').value.trim();
+  const r=await fetch('/api/paint',{method:'POST',headers:{'Content-Type':'application/json',...(pass?{'x-pip-pass':pass}:{})},body:JSON.stringify(body)});
+  let j={};try{j=await r.json()}catch(e){}
+  if(!r.ok)throw {status:r.status,msg:j.error||r.statusText||'Request failed'};return j}
+async function withRetry(fn,label){for(let a=0;;a++){try{return await fn()}catch(e){
+  if(e.status===429&&a<3){setStatus(`OpenAI asked us to slow down. Waiting a moment before ${label}…`,'');await new Promise(r=>setTimeout(r,20000*(a+1)));continue}throw e}}}
+function explain(e){const m=(e&&e.msg)||String(e);
+  if(e&&e.status===401){$('passWrap').hidden=false;return 'This site has a passcode. Enter it above and try again.'}
+  if(/verif/i.test(m))return 'OpenAI says your organization must be verified to use its image models. Verify it at platform.openai.com → Settings → Organization, then try again. ('+m+')';
+  if(/billing|quota|credit|insufficient/i.test(m))return 'OpenAI says the account is out of credit or over its limit: '+m;
+  if(/OPENAI_API_KEY/.test(m))return 'The OpenAI key isn’t set up on Vercel yet. Add OPENAI_API_KEY in the Vercel project settings, then redeploy.';
+  if(e&&e.status===404&&/api\/paint/.test(m))return 'The painting server isn’t deployed here. Open this page on your Vercel site.';
+  return 'Painting failed: '+m}
+
+async function paint(){
+  if(busy)return;const desc=$('desc').value.trim();if(!desc){setStatus('Describe your character first, like “a sleepy baby dragon barista”.','err');$('desc').focus();return}
+  busy=true;$('go').disabled=true;renderSteps();const t0=Date.now();const quality=$('quality').value,style=$('style').value;
+  const tick=setInterval(()=>{$('go').textContent=`Painting… ${Math.round((Date.now()-t0)/1000)}s`},1000);
+  try{
+    setStatus('Painting your character…','ok');stepState('base','work');
+    const b=await withRetry(()=>api({step:'base',prompt:basePrompt(desc,style),quality}),'painting');
+    const baseUrl=b64ToDataUrl(b.image,b.mime);const baseImg=await loadImg(baseUrl);const keyed=keyOut(baseImg);
+    current={name:'',desc,style,base:b.image,mime:b.mime,model:b.model,exprs:{}};
+    $('empty').hidden=true;$('badge').hidden=false;rig.setBase(keyed);stepState('base','done',keyed.canvas.toDataURL('image/webp',.8));
+    $('meta').textContent=`Image model: ${b.model}`;
+
+    setStatus('Finding the face…','ok');stepState('face','work');
+    let face;try{const f=await api({step:'face',image:b.image,mime:b.mime});face=f.face;$('meta').textContent+=` · Vision: ${f.model}`}catch(e){face=null}
+    const S=1024,bb=keyed.bbox;let box;
+    if(face&&face.face&&face.face.w>0){const F=face.face;box={x:F.x*S,y:F.y*S,w:F.w*S,h:F.h*S}}
+    else box={x:bb.x+bb.w*.2,y:bb.y+bb.h*.14,w:bb.w*.6,h:bb.h*.38};
+    box.w=Math.max(box.w,bb.w*.18);box.h=Math.max(box.h,bb.h*.12);
+    current.face=box;rig.setFace(box);stepState('face',face?'done':'fail');
+
+    // mask: transparent where the model may repaint (the face), opaque elsewhere
+    const mc=canvasOf(S,S),mx=mc.getContext('2d');mx.fillStyle='#000';mx.fillRect(0,0,S,S);
+    const ex=.3;mx.clearRect(box.x-box.w*ex,box.y-box.h*ex,box.w*(1+2*ex),box.h*(1+2*ex));const mask=canvasB64(mc,'image/png');
+    setStatus('Painting expressions. Each one appears as soon as it’s ready…','ok');
+    const queue=['blink','happy','talk','worried','surprised'];let failed=0;
+    const worker=async()=>{while(queue.length){const name=queue.shift();stepState(name,'work');
+      try{const r=await withRetry(()=>api({step:'edit',image:b.image,mime:b.mime,mask,prompt:editPrompt(name),quality,model:b.model}),name);
+        const im=await loadImg(b64ToDataUrl(r.image,r.mime));const k=keyOut(im);rig.addExpr(name,k);current.exprs[name]=r.image;
+        stepState(name,'done',k.canvas.toDataURL('image/webp',.8))}
+      catch(e){failed++;stepState(name,'fail');if(e.status===401||/verif|billing|quota|credit/i.test(e.msg||''))throw e}}};
+    await Promise.all([worker(),worker()]);
+    DB.put(current);
+    const secs=Math.round((Date.now()-t0)/1000);
+    setStatus(failed?`Done in ${secs}s, but ${failed} expression${failed>1?'s':''} failed. It still works with the rest.`:`Done in ${secs}s. Tap it, type a password, or try the reactions below.`,failed?'err':'ok');
+    rig.react('wave',1800);rig.say('Ta-da! I was painted, then rigged.');
+  }catch(e){setStatus(explain(e),'err');STEP_LIST.forEach(([k])=>{const li=stepsEl.querySelector(`[data-k="${k}"]`);if(li&&li.dataset.s==='work')li.dataset.s='fail'})}
+  finally{clearInterval(tick);busy=false;$('go').disabled=false;$('go').textContent='Paint it'}}
+$('go').addEventListener('click',paint);
+
+// restore the last painted mascot for free
+(async()=>{const m=await DB.get();if(!m||!m.base)return;try{
+  current=m;$('desc').value=m.desc||'';const k=keyOut(await loadImg(b64ToDataUrl(m.base,m.mime)));$('empty').hidden=true;$('badge').hidden=false;rig.setBase(k);
+  if(m.face){rig.setFace(m.face);for(const [n,b64] of Object.entries(m.exprs||{}))rig.addExpr(n,keyOut(await loadImg(b64ToDataUrl(b64,m.mime))))}
+  setStatus('Loaded your last painted mascot. Painting a new one replaces it.','ok');$('meta').textContent=m.model?`Image model: ${m.model}`:''}catch(e){}})();
+})();
+</script>
+</body>
+</html>
