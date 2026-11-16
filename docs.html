@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pip docs: add a mascot to your app</title>
+<meta name="description" content="Add Pip to any site with two lines. Options for placement and size, the JavaScript API, events and theming.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta property="og:title" content="Pip docs: add a mascot to your app">
+<meta property="og:description" content="Two lines to add Pip. Placement, size, the JavaScript API, events and theming.">
+<meta property="og:image" content="https://pip-mascot.vercel.app/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,500..800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="/pip-mascot.js"></script>
+<style>
+:root{--haze:#ECEBFF;--ink:#221E3F;--ink-2:#4A4570;--peach:#FF9466;--sprout:#2FAF74;--butter:#FFD35A;--white:#fff;--line:#D6D3F2;
+  --display:'Bricolage Grotesque',ui-rounded,system-ui,sans-serif;--body:'Figtree',system-ui,-apple-system,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+*{box-sizing:border-box}
+html,body{overflow-x:clip}
+body{margin:0;background:var(--haze);color:var(--ink);font:400 1.0625rem/1.6 var(--body);-webkit-font-smoothing:antialiased}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:6px}
+a{color:inherit}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+h1,h2,h3{font-family:var(--display);font-weight:800;letter-spacing:-.02em;line-height:1.08;margin:0;font-stretch:88%}
+h1{font-size:clamp(2.1rem,4.6vw,3.2rem)}
+h2{font-size:1.75rem;margin-bottom:12px;scroll-margin-top:20px}
+h3{font-size:1.15rem;margin:22px 0 8px;letter-spacing:-.01em}
+p{margin:0 0 12px;max-width:68ch}
+
+.bar{display:flex;align-items:center;justify-content:space-between;padding:20px 0}
+.mark{font:800 1.5rem/1 var(--display);letter-spacing:-.03em;text-decoration:none;display:flex;align-items:center;gap:8px}
+.mark i{width:14px;height:18px;background:var(--peach);border-radius:50% 50% 46% 46%/60% 60% 40% 40%;position:relative;display:inline-block}
+.mark i::after{content:"";position:absolute;left:5px;top:-7px;width:9px;height:7px;background:var(--sprout);border-radius:0 100% 0 100%}
+.bar nav{display:flex;gap:20px;font-weight:600}
+.bar nav a{text-decoration:none;color:var(--ink-2)}.bar nav a:hover{color:var(--ink)}
+
+.layout{display:grid;grid-template-columns:200px minmax(0,1fr);gap:48px;padding:16px 0 120px}
+.toc{position:sticky;top:20px;align-self:start;display:flex;flex-direction:column;gap:4px;font-weight:600}
+.toc a{text-decoration:none;color:var(--ink-2);padding:5px 10px;border-radius:10px}
+.toc a:hover{background:var(--white);color:var(--ink)}
+main{min-width:0}
+main>section{background:var(--white);border:2px solid var(--ink);border-radius:22px;padding:28px;margin-bottom:22px}
+.intro{display:flex;flex-direction:column;gap:12px;margin-bottom:26px}
+.intro p{font-size:1.15rem;color:var(--ink-2)}
+
+pre{margin:10px 0 14px;background:var(--ink);color:#F1EFFF;border-radius:14px;padding:14px 16px;font:500 .86rem/1.65 var(--mono);overflow-x:auto;white-space:pre}
+pre .c{color:#9C97C9}pre .t{color:var(--butter)}pre .a{color:#9EE6C2}pre .s{color:#FFC1A6}
+code{font:600 .9em var(--mono);background:var(--haze);padding:1px 6px;border-radius:6px}
+pre code{background:none;padding:0;font:inherit}
+table{width:100%;border-collapse:collapse;font-size:.97rem;margin:6px 0 4px}
+th{text-align:left;font-weight:700;padding:10px 12px 10px 0;border-bottom:2px solid var(--ink)}
+td{padding:11px 12px 11px 0;border-bottom:1px solid var(--line);vertical-align:top}
+td:first-child{white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.scroll{overflow-x:auto}
+.note{background:var(--haze);border-radius:14px;padding:12px 16px;margin:8px 0 4px}
+ul.list{margin:0 0 8px;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+
+.try{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 2px}
+.try button{font:700 .95rem var(--body);padding:8px 14px;border-radius:999px;border:2px solid var(--ink);background:var(--white);cursor:pointer;color:var(--ink)}
+.try button[aria-pressed="true"]{background:var(--ink);color:var(--white)}
+
+@media (max-width:860px){.layout{grid-template-columns:1fr}.toc{display:none}.bar nav a.opt{display:none}main>section{padding:20px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="mark" href="/landing" aria-label="Pip home"><i aria-hidden="true"></i>pip</a>
+    <nav aria-label="Site"><a href="/demo">Live demo</a><a class="opt" href="/landing#pricing">Pricing</a></nav>
+  </header>
+
+  <div class="layout">
+    <nav class="toc" aria-label="On this page">
+      <a href="#install">Install</a><a href="#frameworks">React and Next.js</a><a href="#placement">Placement and size</a><a href="#autopilot">Autopilot</a>
+      <a href="#api">Make Pip react</a><a href="#events">Events</a><a href="#hiding">Hiding</a><a href="#theming">Theming</a><a href="#reference">All options</a>
+    </nav>
+
+    <main>
+      <div class="intro">
+        <h1>Add Pip to your app.</h1>
+        <p>Two lines get you a mascot that notices what's happening and reacts by itself. Everything on this page is optional.</p>
+      </div>
+
+      <section id="install" aria-labelledby="h-install">
+        <h2 id="h-install">Install</h2>
+        <p>Paste these before the closing <code>&lt;/body&gt;</code> tag. Swap in your mascot's id from the paint page, or leave <code>mascot</code> out to use the drawn mascot.</p>
+<pre><span class="t">&lt;script</span> <span class="a">src</span>=<span class="s">"https://pip-mascot.vercel.app/pip-mascot.js"</span><span class="t">&gt;&lt;/script&gt;</span>
+<span class="t">&lt;pip-mascot</span> <span class="a">mascot</span>=<span class="s">"your-mascot-id"</span> <span class="a">autopilot</span> <span class="a">greet</span><span class="t">&gt;&lt;/pip-mascot&gt;</span></pre>
+        <p><code>autopilot</code> lets Pip float in a corner and react to your app. <code>greet</code> makes it say hello when the page loads.</p>
+      </section>
+
+      <section id="frameworks" aria-labelledby="h-fw">
+        <h2 id="h-fw">React and Next.js</h2>
+        <p>Pip is a standard web component, so the tag works in React, Vue, Svelte and plain HTML. Load the script once, then use the tag like any other element.</p>
+        <h3>Next.js</h3>
+<pre><span class="c">// app/layout.tsx</span>
+<span class="t">import</span> Script <span class="t">from</span> <span class="s">'next/script'</span>
+
+<span class="t">export default function</span> RootLayout({ children }) {
+  <span class="t">return</span> (
+    &lt;html lang=<span class="s">"en"</span>&gt;
+      &lt;body&gt;
+        {children}
+        &lt;<span class="t">pip-mascot</span> <span class="a">mascot</span>=<span class="s">"your-mascot-id"</span> <span class="a">autopilot</span>=<span class="s">""</span> <span class="a">greet</span>=<span class="s">""</span> /&gt;
+        &lt;<span class="t">Script</span> <span class="a">src</span>=<span class="s">"https://pip-mascot.vercel.app/pip-mascot.js"</span> <span class="a">strategy</span>=<span class="s">"afterInteractive"</span> /&gt;
+      &lt;/body&gt;
+    &lt;/html&gt;
+  )
+}</pre>
+        <p>In React, write switches like <code>autopilot=""</code> rather than just <code>autopilot</code>, so they're always passed through to the tag.</p>
+        <h3>TypeScript</h3>
+        <p>To stop TypeScript complaining about an unknown tag, add this once anywhere in your project:</p>
+<pre><span class="t">declare</span> <span class="t">namespace</span> JSX {
+  <span class="t">interface</span> IntrinsicElements { <span class="s">'pip-mascot'</span>: <span class="t">any</span> }
+}</pre>
+      </section>
+
+      <section id="placement" aria-labelledby="h-place">
+        <h2 id="h-place">Placement and size</h2>
+        <p>Pip sits in the bottom-right corner by default. Move it if something else lives there.</p>
+<pre><span class="t">&lt;pip-mascot</span> <span class="a">autopilot</span> <span class="a">position</span>=<span class="s">"bottom-left"</span> <span class="a">offset</span>=<span class="s">"24 90"</span> <span class="a">size</span>=<span class="s">"small"</span> <span class="a">mobile-size</span>=<span class="s">"80"</span><span class="t">&gt;&lt;/pip-mascot&gt;</span></pre>
+        <ul class="list">
+          <li><code>position</code>: <code>bottom-right</code>, <code>bottom-left</code>, <code>top-right</code> or <code>top-left</code>.</li>
+          <li><code>offset</code>: distance from the edges in pixels, sideways then up or down. One number sets both.</li>
+          <li><code>size</code>: <code>small</code>, <code>medium</code>, <code>large</code>, or a width in pixels. <code>mobile-size</code> applies on screens narrower than 600px.</li>
+        </ul>
+        <div class="note"><b>Pip steps aside by itself.</b> If a chat bubble, cookie banner or anything else is pinned in its corner, Pip stands on top of it, even when it loads a few seconds later. Turn this off with <code>avoid="false"</code>.</div>
+        <p style="margin-top:14px">Try it on this page's Pip:</p>
+        <div class="try" role="group" aria-label="Move this page's Pip">
+          <button type="button" data-pos="bottom-right" aria-pressed="true">Bottom right</button><button type="button" data-pos="bottom-left" aria-pressed="false">Bottom left</button>
+          <button type="button" data-pos="top-right" aria-pressed="false">Top right</button><button type="button" data-pos="top-left" aria-pressed="false">Top left</button>
+        </div>
+        <h3>Living in a spot on the page</h3>
+        <p>Instead of floating in a corner, Pip can live inside an element, like a hero section, and step out when it needs to. Point <code>dock</code> at the element, or leave it empty to use the tag's parent.</p>
+<pre><span class="t">&lt;div</span> <span class="a">id</span>=<span class="s">"pip-home"</span> <span class="a">style</span>=<span class="s">"height:280px"</span><span class="t">&gt;&lt;/div&gt;</span>
+<span class="t">&lt;pip-mascot</span> <span class="a">mascot</span>=<span class="s">"your-mascot-id"</span> <span class="a">dock</span>=<span class="s">"#pip-home"</span><span class="t">&gt;&lt;/pip-mascot&gt;</span></pre>
+      </section>
+
+      <section id="autopilot" aria-labelledby="h-auto">
+        <h2 id="h-auto">What autopilot notices</h2>
+        <p>With <code>autopilot</code> on, Pip watches the page and your app's network requests. You don't wire anything up.</p>
+        <ul class="list">
+          <li>Someone types in a field: Pip watches, and covers its eyes for passwords.</li>
+          <li>A form won't submit: Pip walks to the missing or invalid field and points at it.</li>
+          <li>A request is slow, succeeds or fails: Pip thinks, cheers or looks worried.</li>
+          <li>An error message appears on the page: Pip points it out.</li>
+          <li>Someone taps a button over and over: Pip calms things down.</li>
+          <li>Someone comes back to the tab, or the connection drops and returns.</li>
+          <li>On phones, Pip sits on top of the keyboard so it stays in view.</li>
+        </ul>
+        <p>Moments only your app knows about, like a streak or a milestone, need one line. That's the next section.</p>
+      </section>
+
+      <section id="api" aria-labelledby="h-api">
+        <h2 id="h-api">Make Pip react</h2>
+        <p>Grab the element and call any of these.</p>
+<pre><span class="t">const</span> pip = document.querySelector(<span class="s">'pip-mascot'</span>)
+
+<span class="c">// celebrate next to an element, then walk home</span>
+pip.goTo(streakCard, { mode: <span class="s">'sit'</span>, state: <span class="s">'success'</span>, text: <span class="s">'7 days in a row!'</span> })
+
+<span class="c">// quick reactions where Pip already is</span>
+pip.react(<span class="s">'love'</span>, <span class="s">2000</span>)
+pip.say(<span class="s">'Saved!'</span>, { hold: <span class="s">1500</span> })</pre>
+        <div class="scroll"><table>
+          <thead><tr><th>Method</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><code>goTo(el, options)</code></td><td>Walks to an element. <code>mode</code> is <code>'point'</code> (stand beside it and point, the default) or <code>'sit'</code> (sit on top of it). Optional <code>state</code> and <code>text</code>. Walks home afterwards unless <code>stay: true</code>.</td></tr>
+            <tr><td><code>point(el, text)</code></td><td>Shortcut for walking over and pointing at something.</td></tr>
+            <tr><td><code>react(name, ms)</code></td><td>Shows a reaction for a moment, then goes back to normal.</td></tr>
+            <tr><td><code>setState(name)</code></td><td>Holds a state until you change it, for example <code>'thinking'</code> while something loads.</td></tr>
+            <tr><td><code>say(text, { hold })</code></td><td>Shows a speech bubble. <code>hold</code> is how long it stays, in milliseconds.</td></tr>
+            <tr><td><code>home()</code></td><td>Walks back to its corner or spot.</td></tr>
+            <tr><td><code>lookAt(x, y)</code></td><td>Looks toward a point on the screen.</td></tr>
+            <tr><td><code>cover(true)</code></td><td>Covers its eyes. <code>cover(false)</code> uncovers them.</td></tr>
+          </tbody>
+        </table></div>
+        <p style="margin-top:12px">Reactions and states: <code>idle</code>, <code>thinking</code>, <code>success</code>, <code>error</code>, <code>surprised</code>, <code>confused</code>, <code>love</code>, <code>wave</code>, <code>talking</code>, <code>sleeping</code>.</p>
+      </section>
+
+      <section id="events" aria-labelledby="h-ev">
+        <h2 id="h-ev">Events</h2>
+<pre>pip.addEventListener(<span class="s">'pip:autopilot'</span>, e =&gt; console.log(e.detail.action, e.detail.signal))</pre>
+        <div class="scroll"><table>
+          <thead><tr><th>Event</th><th>When it fires</th></tr></thead>
+          <tbody>
+            <tr><td><code>ready</code></td><td>A painted mascot has finished loading.</td></tr>
+            <tr><td><code>error</code></td><td>A painted mascot couldn't load. A good moment to fall back to the drawn one.</td></tr>
+            <tr><td><code>statechange</code></td><td>Pip changes state. <code>detail.state</code> says which.</td></tr>
+            <tr><td><code>pip:autopilot</code></td><td>Autopilot noticed something. <code>detail.action</code> is what Pip did, <code>detail.signal</code> is what it saw.</td></tr>
+            <tr><td><code>pip:hide</code>, <code>pip:show</code></td><td>A visitor hid Pip or brought it back.</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="hiding" aria-labelledby="h-hide">
+        <h2 id="h-hide">Letting visitors hide Pip</h2>
+        <p>A floating Pip has a small close button: it shows on hover, or after a tap on phones. Hidden, Pip becomes a small button in its corner that brings it back. The choice is remembered on your site.</p>
+        <p>To remove the close button, add <code>no-hide</code>. You can also call <code>pip.hideMascot()</code> and <code>pip.showMascot()</code> yourself, for example from a settings page.</p>
+      </section>
+
+      <section id="theming" aria-labelledby="h-theme">
+        <h2 id="h-theme">Theming</h2>
+<pre><span class="t">pip-mascot</span> {
+  --pip-size: <span class="s">120px</span>;          <span class="c">/* width of the mascot */</span>
+  --pip-bubble-bg: <span class="s">#1F2A44</span>;    <span class="c">/* speech bubble background */</span>
+  --pip-bubble-ink: <span class="s">#ffffff</span>;   <span class="c">/* speech bubble text */</span>
+}
+<span class="t">pip-mascot</span>::part(bubble) { font-family: <span class="s">inherit</span>; }</pre>
+      </section>
+
+      <section id="reference" aria-labelledby="h-ref">
+        <h2 id="h-ref">All options</h2>
+        <div class="scroll"><table>
+          <thead><tr><th>Attribute</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><code>mascot</code></td><td>Your painted mascot's id. Leave out for the drawn mascot.</td></tr>
+            <tr><td><code>autopilot</code></td><td>Float in a corner and react to the app by itself.</td></tr>
+            <tr><td><code>greet</code></td><td>Say hello on page load.</td></tr>
+            <tr><td><code>greeting</code></td><td>What it says when greeting.</td></tr>
+            <tr><td><code>position</code></td><td><code>bottom-right</code> (default), <code>bottom-left</code>, <code>top-right</code>, <code>top-left</code>.</td></tr>
+            <tr><td><code>offset</code></td><td>Distance from the edges in pixels, like <code>"24 90"</code>.</td></tr>
+            <tr><td><code>size</code></td><td><code>small</code>, <code>medium</code>, <code>large</code>, or pixels.</td></tr>
+            <tr><td><code>mobile-size</code></td><td>Size on screens narrower than 600px.</td></tr>
+            <tr><td><code>avoid="false"</code></td><td>Don't step aside for chat bubbles and banners.</td></tr>
+            <tr><td><code>no-hide</code></td><td>Remove the visitor's close button.</td></tr>
+            <tr><td><code>dock</code></td><td>Live inside an element instead of a corner.</td></tr>
+            <tr><td><code>sleep-after</code></td><td>Seconds of quiet before Pip dozes off. <code>0</code> keeps it awake.</td></tr>
+            <tr><td><code>state</code></td><td>Start in a state, like <code>thinking</code>.</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<pip-mascot id="docPip" mascot="fd89vpfu99qm" autopilot greeting="Hi! Try moving me with the buttons in Placement."></pip-mascot>
+<script>
+const p = document.getElementById('docPip');
+document.querySelectorAll('[data-pos]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-pos]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  p.setAttribute('position', b.dataset.pos); setTimeout(() => p.say && p.say('How about here?', { hold: 1600 }), 700);
+}));
+</script>
+</body>
+</html>

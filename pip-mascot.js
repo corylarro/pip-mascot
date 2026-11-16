@@ -790,7 +790,7 @@ var paintedEngine=PipPaintedEngine();
   const RM=engine.RM,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),wait=ms=>new Promise(r=>setTimeout(r,ms)),pick=a=>a[Math.floor(Math.random()*a.length)];
   const RATIO=254/240;
   class PipMascot extends HTMLElement{
-    static get observedAttributes(){return ['state']}
+    static get observedAttributes(){return ['state','position','offset','size','mobile-size']}
     connectedCallback(){
       if(this._m)return;const root=this.shadowRoot||this.attachShadow({mode:'open'});
       this._anchor=this.hasAttribute('dock')?(this.getAttribute('dock')?document.querySelector(this.getAttribute('dock')):this.parentElement):null;
@@ -810,6 +810,7 @@ var paintedEngine=PipPaintedEngine();
         .hide svg{width:10px;height:10px;cursor:pointer}.peek svg{width:24px;height:24px;cursor:pointer}
         :host([data-hideable]) .hide{display:grid}
         :host([data-hideable]:hover) .hide,.hide:focus-visible,.hide.on{opacity:1}
+        :host([data-left]) .hide{right:auto;left:-2px}:host([data-left]) .peek{right:auto;left:4px}
         .peek{position:absolute;right:4px;bottom:4px;width:46px;height:46px;box-shadow:0 3px 0 #2A2140;pointer-events:auto}
         :host([data-hidden]){pointer-events:none}
         :host([data-hidden]) .peek{display:grid}
@@ -844,21 +845,47 @@ var paintedEngine=PipPaintedEngine();
         this._abs=!!this._anchor;
         Object.assign(this.style,{position:this._abs?'absolute':'fixed',left:'0',top:'0',margin:'0',zIndex:'2147483000',visibility:'hidden'});
         this._pos=[0,0];this._docked=true;
-        this._onResize=()=>{if(this._docked&&!this._walking){const d=this._dock();this._setPos(d[0],d[1])}};addEventListener('resize',this._onResize);
+        if(!this._anchor){this._applySize();this.toggleAttribute('data-left',this._place().h==='left')}
+        this._onResize=()=>{if(!this._anchor){this._applySize();this._avoidCheck(true)}if(this._docked&&!this._walking){const d=this._dock();this._setPos(d[0],d[1])}};addEventListener('resize',this._onResize);
+        // re-check the corner now and then: chat widgets often load a few seconds late
+        if(!this._anchor)this._avT=setInterval(()=>{if(!document.hidden&&!this._hiddenByUser)this._avoidCheck()},2500);
         if(this._anchor){if(typeof ResizeObserver!=='undefined'){this._aro=new ResizeObserver(this._onResize);this._aro.observe(this._anchor)}
           requestAnimationFrame(()=>{const d=this._dock();this._setPos(d[0],d[1]);this.style.visibility='';setTimeout(greet,500)})}
-        else requestAnimationFrame(()=>{const d=this._dock();
+        else requestAnimationFrame(()=>{this._avoidCheck(true);const d=this._dock();
           if(this._hiddenByUser){this._setPos(d[0],d[1]);this.style.visibility='';this._docked=true;return}
-          this._setPos(d[0],innerHeight+20);this.style.visibility='';
+          this._setPos(d[0],this._place().v==='top'?-this._size()[1]-20:innerHeight+20);this.style.visibility='';
           this.walkTo(d[0],d[1],{ms:700,hops:false}).then(()=>{this._docked=true;setTimeout(greet,150)})});
       }else setTimeout(greet,500);
       if(this.hasAttribute('autopilot'))this._ap=autopilot(this);
     }
     disconnectedCallback(){if(this._ap){this._ap();this._ap=null}if(this._m){this._m.destroy();this._m=null}
-      if(this._onResize){removeEventListener('resize',this._onResize);removeEventListener('scroll',this._onResize)}if(this._aro)this._aro.disconnect();clearTimeout(this._homeT);this._walkTok=(this._walkTok||0)+1}
-    attributeChangedCallback(n,o,v){if(this._m&&n==='state'&&v)this._m.setState(v)}
+      clearInterval(this._avT);if(this._onResize){removeEventListener('resize',this._onResize);removeEventListener('scroll',this._onResize)}if(this._aro)this._aro.disconnect();clearTimeout(this._homeT);this._walkTok=(this._walkTok||0)+1}
+    attributeChangedCallback(n,o,v){if(this._m&&n==='state'&&v)return this._m.setState(v);
+      if(!this._m||o===v)return;if(n==='size'||n==='mobile-size')this._applySize();if(n==='position')this.toggleAttribute('data-left',this._place().h==='left');
+      if(this._float&&!this._anchor){this._avoidCheck(true);if(this._docked&&!this._walking){if(n==='position'||n==='offset')this.home();else{const d=this._dock();this._setPos(d[0],d[1])}}}}
+    // Where a floating mascot lives: position="bottom-right" (default) | bottom-left | top-right | top-left, offset="x y" in px
+    _place(){const p=(this.getAttribute('position')||'bottom-right').toLowerCase(),o=(this.getAttribute('offset')||'').trim().split(/[\s,]+/).filter(Boolean).map(Number);
+      const ox=Number.isFinite(o[0])?o[0]:10,oy=Number.isFinite(o[1])?o[1]:(Number.isFinite(o[0])?o[0]:6);
+      return {v:/top/.test(p)?'top':'bottom',h:/left/.test(p)?'left':'right',ox,oy}}
+    // size="small | medium | large" or a number of px; mobile-size applies on screens under 600px wide
+    _applySize(){const map={small:92,medium:118,large:150},pick=v=>v==null||v===''?null:(map[v]||(Number.isFinite(+v)?+v:null));
+      const px=(innerWidth<600&&pick(this.getAttribute('mobile-size')))||pick(this.getAttribute('size'));
+      if(px)this.style.setProperty('--pip-size',px+'px')}
+    // Step aside for chat bubbles, cookie banners and other things pinned in the same corner
+    _avoidCheck(force){if(!this._float||this._anchor||this.getAttribute('avoid')==='false')return;const p=this._place(),[w,h]=this._size();
+      const x0=p.h==='left'?p.ox:innerWidth-w-p.ox,xs=[x0+w*.2,x0+w*.5,x0+w*.8],bottom=p.v==='bottom';
+      const ys=bottom?[innerHeight-p.oy-6,innerHeight-p.oy-h*.35,innerHeight-p.oy-h*.7]:[p.oy+6,p.oy+h*.35,p.oy+h*.7];
+      const pinned=el=>{for(let e=el,i=0;e&&e!==document.body&&e!==document.documentElement&&i<8;e=e.parentElement,i++){const ps=getComputedStyle(e).position;if(ps==='fixed'||ps==='sticky')return e}return null};
+      let lift=0;
+      for(const x of xs)for(const y of ys){if(x<0||y<0||x>innerWidth||y>innerHeight)continue;
+        for(const el of document.elementsFromPoint(x,y)){if(el===this||this.contains(el))continue;const f=pinned(el);if(!f)continue;const r=f.getBoundingClientRect();
+          if(r.height>innerHeight*.6||r.width<8||r.height<8)continue;
+          const need=bottom?innerHeight-r.top+8-p.oy:r.bottom+8-p.oy;if(need>lift)lift=need;break}}
+      lift=Math.min(Math.max(0,lift),innerHeight*.5);const changed=Math.abs(lift-(this._lift||0))>2;this._lift=lift;
+      if(changed&&!force&&this._docked&&!this._walking&&this._m){const d=this._dock();this.walkTo(d[0],d[1],{ms:420}).then(()=>{if(!this._walking)this._docked=true})}}
     _size(){const w=this.getBoundingClientRect().width||118;return [w,w*(this._ratio||RATIO)]}
-    _dock(){const [w,h]=this._size();if(this._anchor){const r=this._anchor.getBoundingClientRect();return [r.left+r.width/2-w/2,r.bottom-h]}return [innerWidth-w-10,innerHeight-h-6]}
+    _dock(){const [w,h]=this._size();if(this._anchor){const r=this._anchor.getBoundingClientRect();return [r.left+r.width/2-w/2,r.bottom-h]}
+      const p=this._place(),L=this._lift||0;return [p.h==='left'?p.ox:innerWidth-w-p.ox,p.v==='top'?p.oy+L:innerHeight-h-p.oy-L]}
     // Positions are given in screen coordinates; when riding along with the page they're stored relative to the positioned parent.
     _origin(){if(!this._abs)return [0,0];const p=this.offsetParent;
       if(!p||(p===document.body&&getComputedStyle(p).position==='static'))return [-scrollX,-scrollY];
@@ -980,7 +1007,7 @@ var paintedEngine=PipPaintedEngine();
     const coarse=matchMedia('(pointer: coarse)').matches,VV=window.visualViewport;let kbT=0,onKb=false;
     if(coarse&&VV&&!host._anchor){
       const kbUp=()=>innerHeight-VV.height>120;
-      const spot=()=>{const [w,h]=host._size();return [VV.offsetLeft+Math.min(VV.width,innerWidth)-w-10,VV.offsetTop+VV.height-h+6]};
+      const spot=()=>{const [w,h]=host._size(),left=host._place().h==='left';return [left?VV.offsetLeft+10:VV.offsetLeft+Math.min(VV.width,innerWidth)-w-10,VV.offsetTop+VV.height-h+6]};
       // Pointing at a problem (a missed field, an error) always wins; the keyboard spot waits until it's done
       const busy=()=>Date.now()-(host._goAt||0)<3800;
       host._kbSpot=()=>onKb&&kbUp()?spot():null;
