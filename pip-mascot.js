@@ -669,7 +669,7 @@ function tightBox(a,W,x0,y0,cw,ch){let minX=1e9,minY=1e9,maxX=0,maxY=0;for(let y
 
 const px1=(b,L)=>b&&b.w>0?{x:b.x*L,y:b.y*L,w:b.w*L,h:b.h*L}:null;
 function reachSide(base,full){const S=200,f=S/base.canvas.width,alpha=(c,dx,dy)=>{const t=canvasOf(S,S),x=t.getContext('2d',{willReadFrequently:true});x.drawImage(c,-dx*f,-dy*f,S,S);return x.getImageData(0,0,S,S).data};
-  const A=alpha(base.canvas,0,0),B=alpha(full.canvas,full.off.dx,full.off.dy),bb=base.bbox,xl=(bb.x+bb.w*.15)*f,xr=(bb.x+bb.w*.85)*f,y0=(bb.y+bb.h*.15)*f,y1=(bb.y+bb.h*.85)*f;
+  const A=alpha(base.canvas,0,0),B=alpha(full.canvas,0,0),bb=base.bbox,xl=(bb.x+bb.w*.15)*f,xr=(bb.x+bb.w*.85)*f,y0=(bb.y+bb.h*.15)*f,y1=(bb.y+bb.h*.85)*f;
   let L=0,R=0;for(let y=Math.floor(y0);y<y1;y++)for(let x=0;x<S;x++){const i=(y*S+x)*4+3;if(B[i]>128&&A[i]<60){if(x<xl)L++;else if(x>xr)R++}}
   if(L+R<12)return null;return L>R*1.5?'L':R>L*1.5?'R':null}
 // The image model sometimes paints a pose a little bigger or smaller than the standing pose.
@@ -700,7 +700,7 @@ function simpleInfo(f,canvas){const F={...f};
 
 // Which side gained new opaque pixels (a raised arm) next to the head, compared with the neutral frame?
 function raisedSide(base,full,face){const S=200,f=S/base.canvas.width,alpha=(c,dx,dy)=>{const t=canvasOf(S,S),x=t.getContext('2d',{willReadFrequently:true});x.drawImage(c,-dx*f,-dy*f,S,S);return x.getImageData(0,0,S,S).data};
-  const A=alpha(base.canvas,0,0),B=alpha(full.canvas,full.off.dx,full.off.dy),y0=Math.max(0,(base.bbox.y-base.bbox.h*.2)*f),y1=(face.y+face.h*1.3)*f,xl=face.x*f,xr=(face.x+face.w)*f;
+  const A=alpha(base.canvas,0,0),B=alpha(full.canvas,0,0),y0=Math.max(0,(base.bbox.y-base.bbox.h*.2)*f),y1=(face.y+face.h*1.3)*f,xl=face.x*f,xr=(face.x+face.w)*f;
   let L=0,R=0;for(let y=Math.floor(y0);y<Math.min(S,y1);y++)for(let x=0;x<S;x++){const i=(y*S+x)*4+3;if(B[i]>128&&A[i]<60){if(x<xl)L++;else if(x>xr)R++}}
   if(L+R<12)return null;return L>R*1.6?'L':R>L*1.6?'R':null}
 // Measure where the eyes and mouth really are by comparing frames: neutral vs blink finds the eyes,
@@ -773,7 +773,7 @@ function attachFrames(rig,frames,face){
     const byside={};if(sl)byside[sl]=pl;if(sr&&!byside[sr])byside[sr]=pr;
     if(byside.L&&!byside.R)byside.R=mirrorFrame(byside.L);if(byside.R&&!byside.L)byside.L=mirrorFrame(byside.R);
     if(byside.L)rig.addFull('pointL',byside.L);if(byside.R)rig.addFull('pointR',byside.R)}}
-return {matchScale,encodeAtlas,buildAtlas,framesFromAtlas,attachFrames,refineFace,mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
+return {reachSide,matchScale,encodeAtlas,buildAtlas,framesFromAtlas,attachFrames,refineFace,mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
 }
 
 var paintedEngine=PipPaintedEngine();
@@ -882,6 +882,8 @@ var paintedEngine=PipPaintedEngine();
       return this.walkTo(x,y,{ms:Math.min(520,Math.max(260,Math.hypot(x-this._pos[0],y-this._pos[1])))})}
     home(){clearTimeout(this._homeT);this._perched=null;if(!this._float||!this._m)return Promise.resolve();this._m.unpoint();
       if(!this._anchor&&this._abs){const p=this._pos;if(p[1]>innerHeight||p[1]<-this._size()[1])this._setAbs(false)}
+      const k=this._kbSpot&&this._kbSpot();
+      if(k){if(this._abs)this._setAbs(false);return this.walkTo(k[0],k[1],{ms:360})}
       const d=this._dock();
       return this.walkTo(d[0],d[1]).then(()=>{if(this._m&&!this._walking){if(!this._anchor)this._setAbs(false);const e=this._dock();this._setPos(e[0],e[1]);this._docked=true}})}
     setState(s){this._m&&this._m.setState(s)} react(s,ms){this._m&&this._m.react(s,ms)} say(t,o){this._m&&this._m.say(t,o)}
@@ -955,11 +957,14 @@ var paintedEngine=PipPaintedEngine();
     if(coarse&&VV&&!host._anchor){
       const kbUp=()=>innerHeight-VV.height>120;
       const spot=()=>{const [w,h]=host._size();return [VV.offsetLeft+Math.min(VV.width,innerWidth)-w-10,VV.offsetTop+VV.height-h+6]};
-      const follow=()=>{if(!onKb||host._walking)return;const p=spot();host._setPos(p[0],p[1])};
+      // Pointing at a problem (a missed field, an error) always wins; the keyboard spot waits until it's done
+      const busy=()=>Date.now()-(host._goAt||0)<3800;
+      host._kbSpot=()=>onKb&&kbUp()?spot():null;
+      const follow=()=>{if(!onKb||host._walking||busy())return;const p=spot();host._setPos(p[0],p[1])};
       const sitOnKb=()=>{if(!isField(document.activeElement)||!kbUp()||!host._m)return;
-        if(onKb)return follow();onKb=true;clearTimeout(host._homeT);if(host._abs)host._setAbs(false);
+        if(onKb)return follow();onKb=true;if(busy())return;clearTimeout(host._homeT);if(host._abs)host._setAbs(false);
         const p=spot();host.walkTo(p[0],p[1],{ms:360}).then(follow)};
-      const leave=()=>{if(!onKb)return;onKb=false;host.home()};
+      const leave=()=>{if(!onKb)return;onKb=false;if(!busy())host.home()};
       on(document,'focusin',e=>{if(mine(e)||!isField(e.target))return;clearTimeout(kbT);kbT=setTimeout(sitOnKb,350)},true);
       on(document,'focusout',()=>{clearTimeout(kbT);kbT=setTimeout(()=>{if(!isField(document.activeElement))leave()},300)},true);
       const vvChange=()=>{if(onKb){if(!kbUp())leave();else follow()}else if(kbUp()&&isField(document.activeElement))sitOnKb()};

@@ -754,6 +754,8 @@ function definePipElement(engine,defaultConfig,painted,origin){
       return this.walkTo(x,y,{ms:Math.min(520,Math.max(260,Math.hypot(x-this._pos[0],y-this._pos[1])))})}
     home(){clearTimeout(this._homeT);this._perched=null;if(!this._float||!this._m)return Promise.resolve();this._m.unpoint();
       if(!this._anchor&&this._abs){const p=this._pos;if(p[1]>innerHeight||p[1]<-this._size()[1])this._setAbs(false)}
+      const k=this._kbSpot&&this._kbSpot();
+      if(k){if(this._abs)this._setAbs(false);return this.walkTo(k[0],k[1],{ms:360})}
       const d=this._dock();
       return this.walkTo(d[0],d[1]).then(()=>{if(this._m&&!this._walking){if(!this._anchor)this._setAbs(false);const e=this._dock();this._setPos(e[0],e[1]);this._docked=true}})}
     setState(s){this._m&&this._m.setState(s)} react(s,ms){this._m&&this._m.react(s,ms)} say(t,o){this._m&&this._m.say(t,o)}
@@ -827,11 +829,14 @@ function definePipElement(engine,defaultConfig,painted,origin){
     if(coarse&&VV&&!host._anchor){
       const kbUp=()=>innerHeight-VV.height>120;
       const spot=()=>{const [w,h]=host._size();return [VV.offsetLeft+Math.min(VV.width,innerWidth)-w-10,VV.offsetTop+VV.height-h+6]};
-      const follow=()=>{if(!onKb||host._walking)return;const p=spot();host._setPos(p[0],p[1])};
+      // Pointing at a problem (a missed field, an error) always wins; the keyboard spot waits until it's done
+      const busy=()=>Date.now()-(host._goAt||0)<3800;
+      host._kbSpot=()=>onKb&&kbUp()?spot():null;
+      const follow=()=>{if(!onKb||host._walking||busy())return;const p=spot();host._setPos(p[0],p[1])};
       const sitOnKb=()=>{if(!isField(document.activeElement)||!kbUp()||!host._m)return;
-        if(onKb)return follow();onKb=true;clearTimeout(host._homeT);if(host._abs)host._setAbs(false);
+        if(onKb)return follow();onKb=true;if(busy())return;clearTimeout(host._homeT);if(host._abs)host._setAbs(false);
         const p=spot();host.walkTo(p[0],p[1],{ms:360}).then(follow)};
-      const leave=()=>{if(!onKb)return;onKb=false;host.home()};
+      const leave=()=>{if(!onKb)return;onKb=false;if(!busy())host.home()};
       on(document,'focusin',e=>{if(mine(e)||!isField(e.target))return;clearTimeout(kbT);kbT=setTimeout(sitOnKb,350)},true);
       on(document,'focusout',()=>{clearTimeout(kbT);kbT=setTimeout(()=>{if(!isField(document.activeElement))leave()},300)},true);
       const vvChange=()=>{if(onKb){if(!kbUp())leave();else follow()}else if(kbUp()&&isField(document.activeElement))sitOnKb()};
