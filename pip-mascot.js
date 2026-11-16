@@ -672,6 +672,16 @@ function reachSide(base,full){const S=200,f=S/base.canvas.width,alpha=(c,dx,dy)=
   const A=alpha(base.canvas,0,0),B=alpha(full.canvas,full.off.dx,full.off.dy),bb=base.bbox,xl=(bb.x+bb.w*.15)*f,xr=(bb.x+bb.w*.85)*f,y0=(bb.y+bb.h*.15)*f,y1=(bb.y+bb.h*.85)*f;
   let L=0,R=0;for(let y=Math.floor(y0);y<y1;y++)for(let x=0;x<S;x++){const i=(y*S+x)*4+3;if(B[i]>128&&A[i]<60){if(x<xl)L++;else if(x>xr)R++}}
   if(L+R<12)return null;return L>R*1.5?'L':R>L*1.5?'R':null}
+// The image model sometimes paints a pose a little bigger or smaller than the standing pose.
+// Find the size that best matches the standing silhouette (scaling about the feet) and resize to it.
+function matchScale(base,fr){const L=base.canvas.width,S=128,k=S/L,bb=base.bbox,ax=(bb.x+bb.w/2)*k,ay=(bb.y+bb.h)*k;
+  const mask=(c,sc)=>{const t=canvasOf(S,S),x=t.getContext('2d',{willReadFrequently:true});x.translate(ax,ay);x.scale(sc,sc);x.translate(-ax,-ay);x.drawImage(c,0,0,S,S);
+    const d=x.getImageData(0,0,S,S).data,m=new Uint8Array(S*S);for(let i=0;i<S*S;i++)m[i]=d[i*4+3]>128?1:0;return m};
+  const A=mask(base.canvas,1);let best={e:1e9,s:1};
+  for(let sc=.8;sc<=1.201;sc+=.02){const B=mask(fr.canvas,sc);let e=0;for(let i=0;i<S*S;i++)e+=A[i]^B[i];if(e<best.e)best={e,s:sc}}
+  if(Math.abs(best.s-1)<.03)return fr;
+  const c=canvasOf(L,L),x=c.getContext('2d'),AX=ax/k,AY=ay/k;x.translate(AX,AY);x.scale(best.s,best.s);x.translate(-AX,-AY);x.drawImage(fr.canvas,0,0);
+  const b=fr.bbox;return {canvas:c,bbox:{x:AX+(b.x-AX)*best.s,y:AY+(b.y-AY)*best.s,w:b.w*best.s,h:b.h*best.s},scaled:best.s}}
 function mirrorFrame(fr){const c=canvasOf(fr.canvas.width,fr.canvas.height),x=c.getContext('2d');x.translate(c.width,0);x.scale(-1,1);x.drawImage(fr.canvas,0,0);
   return {canvas:c,bbox:{x:c.width-fr.bbox.x-fr.bbox.w,y:fr.bbox.y,w:fr.bbox.w,h:fr.bbox.h}}}
 function faceFrom(face,L,bb){let box=face&&face.face&&face.face.w>0?px1(face.face,L):{x:bb.x+bb.w*.2,y:bb.y+bb.h*.14,w:bb.w*.6,h:bb.h*.38};
@@ -755,6 +765,7 @@ const SHEET_NAMES=['neutral','blink','happy','talk','worried','surprised','confu
 const FULL_FRAMES=['waveA','waveB','pointL','pointR'];
 // Attach every frame of a split sheet to a rig (expressions as face patches, poses as full frames), with sanity checks.
 function attachFrames(rig,frames,face){
+  frames=frames.map((fr,i)=>i&&FULL_FRAMES.includes(SHEET_NAMES[i])?matchScale(frames[0],fr):fr);
   frames.forEach((fr,i)=>{const n=SHEET_NAMES[i];if(!n||n==='neutral')return;if(FULL_FRAMES.includes(n))rig.addFull(n,fr);else rig.addExpr(n,fr)});
   if(rig.full.waveA&&rig.full.waveB){const a=raisedSide(frames[0],rig.full.waveA,face.box),b=raisedSide(frames[0],rig.full.waveB,face.box);if(!a||!b||a!==b)delete rig.full.waveB}
   const pl=frames[9],pr=frames[10];
@@ -762,7 +773,7 @@ function attachFrames(rig,frames,face){
     const byside={};if(sl)byside[sl]=pl;if(sr&&!byside[sr])byside[sr]=pr;
     if(byside.L&&!byside.R)byside.R=mirrorFrame(byside.L);if(byside.R&&!byside.L)byside.L=mirrorFrame(byside.R);
     if(byside.L)rig.addFull('pointL',byside.L);if(byside.R)rig.addFull('pointR',byside.R)}}
-return {encodeAtlas,buildAtlas,framesFromAtlas,attachFrames,refineFace,mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
+return {matchScale,encodeAtlas,buildAtlas,framesFromAtlas,attachFrames,refineFace,mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
 }
 
 var paintedEngine=PipPaintedEngine();
