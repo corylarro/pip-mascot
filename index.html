@@ -740,7 +740,16 @@ function definePipElement(engine,defaultConfig,painted,origin){
       if(mode==='point'){const c=el.getBoundingClientRect();this._m.point(c.left+c.width/2,c.top+c.height/2)}
       if(state)this._m.react(state,2600);if(text)this._m.say(text,{hold:2600});
       if(!stay)this._homeT=setTimeout(()=>this.home(),Math.max(3400,(text||'').length*45+2600))}
-    home(){clearTimeout(this._homeT);if(!this._float||!this._m)return Promise.resolve();this._m.unpoint();const d=this._dock();
+    // Phones: hop onto the focused field so the keyboard doesn't hide the mascot
+    _perch(el){if(!this._float||!this._m||!el||!el.isConnected)return Promise.resolve();
+      const vv=window.visualViewport,r=el.getBoundingClientRect(),[w,h]=this._size(),top=vv?vv.offsetTop:0,bot=top+(vv?vv.height:innerHeight);
+      let x=clamp(r.right-w-6,4,innerWidth-w-4),y=r.top-h*.93+4;
+      if(y<top+4)y=r.bottom+2;
+      if(y+h>bot-4)y=Math.max(top+4,bot-h-4);
+      this._perched=el;clearTimeout(this._homeT);
+      if(Math.hypot(x-this._pos[0],y-this._pos[1])<3)return Promise.resolve();
+      return this.walkTo(x,y,{ms:Math.min(520,Math.max(260,Math.hypot(x-this._pos[0],y-this._pos[1])))})}
+    home(){clearTimeout(this._homeT);this._perched=null;if(!this._float||!this._m)return Promise.resolve();this._m.unpoint();const d=this._dock();
       return this.walkTo(d[0],d[1]).then(()=>{if(this._m&&!this._walking)this._docked=true})}
     setState(s){this._m&&this._m.setState(s)} react(s,ms){this._m&&this._m.react(s,ms)} say(t,o){this._m&&this._m.say(t,o)}
     cover(on,peek){this._m&&this._m.cover(on,peek)} lookAt(x,y){this._m&&this._m.lookAt(x,y)} watch(input){this._m&&this._m.watch(input);return this}
@@ -808,6 +817,16 @@ function definePipElement(engine,defaultConfig,painted,origin){
     on(document,'focusin',e=>{const el=e.target,m=M();if(!m||mine(e)||!isField(el))return;m.focusEl=el;sync();m.lookAtCaret(el)},true);
     on(document,'input',e=>{const el=e.target,m=M();if(!m||!isField(el)||m.focusEl!==el)return;m.lookAtCaret(el);m.bump();sync()},true);
     on(document,'focusout',e=>{const m=M();if(!m||m.focusEl!==e.target)return;m.focusEl=null;setTimeout(sync,0)},true);
+    const coarse=matchMedia('(pointer: coarse)').matches;let perchT=0,reT=0;
+    if(coarse&&!host._anchor){
+      on(document,'focusin',e=>{const el=e.target;if(mine(e)||!isField(el))return;clearTimeout(perchT);
+        perchT=setTimeout(()=>{if(document.activeElement===el)host._perch(el)},380)},true);
+      on(document,'focusout',e=>{if(!host._perched)return;clearTimeout(perchT);
+        perchT=setTimeout(()=>{const a=document.activeElement;if(!isField(a)&&host._perched){host.home()}},300)},true);
+      const re=()=>{if(!host._perched)return;clearTimeout(reT);reT=setTimeout(()=>{const a=document.activeElement;
+        if(isField(a)&&a===host._perched&&!host._walking)host._perch(a)},140)};
+      if(window.visualViewport){on(visualViewport,'resize',re);on(visualViewport,'scroll',re)}
+      on(window,'scroll',re,{passive:true})}
 
     /* clicks: rage-click detection + remember what was pressed */
     let clicks=[];
