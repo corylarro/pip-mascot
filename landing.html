@@ -7,6 +7,7 @@
 <meta name="description" content="Describe a mascot in a sentence. Pip paints it, brings it to life, and drops it into your app with one line of code.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,500..800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="https://pip-mascot.vercel.app/api/mascot?id=fd89vpfu99qm&img=1" crossorigin="anonymous">
 <script src="/pip-mascot.js"></script>
 <style>
 :root{
@@ -54,7 +55,8 @@ p{margin:0}
 .stage::after{content:"";position:absolute;left:18%;right:18%;bottom:12%;height:22px;background:var(--ink);opacity:.12;border-radius:50%;filter:blur(2px)}
 .stage{--pip-size:min(300px,62vw)}
 .spot{position:relative;z-index:1;width:var(--pip-size);aspect-ratio:1/1.12;margin-top:6%}
-#pip{transition:width .3s ease}#pip.small{--pip-size:132px}
+#pipPainted{transition:width .3s ease,opacity .45s ease}#pipPainted.small{--pip-size:132px}#pipPainted.loading{opacity:0;pointer-events:none}
+.spot{display:flex;align-items:flex-end;justify-content:center}#pipStandIn{--pip-size:92%;transition:opacity .45s ease}#pipStandIn.gone{opacity:0}
 .play{position:absolute;z-index:2;bottom:-6px;left:50%;transform:translateX(-50%);display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:100%}
 .play button{font:600 .92rem var(--body);padding:7px 13px;border-radius:999px;border:2px solid var(--ink);background:var(--white);color:var(--ink);cursor:pointer}
 .play button:hover{background:var(--haze)}
@@ -108,7 +110,7 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
   .stage{order:-1;max-width:320px;aspect-ratio:auto;padding:8px 0 4px}
   .stage::before{inset:0 6% 52px}
   .stage::after{bottom:52px}
-  .stage{--pip-size:200px}.spot{margin-top:22px}#pip.small{--pip-size:104px}
+  .stage{--pip-size:200px}.spot{margin-top:22px}#pipPainted.small{--pip-size:104px}
   .play{position:static;transform:none;margin-top:14px;flex-wrap:nowrap}
   .play button{padding:6px 10px;font-size:.85rem}
   .play-label{display:none}
@@ -117,7 +119,7 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
   section{padding:60px 0}
   .moments{border-radius:28px;margin:0 8px}
 }
-@media (prefers-reduced-motion:reduce){.btn,#pip{transition:none}}
+@media (prefers-reduced-motion:reduce){.btn,#pipPainted,#pipStandIn{transition:none}}
 </style>
 </head>
 <body>
@@ -141,8 +143,8 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
     </div>
     <div class="stage">
       <span class="play-label">Hi, I'm Pip. Poke me.</span>
-      <div class="spot" id="pipHome" aria-hidden="true"></div>
-      <pip-mascot id="pip" mascot="fd89vpfu99qm" dock="#pipHome" greet greeting="Hi! I'm Pip."></pip-mascot>
+      <div class="spot" id="pipHome"><pip-mascot id="pipStandIn"></pip-mascot></div>
+      <pip-mascot id="pipPainted" class="loading" mascot="fd89vpfu99qm" dock="#pipHome" greet greeting="Hi! I'm Pip."></pip-mascot>
       <div class="play" role="group" aria-label="Make Pip react">
         <button data-r="wave">Wave</button><button data-r="success">Cheer</button><button data-r="error">Oops</button><button data-r="love">Love</button><button data-r="sleeping">Nap</button>
       </div>
@@ -214,11 +216,15 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
 <style>.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}</style>
 <script>
 // Pip's saved painted mascot (set in the <pip-mascot mascot="…"> tag above).
-const PIP_ID = document.getElementById('pip').getAttribute('mascot');
+const painted = document.getElementById('pipPainted'), standIn = document.getElementById('pipStandIn');
+const PIP_ID = painted.getAttribute('mascot');
+// The hand-drawn seed holds the spot while the painting loads, then hands over.
+let pip = standIn;
+painted.addEventListener('ready', () => { pip = painted; painted.classList.remove('loading'); standIn.classList.add('gone'); setTimeout(() => standIn.remove(), 500); });
+painted.addEventListener('error', () => painted.remove());
 // Optional: a Stripe Payment Link for pre-orders. Leave empty to use the waitlist only.
 const PREORDER_URL = '';
 
-const pip = document.getElementById('pip');
 if (PIP_ID) {
   // Show Pip's real painted sheet in "Watch it get painted"
   fetch('/api/mascot?id=' + PIP_ID).then(r => r.ok ? r.json() : null).then(d => {
