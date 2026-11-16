@@ -56,7 +56,9 @@ p{margin:0}
 .stage{--pip-size:min(300px,62vw)}
 .spot{position:relative;z-index:1;width:var(--pip-size);aspect-ratio:1/1.12;margin-top:6%}
 #pipPainted{transition:width .3s ease,opacity .45s ease}#pipPainted.small{--pip-size:132px}#pipPainted.loading{opacity:0;pointer-events:none}
-.spot{display:flex;align-items:flex-end;justify-content:center}#pipStandIn{--pip-size:92%;transition:opacity .45s ease}#pipStandIn.gone{opacity:0}
+#pipPainted{animation:none}#pipPainted:not(.loading){animation:pipIn .5s cubic-bezier(.3,1.5,.6,1)}
+@keyframes pipIn{from{opacity:0;filter:blur(4px)}to{opacity:1;filter:none}}
+.spot{display:flex;align-items:flex-end;justify-content:center}#pipDrawn{--pip-size:92%}
 .play{position:absolute;z-index:2;bottom:-6px;left:50%;transform:translateX(-50%);display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:100%}
 .play button{font:600 .92rem var(--body);padding:7px 13px;border-radius:999px;border:2px solid var(--ink);background:var(--white);color:var(--ink);cursor:pointer}
 .play button:hover{background:var(--haze)}
@@ -119,7 +121,7 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
   section{padding:60px 0}
   .moments{border-radius:28px;margin:0 8px}
 }
-@media (prefers-reduced-motion:reduce){.btn,#pipPainted,#pipStandIn{transition:none}}
+@media (prefers-reduced-motion:reduce){.btn,#pipPainted{transition:none;animation:none}}
 </style>
 </head>
 <body>
@@ -143,7 +145,7 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
     </div>
     <div class="stage">
       <span class="play-label">Hi, I'm Pip. Poke me.</span>
-      <div class="spot" id="pipHome"><pip-mascot id="pipStandIn"></pip-mascot></div>
+      <div class="spot" id="pipHome"></div>
       <pip-mascot id="pipPainted" class="loading" mascot="fd89vpfu99qm" dock="#pipHome" greet greeting="Hi! I'm Pip."></pip-mascot>
       <div class="play" role="group" aria-label="Make Pip react">
         <button data-r="wave">Wave</button><button data-r="success">Cheer</button><button data-r="error">Oops</button><button data-r="love">Love</button><button data-r="sleeping">Nap</button>
@@ -216,12 +218,15 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
 <style>.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}</style>
 <script>
 // Pip's saved painted mascot (set in the <pip-mascot mascot="…"> tag above).
-const painted = document.getElementById('pipPainted'), standIn = document.getElementById('pipStandIn');
+const painted = document.getElementById('pipPainted');
 const PIP_ID = painted.getAttribute('mascot');
-// The hand-drawn seed holds the spot while the painting loads, then hands over.
-let pip = standIn;
-painted.addEventListener('ready', () => { pip = painted; painted.classList.remove('loading'); standIn.classList.add('gone'); setTimeout(() => standIn.remove(), 500); });
-painted.addEventListener('error', () => painted.remove());
+let pip = painted;
+painted.addEventListener('ready', () => requestAnimationFrame(() => painted.classList.remove('loading')));
+// If the painting can't load, the drawn seed takes its place.
+painted.addEventListener('error', () => {
+  painted.remove(); const d = document.createElement('pip-mascot'); d.id = 'pipDrawn'; d.setAttribute('greet', ''); d.setAttribute('greeting', "Hi! I'm Pip.");
+  document.getElementById('pipHome').appendChild(d); pip = d;
+});
 // Optional: a Stripe Payment Link for pre-orders. Leave empty to use the waitlist only.
 const PREORDER_URL = '';
 
