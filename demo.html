@@ -40,6 +40,7 @@ button{font:inherit;color:inherit}
 .toggle-wrap{display:flex;align-items:center;gap:10px;font-weight:600;color:var(--ink-2)}
 
 .grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:22px;align-items:start}
+.grid>*,.appbody>*,.calm>*,.panel>*{min-width:0}
 .panel{background:var(--white);border:2px solid var(--ink);border-radius:22px;padding:20px;display:flex;flex-direction:column;gap:12px}
 .panel h2{font-size:1.25rem}
 .panel .lab{font-weight:700;font-size:.95rem}
@@ -104,7 +105,7 @@ pre .c{color:#9C97C9}pre .t{color:var(--butter)}pre .a{color:#9EE6C2}
 .linkbtn{background:none;border:0;color:#9FC3BC;text-decoration:underline;cursor:pointer;padding:2px;justify-self:start;font-size:.92rem}
 
 @media (max-width:900px){
-  .grid{grid-template-columns:1fr}
+  .grid{grid-template-columns:minmax(0,1fr)}
   .side{order:2}
   .appbody,.calm{grid-template-columns:1fr}
 }
@@ -268,11 +269,11 @@ function mount() {
   pip = document.createElement('pip-mascot');
   pip.setAttribute('autopilot', ''); pip.setAttribute('greet', '');
   if (kind === 'painted') {
-    pip.setAttribute('mascot', PAINTED_ID); pip.style.setProperty('--pip-size', '140px');
+    pip.setAttribute('mascot', PAINTED_ID); pip.style.setProperty('--pip-size', innerWidth < 600 ? '104px' : '140px');
     pip.setAttribute('greeting', "Hi, I'm Pip! I'm watching this app. Try breaking something.");
     pip.addEventListener('error', () => { kind = 'drawn'; syncToggle(); mount(); }, { once: true });
   } else {
-    pip.setAttribute('greeting', "Hi! I'm the drawn version. Try breaking something.");
+    pip.setAttribute('greeting', "Hi! I'm the drawn version. Try breaking something."); if (innerWidth < 600) pip.style.setProperty('--pip-size', '96px');
   }
   pip.addEventListener('pip:autopilot', e => logIt(e.detail));
   document.body.appendChild(pip);
