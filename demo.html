@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pip demo: a mascot inside real apps</title>
+<meta name="description" content="Try Pip inside two pretend apps: a sign-up form and a meditation streak.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,500..800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preload" as="fetch" href="https://pip-mascot.vercel.app/api/mascot?id=fd89vpfu99qm" crossorigin="anonymous">
+<script src="/pip-mascot.js"></script>
+<style>
+:root{--haze:#ECEBFF;--ink:#221E3F;--ink-2:#4A4570;--peach:#FF9466;--sprout:#2FAF74;--butter:#FFD35A;--white:#fff;--line:#D6D3F2;
+  --display:'Bricolage Grotesque',ui-rounded,system-ui,sans-serif;--body:'Figtree',system-ui,-apple-system,sans-serif}
+*{box-sizing:border-box}
+html,body{overflow-x:clip}
+body{margin:0;background:var(--haze);color:var(--ink);font:400 1rem/1.5 var(--body);-webkit-font-smoothing:antialiased}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:6px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 120px}
+h1,h2,h3{font-family:var(--display);font-weight:800;letter-spacing:-.02em;line-height:1.05;margin:0;font-stretch:88%}
+p{margin:0}
+button{font:inherit;color:inherit}
+
+.bar{display:flex;align-items:center;justify-content:space-between;padding:20px 0}
+.mark{font:800 1.5rem/1 var(--display);letter-spacing:-.03em;text-decoration:none;color:var(--ink);display:flex;align-items:center;gap:8px}
+.mark i{width:14px;height:18px;background:var(--peach);border-radius:50% 50% 46% 46%/60% 60% 40% 40%;position:relative;display:inline-block}
+.mark i::after{content:"";position:absolute;left:5px;top:-7px;width:9px;height:7px;background:var(--sprout);border-radius:0 100% 0 100%}
+.join{font-weight:700;text-decoration:none;color:var(--ink);border:2px solid var(--ink);border-radius:999px;padding:7px 16px;background:var(--peach);box-shadow:0 3px 0 var(--ink)}
+.join:hover{background:#FFA27A}
+
+.head{display:flex;flex-direction:column;gap:10px;padding:12px 0 22px}
+.head h1{font-size:clamp(2rem,4.6vw,3.2rem)}
+.head p{color:var(--ink-2);font-size:1.12rem;max-width:56ch}
+
+.controls{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;justify-content:space-between;margin-bottom:18px}
+.seg{display:inline-flex;background:var(--white);border:2px solid var(--ink);border-radius:999px;padding:4px;gap:4px}
+.seg button{border:0;background:transparent;border-radius:999px;padding:8px 18px;font-weight:700;cursor:pointer;color:var(--ink-2)}
+.seg button[aria-selected="true"],.seg button[aria-pressed="true"]{background:var(--ink);color:var(--white)}
+.seg.small button{padding:6px 14px;font-size:.92rem}
+.toggle-wrap{display:flex;align-items:center;gap:10px;font-weight:600;color:var(--ink-2)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:22px;align-items:start}
+.panel{background:var(--white);border:2px solid var(--ink);border-radius:22px;padding:20px;display:flex;flex-direction:column;gap:12px}
+.panel h2{font-size:1.25rem}
+.panel .lab{font-weight:700;font-size:.95rem}
+.try{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;color:var(--ink-2)}
+.try b{color:var(--ink)}
+pre{margin:0;background:var(--ink);color:#F1EFFF;border-radius:12px;padding:12px 14px;font:500 .8rem/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;overflow-x:auto;white-space:pre}
+pre .c{color:#9C97C9}pre .t{color:var(--butter)}pre .a{color:#9EE6C2}
+.log{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px;font-size:.9rem;max-height:240px;overflow:auto}
+.log li{display:flex;gap:8px;align-items:baseline}
+.log time{color:#8B87A8;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tag{font-size:.75rem;font-weight:700;padding:1px 8px;border-radius:999px;background:var(--haze);white-space:nowrap}
+.tag.error{background:#FFE1D6}.tag.success{background:#D8F3E5}.tag.thinking{background:#FFF1C7}
+.log .empty{color:#8B87A8}
+
+/* ---- Taskly ---- */
+.app{border:2px solid var(--ink);border-radius:22px;overflow:hidden;background:#F4F6FB;box-shadow:0 6px 0 var(--ink)}
+.appbar{display:flex;align-items:center;justify-content:space-between;background:#1F2A44;color:#fff;padding:12px 18px}
+.logo{background:none;border:0;color:#fff;font:700 1.3rem var(--display);cursor:pointer;padding:0}
+.appnav{font-size:.9rem;opacity:.75}
+.appbody{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:18px}
+.card{background:#fff;border:1px solid #E1E5EF;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.card h3{font:700 1.15rem var(--body);letter-spacing:0}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-weight:600;font-size:.92rem}
+.app input[type=text],.app input[type=email],.app input[type=password]{font:inherit;padding:11px 13px;border-radius:10px;border:1.5px solid #CDD3E1;background:#F8F9FC;color:var(--ink);min-width:0}
+.app input:focus{outline:none;border-color:#5B6CF0;box-shadow:0 0 0 3px #DCE0FF}
+.check{display:flex;gap:8px;align-items:center;font-size:.92rem}
+.alert:empty{display:none}.alert{background:#FFE9E2;color:#9B2D10;border-radius:10px;padding:9px 12px;font-size:.92rem;font-weight:600}
+.okmsg{background:#DDF5E8;color:#14653F;border-radius:10px;padding:9px 12px;font-size:.92rem;font-weight:600}
+.primary{background:var(--butter);border:2px solid var(--ink);border-radius:12px;padding:11px 16px;font-weight:700;cursor:pointer}
+.primary:hover{background:#FFDD7E}.primary[disabled]{opacity:.65;cursor:progress}
+.ghost{background:#fff;border:2px solid var(--ink);border-radius:12px;padding:11px 16px;font-weight:700;cursor:pointer}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1 1 auto}
+.tasks{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.tasks .muted{color:#7B7A90;list-style:none;margin-left:-20px}
+
+/* ---- Stillwater ---- */
+.calm{border:2px solid var(--ink);border-radius:22px;background:#1D2E3C;color:#EAF4F2;box-shadow:0 6px 0 var(--ink);padding:22px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.calm-head{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center}
+.calm-head .name{font:800 1.4rem var(--display);letter-spacing:-.01em}
+.calm-head .who{color:#9FC3BC}
+.ccard{background:#24394A;border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.ccard h3{font:700 1.05rem var(--body);letter-spacing:0;color:#CFE6E1}
+.session{display:flex;flex-direction:column;gap:6px}
+.session .big{font:800 1.7rem var(--display)}
+.session .sub{color:#9FC3BC}
+.timer{height:10px;border-radius:999px;background:#33505F;overflow:hidden}
+.timer i{display:block;height:100%;width:0;background:#9EE6C2;transition:width .25s linear}
+.streak{display:flex;align-items:center;gap:10px}
+.streak svg{width:32px;height:32px;fill:#FF9466}
+.streak b{font:800 1.9rem var(--display)}
+.calm.won .streak b{color:var(--butter)}
+.days{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(7,1fr);gap:7px}
+.days li{aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:.85rem;border:2px dashed #5D7C88;color:#9FC3BC}
+.days li.done{background:#3FB37F;border:2px solid #3FB37F;color:#0F2A22}
+.days li.rest{background:#33505F;border:2px solid #4B6B79;color:#CFE6E1}
+.days li.today.done,.days li.today.rest{animation:pop .5s cubic-bezier(.3,1.6,.5,1)}
+@keyframes pop{0%{transform:scale(.4)}100%{transform:scale(1)}}
+.cbtn{border:2px solid #0F2A22;border-radius:12px;padding:11px 16px;font-weight:700;cursor:pointer;background:#9EE6C2;color:#0F2A22}
+.cbtn:hover{background:#B5EDD1}.cbtn[disabled]{opacity:.6;cursor:default}
+.cbtn.alt{background:transparent;color:#CFE6E1;border-color:#5D7C88}
+.linkbtn{background:none;border:0;color:#9FC3BC;text-decoration:underline;cursor:pointer;padding:2px;justify-self:start;font-size:.92rem}
+
+@media (max-width:900px){
+  .grid{grid-template-columns:1fr}
+  .side{order:2}
+  .appbody,.calm{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){.timer i{transition:none}.days li{animation:none!important}}
+[hidden]{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="mark" href="/landing" aria-label="Pip home"><i aria-hidden="true"></i>pip</a>
+    <a class="join" href="/landing#join2">Join the waitlist</a>
+  </header>
+
+  <div class="head">
+    <h1>See Pip inside a real app.</h1>
+    <p>Two pretend apps with Pip added. Pip notices what's going on and reacts by itself. Try to break things.</p>
+  </div>
+
+  <div class="controls">
+    <div class="seg" role="tablist" aria-label="Demo app">
+      <button role="tab" id="tabTaskly" aria-controls="viewTaskly" aria-selected="true">Taskly</button>
+      <button role="tab" id="tabCalm" aria-controls="viewCalm" aria-selected="false">Stillwater</button>
+    </div>
+    <div class="toggle-wrap"><span id="mlab">Mascot</span>
+      <div class="seg small" role="group" aria-labelledby="mlab">
+        <button type="button" data-kind="painted" aria-pressed="true">Painted</button>
+        <button type="button" data-kind="drawn" aria-pressed="false">Drawn</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <main>
+      <!-- Taskly -->
+      <div id="viewTaskly" role="tabpanel" aria-labelledby="tabTaskly">
+        <div class="app">
+          <div class="appbar"><button type="button" class="logo" id="logo">Taskly</button><span class="appnav">Inbox · Today · Projects</span></div>
+          <div class="appbody">
+            <form class="card" id="signup" novalidate>
+              <h3>Create your account</h3>
+              <div class="field"><label for="su-name">Name</label><input type="text" id="su-name" required placeholder="Ada Lovelace" autocomplete="off"></div>
+              <div class="field"><label for="su-email">Email</label><input type="email" id="su-email" required placeholder="ada@example.com" autocomplete="off"></div>
+              <div class="field"><label for="su-pass">Password</label><input type="password" id="su-pass" required minlength="8" placeholder="8+ characters" autocomplete="new-password"></div>
+              <label class="check"><input type="checkbox" id="su-terms" required> I agree to the terms</label>
+              <div class="alert" id="su-alert" role="alert"></div>
+              <p class="okmsg" id="su-ok" hidden></p>
+              <button type="submit" class="primary" id="su-btn">Create account</button>
+            </form>
+            <div class="card">
+              <h3>Your tasks</h3>
+              <ul class="tasks" id="tasks"><li class="muted">No tasks loaded yet.</li></ul>
+              <input type="text" id="newTask" placeholder="Add a task" aria-label="New task">
+              <div class="row"><button type="button" class="ghost" id="loadBtn">Load tasks</button><button type="button" class="primary" id="saveBtn">Save</button></div>
+              <label class="check"><input type="checkbox" id="outage"> Pretend the server is down</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stillwater -->
+      <div id="viewCalm" role="tabpanel" aria-labelledby="tabCalm" hidden>
+        <div class="calm" id="calm">
+          <div class="calm-head"><span class="name">Stillwater</span><span class="who">Good evening, Sam</span></div>
+          <div class="ccard">
+            <h3>Today's session</h3>
+            <div class="session"><span class="big">Evening wind-down</span><span class="sub">10 minutes · breathing</span></div>
+            <div class="timer" aria-hidden="true"><i id="timerBar"></i></div>
+            <button class="cbtn" id="calmDo" type="button">Finish today's session</button>
+            <button class="cbtn alt" id="calmSkip" type="button">Skip today</button>
+          </div>
+          <div class="ccard" id="streakCard">
+            <h3>Your streak</h3>
+            <div class="streak"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 3.5 5 5.6 5 10.5A5 5 0 0 1 7 12.5c0-2 1-3.3 2.2-4.4.2 1.6 1 2.6 2 3C11 8 11 5 12 2z"/></svg>
+              <span><b id="streakN">6</b> days in a row</span></div>
+            <ol class="days" id="days" aria-label="This week">
+              <li class="done"><span>M</span></li><li class="done"><span>T</span></li><li class="done"><span>W</span></li><li class="done"><span>T</span></li><li class="done"><span>F</span></li><li class="done"><span>S</span></li><li class="today"><span>S</span></li>
+            </ol>
+            <button class="linkbtn" id="calmReset" type="button" hidden>Reset the demo</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="side">
+      <div class="panel" id="sideTaskly">
+        <h2>Things to try</h2>
+        <ul class="try">
+          <li>Tap <b>Create account</b> with the form empty</li>
+          <li>Sign up with <b>taken@demo.com</b></li>
+          <li>Sign up for real and watch what happens</li>
+          <li><b>Load tasks</b>, then turn on the outage and tap <b>Save</b></li>
+          <li>Tap the <b>Taskly</b> logo 4 times fast</li>
+          <li>Type a password and watch Pip's eyes</li>
+          <li>Switch to another tab, then come back</li>
+        </ul>
+        <span class="lab">The only code added to Taskly</span>
+        <pre id="codeTaskly"></pre>
+        <span class="lab">What Pip noticed</span>
+        <ol class="log" id="apLog"><li class="empty">Nothing yet. Go break something.</li></ol>
+      </div>
+      <div class="panel" id="sideCalm" hidden>
+        <h2>Things to try</h2>
+        <ul class="try">
+          <li>Tap <b>Finish today's session</b> to complete a week</li>
+          <li>Reset, then tap <b>Skip today</b> instead</li>
+        </ul>
+        <span class="lab">How Stillwater cheers with Pip</span>
+        <pre><span class="c">// one line when the streak goes up</span>
+<span class="t">pip</span>.goTo(streakCard, {
+  <span class="a">mode</span>: 'sit', <span class="a">state</span>: 'success',
+  <span class="a">text</span>: 'A full week in a row!'
+})</pre>
+        <p style="color:var(--ink-2);font-size:.95rem">Autopilot handles forms and errors on its own. For moments only your app knows about, like streaks, you tell Pip with one line.</p>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const PAINTED_ID = 'fd89vpfu99qm';
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+/* ---- a pretend server, so the demo can succeed and fail on cue ---- */
+const API = { outage: false, tasks: ['Ship the landing page', 'Reply to beta testers', 'Record the demo clip'] };
+(function installFakeServer() {
+  const real = window.fetch ? window.fetch.bind(window) : null;
+  const json = (status, body, ms) => new Promise(r => setTimeout(() => r(new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })), ms));
+  window.fetch = function (input, init) {
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    const method = String((init && init.method) || 'GET').toUpperCase();
+    if (!url.startsWith('/demo-api/')) return real ? real(input, init) : Promise.reject(new TypeError('offline'));
+    if (API.outage) return json(500, { error: 'Our server is having a moment. Please try again shortly.' }, 1100);
+    if (url === '/demo-api/signup') { let b = {}; try { b = JSON.parse(init.body); } catch (e) {}
+      if (/^taken@/i.test(b.email || '')) return json(409, { error: 'That email already has an account. Try signing in instead.' }, 1200);
+      return json(201, { ok: true, name: b.name }, 1300); }
+    if (url === '/demo-api/tasks' && method === 'GET') return json(200, { tasks: API.tasks }, 1700);
+    if (url === '/demo-api/tasks') return json(200, { ok: true }, 900);
+    return json(404, { error: 'Not found' }, 400);
+  };
+})();
+
+/* ---- the mascot: painted or drawn, swapped by the toggle ---- */
+let pip = null, kind = 'painted';
+const esc = s => s.replace(/</g, '&lt;');
+function code() {
+  const attrs = kind === 'painted' ? ` <span class="a">mascot</span>="${PAINTED_ID}"` : '';
+  $('codeTaskly').innerHTML = `<span class="t">&lt;script</span> <span class="a">src</span>="https://pip-mascot.vercel.app/pip-mascot.js"<span class="t">&gt;&lt;/script&gt;</span>\n<span class="t">&lt;pip-mascot</span>${attrs} <span class="a">autopilot</span> <span class="a">greet</span><span class="t">&gt;&lt;/pip-mascot&gt;</span>`;
+}
+function logIt(d) {
+  const ul = $('apLog'), e = ul.querySelector('.empty'); if (e) e.remove();
+  const li = document.createElement('li'), t = new Date(d.time);
+  li.innerHTML = `<time>${t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}</time><span class="tag ${esc(d.action)}">${esc(d.action)}</span>`;
+  const sp = document.createElement('span'); sp.textContent = d.signal; li.appendChild(sp); ul.prepend(li);
+}
+function mount() {
+  if (pip) pip.remove();
+  pip = document.createElement('pip-mascot');
+  pip.setAttribute('autopilot', ''); pip.setAttribute('greet', '');
+  if (kind === 'painted') {
+    pip.setAttribute('mascot', PAINTED_ID); pip.style.setProperty('--pip-size', '140px');
+    pip.setAttribute('greeting', "Hi, I'm Pip! I'm watching this app. Try breaking something.");
+    pip.addEventListener('error', () => { kind = 'drawn'; syncToggle(); mount(); }, { once: true });
+  } else {
+    pip.setAttribute('greeting', "Hi! I'm the drawn version. Try breaking something.");
+  }
+  pip.addEventListener('pip:autopilot', e => logIt(e.detail));
+  document.body.appendChild(pip);
+  code();
+}
+function syncToggle() { document.querySelectorAll('[data-kind]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === kind))); }
+document.querySelectorAll('[data-kind]').forEach(b => b.addEventListener('click', () => { if (kind === b.dataset.kind) return; kind = b.dataset.kind; syncToggle(); mount(); }));
+
+/* ---- tabs ---- */
+function showTab(name) {
+  const calm = name === 'calm';
+  $('tabTaskly').setAttribute('aria-selected', String(!calm)); $('tabCalm').setAttribute('aria-selected', String(calm));
+  $('viewTaskly').hidden = calm; $('viewCalm').hidden = !calm; $('sideTaskly').hidden = calm; $('sideCalm').hidden = !calm;
+  history.replaceState(null, '', calm ? '#stillwater' : '#taskly');
+  if (pip && pip.home) pip.home();
+}
+$('tabTaskly').addEventListener('click', () => showTab('taskly'));
+$('tabCalm').addEventListener('click', () => showTab('calm'));
+document.querySelector('[role=tablist]').addEventListener('keydown', e => {
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  const next = document.activeElement === $('tabTaskly') ? $('tabCalm') : $('tabTaskly'); next.focus(); next.click();
+});
+
+/* ---- Taskly behaviour (plain app code; Pip isn't mentioned anywhere here) ---- */
+$('signup').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target; if (!f.checkValidity()) { f.reportValidity(); return; }
+  const al = $('su-alert'), ok = $('su-ok'), btn = $('su-btn'); al.textContent = ''; ok.hidden = true;
+  btn.disabled = true; btn.textContent = 'Creating account…';
+  try {
+    const r = await fetch('/demo-api/signup', { method: 'POST', body: JSON.stringify({ name: $('su-name').value, email: $('su-email').value }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) al.textContent = j.error || 'Something went wrong. Please try again.';
+    else { ok.textContent = `Welcome aboard, ${$('su-name').value.split(' ')[0]}! Check your inbox.`; ok.hidden = false; }
+  } catch (err) { al.textContent = 'We couldn’t reach the server. Check your connection.'; }
+  finally { btn.disabled = false; btn.textContent = 'Create account'; }
+});
+$('loadBtn').addEventListener('click', async () => {
+  const ul = $('tasks'); ul.innerHTML = '<li class="muted">Loading…</li>';
+  try { const r = await fetch('/demo-api/tasks'); const j = await r.json(); if (!r.ok) throw 0; ul.innerHTML = '';
+    j.tasks.forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); }); }
+  catch (e) { ul.innerHTML = '<li class="muted">Couldn’t load tasks.</li>'; }
+});
+$('saveBtn').addEventListener('click', async () => {
+  const v = $('newTask').value.trim();
+  const r = await fetch('/demo-api/tasks', { method: 'POST', body: JSON.stringify({ task: v }) }).catch(() => null);
+  if (r && r.ok && v) { API.tasks.push(v); const ul = $('tasks'); if (ul.querySelector('.muted')) ul.innerHTML = '';
+    const li = document.createElement('li'); li.textContent = v; ul.appendChild(li); $('newTask').value = ''; }
+});
+$('outage').addEventListener('change', e => { API.outage = e.target.checked; });
+$('logo').addEventListener('click', () => { /* a "broken" button on purpose */ });
+
+/* ---- Stillwater: the app tells Pip about streaks with one line ---- */
+const today = () => document.querySelector('#days li.today');
+async function finishDay(rest) {
+  $('calmDo').disabled = $('calmSkip').disabled = true;
+  const bar = $('timerBar');
+  if (!rest) { bar.style.width = '100%'; await wait(matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 450); }
+  today().classList.add(rest ? 'rest' : 'done');
+  if (!rest) { $('streakN').textContent = '7'; $('calm').classList.add('won'); }
+  $('calmDo').textContent = rest ? 'See you tomorrow' : 'Done for today'; $('calmReset').hidden = false;
+  if (!pip) return;
+  if (rest) pip.goTo($('streakCard'), { mode: 'sit', state: 'worried', text: 'Rest days count too. Your streak is safe till tomorrow.' });
+  else {
+    pip.goTo($('streakCard'), { mode: 'sit', state: 'success', text: 'A full week in a row! So proud of you.' });
+    setTimeout(() => pip && pip.react('love', 1800), 3600);
+  }
+}
+$('calmDo').addEventListener('click', () => finishDay(false));
+$('calmSkip').addEventListener('click', () => finishDay(true));
+$('calmReset').addEventListener('click', () => {
+  today().classList.remove('done', 'rest'); $('streakN').textContent = '6'; $('calm').classList.remove('won'); $('timerBar').style.width = '0';
+  $('calmDo').disabled = $('calmSkip').disabled = false; $('calmDo').textContent = "Finish today's session"; $('calmReset').hidden = true;
+  if (pip && pip.home) pip.home(); $('calmDo').focus();
+});
+
+/* ---- start ---- */
+syncToggle(); mount();
+if (/stillwater/.test(location.hash)) showTab('calm');
+})();
+</script>
+</body>
+</html>
