@@ -78,7 +78,12 @@ export default async function handler(req, res) {
         const atlas = req.query.img === 'atlas' && meta.atlasUrl;
         const r = await fetch(atlas ? meta.atlasUrl : meta.imageUrl);
         if (!r.ok) { res.status(502).json({ error: 'Could not load the painting.' }); return; }
-        const bytes = Buffer.from(await r.arrayBuffer()), type = (atlas ? meta.atlasMime : meta.mime) || 'image/webp';
+        let bytes = Buffer.from(await r.arrayBuffer()), type = (atlas ? meta.atlasMime : meta.mime) || 'image/webp';
+        // ?fmt=png converts for places that can't read WebP (like the iOS simulator)
+        if (req.query.fmt === 'png' && type !== 'image/png') {
+          try { const sharp = (await import('sharp')).default; bytes = await sharp(bytes).png({ compressionLevel: 9, adaptiveFiltering: true }).toBuffer(); type = 'image/png'; }
+          catch (e) { /* fall back to the original format */ }
+        }
         // ?b64=1 returns the image as text (handy for tools that can't read binary)
         if (req.query.b64) { res.setHeader('Cache-Control', 'no-store'); res.json({ type, b64: bytes.toString('base64') }); return; }
         res.setHeader('Content-Type', type);

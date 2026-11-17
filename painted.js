@@ -337,13 +337,17 @@ function refineFace(frames,face,names){
   catch(e){return face}}
 
 // Load a saved mascot ({mode, image, face, grid, name, greeting}) into a rig.
+// Some environments (like the iOS simulator) can't decode WebP; the mobile core sets PIP_IMAGE_FORMAT='png' there
+function blankFrame(fr){const b=fr.bbox,c=fr.canvas.getContext('2d',{willReadFrequently:true}),y=Math.round(b.y+b.h*.5),d=c.getImageData(Math.round(b.x),y,Math.max(1,Math.round(b.w)),1).data;for(let i=3;i<d.length;i+=4)if(d[i]>10)return false;return true}
+function imgURL(u){const f=typeof window!=='undefined'&&window.PIP_IMAGE_FORMAT;return f&&/\/api\/mascot\?/.test(u)?u+'&fmt='+f:u}
 async function mountMascot(rig,data){
   if(data.atlas&&data.atlasMeta&&data.atlasFace&&data.mode!=='simple'){
-    try{const img=await loadImg(data.atlas),frames=framesFromAtlas(img,data.atlasMeta);
+    try{const img=await loadImg(imgURL(data.atlas)),frames=framesFromAtlas(img,data.atlasMeta);
+      if(typeof window!=='undefined'&&!window.PIP_IMAGE_FORMAT&&blankFrame(frames[0])){window.PIP_IMAGE_FORMAT='png';return mountMascot(rig,data)}
       rig.cfg={name:data.name||'',greeting:data.greeting||`Hi${data.name?", I'm "+data.name:''}!`};
       rig.simple=null;rig.setBase(frames[0]);rig.setFace(data.atlasFace);data.face=data.atlasFace;attachFrames(rig,frames,data.atlasFace);return rig}
     catch(e){/* fall back to preparing the original painting */}}
-  const k=keyOut(await loadImg(data.image));rig.cfg={name:data.name||'',greeting:data.greeting||`Hi${data.name?", I'm "+data.name:''}!`};
+  const k=keyOut(await loadImg(imgURL(data.image)));rig.cfg={name:data.name||'',greeting:data.greeting||`Hi${data.name?", I'm "+data.name:''}!`};
   if(data.mode==='simple'){rig.setBase(k);rig.setSimple(simpleInfo(data.face,k.canvas));return rig}
   const [c,r]=data.grid||[3,2],frames=splitSheet(k,c,r);rig.simple=null;rig.setBase(frames[0]);const face=refineFace(frames,data.face,SHEET_NAMES);rig.setFace(face);data.face=face;
   attachFrames(rig,frames,face);return rig}

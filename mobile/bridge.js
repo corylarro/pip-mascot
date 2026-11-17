@@ -10,6 +10,20 @@
   window.addEventListener('error', function (e) { post('log', { level: 'error', text: String(e.message) + ' (' + (e.filename || '').split('/').pop() + ':' + e.lineno + ')' }); });
   window.addEventListener('unhandledrejection', function (e) { post('log', { level: 'error', text: 'Unhandled: ' + String(e.reason && e.reason.message || e.reason) }); });
   ['log', 'warn', 'error'].forEach(function (k) { var orig = console[k]; console[k] = function () { try { post('log', { level: k, text: Array.prototype.map.call(arguments, String).join(' ') }); } catch (x) {} return orig.apply(console, arguments); }; });
+  var webpOK = null;
+  function testWebP(done) {
+    var img = new Image(), finished = false;
+    var finish = function (ok) { if (!finished) { finished = true; done(ok); } };
+    img.onload = function () {
+      try {
+        var c = document.createElement('canvas'); c.width = c.height = 8; var x = c.getContext('2d'); x.drawImage(img, 0, 0);
+        var d = x.getImageData(3, 3, 1, 1).data; finish(d[3] > 40 && d[0] > 120);
+      } catch (e) { finish(false); }
+    };
+    img.onerror = function () { finish(false); };
+    setTimeout(function () { finish(false); }, 1500);
+    img.src = 'data:image/webp;base64,UklGRjoCAABXRUJQVlA4WAoAAAAwAAAABwAABwAASUNDUMgBAAAAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADZBTFBIDwAAAAEH0MyICAAE4f/bQ0T/QwBWUDggNAAAABACAJ0BKggACAAAwBIloAJ0ugH4AfgAA8gA/vCbQ/9rP84yn8lX/8mO/kx38mO/+SgAAAA=';
+  }
   var el = null, kbTop = null, lastRect = '', target = null, timer = 0;
   var busy = function () { return el && Date.now() - (el._goAt || 0) < 3800; };
 
@@ -38,6 +52,15 @@
   window.Pip = {
     init: function (cfg) {
       cfg = cfg || {};
+      // Check this device can decode WebP with transparency; if not, ask the server for PNG
+      if (cfg.mascot && webpOK === null) {
+        testWebP(function (ok) {
+          webpOK = ok;
+          if (!ok) { window.PIP_IMAGE_FORMAT = 'png'; post('log', { level: 'log', text: 'WebP not supported here, using PNG images' }); }
+          window.Pip.init(cfg);
+        });
+        return;
+      }
       if (el) el.remove();
       el = document.createElement('pip-mascot');
       el.setAttribute('float', '');

@@ -249,7 +249,7 @@ final class PipOverlay {
         guard JSONSerialization.isValidJSONObject(cleaned),
               let data = try? JSONSerialization.data(withJSONObject: cleaned),
               let json = String(data: data, encoding: .utf8) else { return "" }
-        return "\(function).apply(null, \(json));"
+        return "(function(){ \(function).apply(null, \(json)); })();"
     }
 
     private func run(_ js: String) {
