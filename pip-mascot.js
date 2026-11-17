@@ -275,7 +275,7 @@ class Mascot{
     else{this.squash.v-=3.5;this.hop(220)}
   }
   setState(n){clearTimeout(this.timer);this._enter(n)}
-  react(n,ms=2300){this._enter(n);clearTimeout(this.timer);this.timer=setTimeout(()=>this._enter('idle'),ms)}
+  react(n,ms=2300){this.lastAct=performance.now();this._enter(n);clearTimeout(this.timer);this.timer=setTimeout(()=>this._enter('idle'),ms)}
   _enter(n,why){if(!STATES[n])return;const prev=this.state;this.state=n;this.onState(n,why);
     if(n==='success'){this.hop(360);setTimeout(()=>this.hop(250),560);this.burst('confetti')}
     if(n==='error'){this.shake=9;this.squash.v-=3.2}
@@ -307,7 +307,7 @@ class Mascot{
     inp.addEventListener('input',()=>{caret();this.bump()});
     inp.addEventListener('blur',()=>{this.focusEl=null;if(secret)setTimeout(()=>{if(document.activeElement!==inp&&!(document.activeElement&&document.activeElement.dataset&&'pipKeep' in document.activeElement.dataset))this.cover(false)},0)});
     return this}
-  say(text,{speed=40,hold=2600}={}){if(!this.bubble)return;
+  say(text,{speed=40,hold=2600}={}){this.lastAct=performance.now();if(!this.bubble)return;
     const tok=++this.sayToken,b=this.bubble;b.textContent='';b.classList.add('show');let i=0;
     const tick=()=>{if(tok!==this.sayToken)return;
       if(i>=text.length){this.talk.t=0;setTimeout(()=>{if(tok===this.sayToken)b.classList.remove('show')},hold);return}
@@ -327,7 +327,7 @@ class Mascot{
     if(this.state==='idle'&&!this.focusEl&&!this.coverOn&&now-this.lastPointer>3500&&now>this.nextGlance){
       this.look=[(Math.random()-.5)*1.6,(Math.random()-.5)];this.nextGlance=now+1800+Math.random()*2500;
       if(Math.random()<.12)this.hop(110)}
-    if(this.sleepAfter&&this.state==='idle'&&!this.focusEl&&!this.coverOn&&now-this.lastAct>this.sleepAfter)this._enter('sleeping','auto')}
+    if(this.sleepAfter&&this.state==='idle'&&!this.focusEl&&!this.coverOn&&!(this.bubble&&this.bubble.classList.contains('show'))&&now-this.lastAct>this.sleepAfter)this._enter('sleeping','auto')}
   _frame(now){
     const dt=Math.min((now-this._last)/1000,.05);this._last=now;this.t+=dt;const t=this.t,g=this.g,E=this.E;
     const S=STATES[this.state],tg=Object.assign({},BASE,S),sleeping=this.state==='sleeping',cover=this.coverOn&&!sleeping;
@@ -566,7 +566,7 @@ class PaintRig{
     const gr=x.createRadialGradient(0,0,0,0,0,pw/2);gr.addColorStop(0,'#000');gr.addColorStop(.62,'#000');gr.addColorStop(1,'rgba(0,0,0,0)');
     x.fillStyle=gr;x.fillRect(-pw/2,-pw/2,pw,pw);x.restore();return {c,x:px,y:py}}
   setState(n){clearTimeout(this.timer);this._enter(n)}
-  react(n,ms=2300){this._enter(n);clearTimeout(this.timer);this.timer=setTimeout(()=>this._enter('idle'),ms)}
+  react(n,ms=2300){this.lastAct=performance.now();this._enter(n);clearTimeout(this.timer);this.timer=setTimeout(()=>this._enter('idle'),ms)}
   _enter(n){if(!STATES[n])return;if(n!==this.state)this.squash.v-=1.8;this.state=n;this.onState(n);
     if(n==='success'){this.hop(360);setTimeout(()=>this.hop(250),560);this.burst('confetti')}
     if(n==='error'){this.shake=10;this.squash.v-=3}
@@ -578,7 +578,7 @@ class PaintRig{
     if(this.pokes.length>=5){this.pokes=[];this.react('confused',2400);this.say("Okay, okay! I'm awake!");return}
     const n=this.pokes.length;if(n===3){this.react('love',1800);this.say('Aww, thanks!');return}
     this.react(n===1?'surprised':'giggle',n===1?900:1400);this.say(n===1?'Boop!':pick(['Hee hee, that tickles!','Hey there!','Again? Okay!']))}
-  say(text,{speed=40,hold=2400}={}){const tok=this.sayTok=(this.sayTok||0)+1,b=this.bubble;b.textContent='';b.classList.add('show');let i=0;
+  say(text,{speed=40,hold=2400}={}){this.lastAct=performance.now();const tok=this.sayTok=(this.sayTok||0)+1,b=this.bubble;b.textContent='';b.classList.add('show');let i=0;
     const tick=()=>{if(tok!==this.sayTok)return;if(i>=text.length){this.s.talk.t=0;this.mouth=null;setTimeout(()=>{if(tok===this.sayTok)b.classList.remove('show')},hold);return}
       const ch=text[i++];b.textContent=text.slice(0,i);this.s.talk.t=/[aeiouy]/i.test(ch)?1:/\s/.test(ch)?0:/[.,!?]/.test(ch)?0:.45;
       this.mouth=/[ouw]/i.test(ch)?'o':/[eiy]/i.test(ch)?'e':/[a]/i.test(ch)?'a':/[bmp]/i.test(ch)?null:(/[a-z]/i.test(ch)&&this.mouth?this.mouth:null);setTimeout(tick,/[.,!?]/.test(ch)?speed*4:speed)};tick()}
@@ -587,7 +587,7 @@ class PaintRig{
       {x:0,y:-120,vx:(Math.random()-.5)*480,vy:-260-Math.random()*320,life:1.7,g:900,c:cols[i%5],a:Math.random()*6,va:(Math.random()-.5)*14})}
   _tick(){const now=performance.now();
     if(this.state==='idle'&&!this.focusEl&&now-this.lastPointer>3500&&now>this.nextGlance){this.look=[(Math.random()-.5)*1.4,(Math.random()-.5)*.8];this.nextGlance=now+1800+Math.random()*2500}
-    if(this.base&&this.sleepAfter&&this.state==='idle'&&!this.cover&&!this.focusEl&&now-this.lastAct>this.sleepAfter)this._enter('sleeping')}
+    if(this.base&&this.sleepAfter&&this.state==='idle'&&!this.cover&&!this.focusEl&&!(this.bubble&&this.bubble.classList.contains('show'))&&now-this.lastAct>this.sleepAfter)this._enter('sleeping')}
   _frame(now){
     const dt=Math.min((now-this._last)/1000,.05);this._last=now;this.t+=dt;const t=this.t,S=STATES[this.state]||{};
     const P0=this.patches||{};for(const k of ['happy','worried','surprised','confused'])this.s[k].t=S[k]||0;
@@ -814,6 +814,7 @@ var paintedEngine=PipPaintedEngine();
         .hide svg{width:10px;height:10px;cursor:pointer}.peek svg{width:24px;height:24px;cursor:pointer}
         :host([data-hideable]) .hide{display:grid}
         :host([data-hideable]:hover) .hide,.hide:focus-visible,.hide.on{opacity:1}
+        .bubble.show~.hide{opacity:0!important;pointer-events:none}
         :host([data-left]) .hide{right:auto;left:-2px}:host([data-left]) .peek{right:auto;left:4px}
         .peek{position:absolute;right:4px;bottom:4px;width:46px;height:46px;box-shadow:0 3px 0 #2A2140;pointer-events:auto}
         :host([data-hidden]){pointer-events:none}
