@@ -14,21 +14,41 @@ An animated mascot that lives on top of your app and reacts to what's happening.
 
 ## What to try
 
-- Pip walks in and says hi in the bottom-right corner.
-- **Sign up tab**
-  - Tap **Create account** with everything empty. Pip walks to the Name field and points at it.
-  - Tap into a field: the keyboard opens and Pip sits on top of it, watching you type.
-  - Tap the password field: Pip covers its eyes.
-  - Fill everything in and sign up: Pip thinks, then cheers.
-  - Turn on **Pretend the server is down** and sign up again: Pip looks worried.
-- **Streak tab**
-  - **Finish today's session**: Pip walks to the streak card and celebrates.
-  - **Reset**, then **Skip today**: Pip comes over and is reassuring.
-- **Smiley menu (top right)**: move Pip to another corner, make it react, hide it and show it.
+The demo is **Stillwater**, a small meditation app. Long-press the Stillwater logo (or your initial on the home screen) for the demo controls: move Pip, make it react, simulate a server outage, hide it, or restart the demo.
+
+- **Sign up**
+  - Tap **Create account** with everything empty. Pip walks to the name field and points at it.
+  - Tap into a field: Pip sits on top of the keyboard and watches you type. On the password field it covers its eyes.
+  - Fill everything in: Pip thinks, cheers, and the home screen slides in.
+  - Turn on **Simulate a server outage** first and Pip looks worried instead.
+- **Home**
+  - Tap a feeling: Pip reacts (Stressed sends Pip over to tonight's session).
+  - **Begin session**: breathe with Pip for two breaths. When it ends, the streak goes up and Pip celebrates on the streak card.
+  - Restart the demo, then **Take a rest day**: Pip comes over and is reassuring.
 - Tap Pip: a small × appears. Tap it to hide Pip; a smiley button brings it back.
-- Send the app to the background for 20+ seconds, then come back: Pip says welcome back.
-- Take a screenshot (Device → Trigger Screenshot in the simulator).
-- Scroll and tap around the rest of the app: everything outside Pip should work normally.
+- Leave the app for 20+ seconds, then come back: Pip says welcome back.
+
+The demo needs iOS 17 or later (Pip itself works on iOS 15). For a nicer home screen, set the app's **Display Name** to `Stillwater` (target → General) and drag `Demo/AppIcon-1024.png` onto **AppIcon** in Assets.
+
+## Put it on your iPhone with TestFlight
+
+Use this when your Mac can't run the Xcode version your phone needs. Xcode Cloud builds the app on Apple's Macs and sends it to TestFlight.
+
+1. **Join the Apple Developer Program** at developer.apple.com/programs. Approval can take a day or two.
+2. **Keep the package inside your project.** Move the `PipMascot` folder into your project's folder (next to the `.xcodeproj`). In Xcode, remove the old package (project → Package Dependencies → −), then File → Add Package Dependencies… → Add Local… and pick the moved folder. Xcode Cloud only sees what's in your repository.
+3. **Get the project ready.**
+   - Target → **Signing & Capabilities**: tick "Automatically manage signing", pick your developer team, and set a bundle identifier such as `com.yourname.stillwater`.
+   - Target → **General**: set Minimum Deployments to iOS 17 or later. Version `1.0`, Build `1`.
+   - Add the app icon (see above). TestFlight rejects builds without one.
+   - Target → **Info**: add the key **App Uses Non-Exempt Encryption** and set it to **NO**. This skips an export question on every build.
+4. **Put the project on GitHub.** Source Control navigator (⌘2) → Repositories → right-click **Remotes** → **New "…" Remote**, sign in to GitHub, make it private, then Integrate → Commit and Push.
+5. **Create the workflow.** Integrate → **Create Workflow…** (or Product → Xcode Cloud → Create Workflow), pick your app and follow the steps: grant access to GitHub, and let Xcode Cloud create the app in App Store Connect if it asks.
+6. **Edit the workflow** before the first build:
+   - **Environment:** Xcode version = Latest Release.
+   - **Archive action:** iOS, Deployment Preparation = **TestFlight (Internal Testing Only)**.
+   - **Post-actions:** add **TestFlight Internal Testing** and choose a group that includes you.
+7. **Start a build.** It takes roughly 10 to 20 minutes. If it fails, open the build in Xcode's Report navigator (⌘9) and send over the errors.
+8. **Install it.** Get the **TestFlight** app on your iPhone, sign in with the same Apple ID, and Stillwater shows up ready to install. Every push to GitHub builds a new version.
 
 ## If something goes wrong
 
