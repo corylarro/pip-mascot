@@ -76,10 +76,30 @@ a.ghost{display:inline-flex;align-items:center;text-decoration:none;border-radiu
   .bubble{left:24px;top:24px;font-size:16px;max-width:46%}
   .badge{right:20px;top:20px}
 }
+
+/* Lock screen: hides the painter until the passcode checks out on the server. */
+body.locked main{display:none}
+.gate{display:none;min-height:100vh;min-height:100dvh;align-items:center;justify-content:center;padding:24px}
+body.locked .gate{display:flex}
+.gate form{width:100%;max-width:340px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:12px}
+.gate h1{font-size:24px}
+.gate p{margin:0;color:var(--muted);font-size:15px}
+.gate .err{color:var(--bad);font-size:14px;min-height:1.4em}
+.gate a{color:var(--ink);font-size:14px}
 </style>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 </head>
-<body>
+<body class="locked">
+<div class="gate" id="gate">
+  <form id="gateForm" autocomplete="off">
+    <h1>Pip painter</h1>
+    <p>This page is private. Enter the passcode to paint mascots.</p>
+    <div class="field"><label for="gatePass">Passcode</label><input type="password" id="gatePass" required autocomplete="current-password"></div>
+    <button type="submit" class="primary" id="gateGo">Unlock</button>
+    <div class="err" id="gateErr" role="alert"></div>
+    <a href="/landing">Looking for Pip? Go to the home page</a>
+  </form>
+</div>
 <main>
   <header>
     <h1>Pip <span>painted mascots · beta</span></h1>
@@ -207,6 +227,17 @@ Leave generous empty space between panels and around each character so nothing t
 ${bgLine(desc)} The background is the same flat colour across the entire sheet.`}
 
 let current={},busy=false,prepared=null;
+// Lock screen: check the passcode with the server before showing the painter.
+async function checkPass(p){try{const r=await fetch('/api/paint?check=1',{method:'POST',headers:{'Content-Type':'application/json',...(p?{'x-pip-pass':p}:{})},body:'{}'});return r.ok}catch(e){return false}}
+function unlock(p){$('pass').value=p;try{localStorage.setItem('pip-pass',p)}catch(e){}document.body.classList.remove('locked')}
+(async()=>{let sp='';try{sp=localStorage.getItem('pip-pass')||''}catch(e){}
+  if(await checkPass(sp)){unlock(sp);return}
+  try{localStorage.removeItem('pip-pass')}catch(e){}$('gatePass').focus()})();
+$('gateForm').addEventListener('submit',async e=>{e.preventDefault();const p=$('gatePass').value.trim();if(!p)return;
+  $('gateGo').disabled=true;$('gateErr').textContent='';
+  if(await checkPass(p))unlock(p);else{$('gateErr').textContent='That passcode didn’t work. Check it and try again.';$('gatePass').select()}
+  $('gateGo').disabled=false});
+
 try{const sp=localStorage.getItem('pip-pass');if(sp){$('pass').value=sp}}catch(e){}
 async function api(body){const pass=$('pass').value.trim();try{if(pass)localStorage.setItem('pip-pass',pass)}catch(e){}
   const r=await fetch('/api/paint',{method:'POST',headers:{'Content-Type':'application/json',...(pass?{'x-pip-pass':pass}:{})},body:JSON.stringify(body)});

@@ -45,6 +45,8 @@ export default async function handler(req, res) {
   const pass = process.env.PAINT_PASSCODE;
   if (pass && req.headers['x-pip-pass'] !== pass) { res.status(401).json({ error: 'This site needs a passcode to paint mascots.' }); return; }
 
+  // Lock-screen check: confirms the passcode without painting anything.
+  if (req.query && req.query.check) { res.status(200).json({ ok: true }); return; }
   const b = (typeof req.body === 'string' ? (() => { try { return JSON.parse(req.body); } catch (e) { return {}; } })() : req.body) || {};
   const auth = { Authorization: `Bearer ${key}` };
   const quality = ['low', 'medium', 'high'].includes(b.quality) ? b.quality : 'medium';
