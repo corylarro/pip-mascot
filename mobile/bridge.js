@@ -6,6 +6,10 @@
     var msg = Object.assign({ type: type }, data || {});
     try { window.webkit.messageHandlers.pip.postMessage(msg); } catch (e) { (window.__pipOutbox = window.__pipOutbox || []).push(msg); }
   };
+  // Forward errors and logs to Xcode's console while testing
+  window.addEventListener('error', function (e) { post('log', { level: 'error', text: String(e.message) + ' (' + (e.filename || '').split('/').pop() + ':' + e.lineno + ')' }); });
+  window.addEventListener('unhandledrejection', function (e) { post('log', { level: 'error', text: 'Unhandled: ' + String(e.reason && e.reason.message || e.reason) }); });
+  ['log', 'warn', 'error'].forEach(function (k) { var orig = console[k]; console[k] = function () { try { post('log', { level: k, text: Array.prototype.map.call(arguments, String).join(' ') }); } catch (x) {} return orig.apply(console, arguments); }; });
   var el = null, kbTop = null, lastRect = '', target = null, timer = 0;
   var busy = function () { return el && Date.now() - (el._goAt || 0) < 3800; };
 
@@ -52,6 +56,7 @@
       el.addEventListener('pointerdown', function () { post('tap'); });
       document.body.appendChild(el);
       el._kbSpot = kbSpot;
+      post('log', { level: 'log', text: 'mascot created (' + (cfg.mascot ? 'painted ' + cfg.mascot : 'drawn') + '), page ' + innerWidth + 'x' + innerHeight + ', custom element ' + (customElements.get('pip-mascot') ? 'ok' : 'MISSING') });
       clearInterval(timer); timer = setInterval(report, 50);
       return true;
     },

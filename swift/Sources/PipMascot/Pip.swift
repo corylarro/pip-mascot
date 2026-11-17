@@ -24,6 +24,7 @@ public enum Pip {
 
     /// Show Pip on top of your app. Call again with a new configuration to change it.
     public static func start(_ configuration: Configuration = Configuration()) {
+        PipOverlay.log("starting (\(configuration.mascotID.map { "painted " + $0 } ?? "drawn mascot"))")
         PipOverlay.shared.start(configuration)
         if configuration.autopilot { PipAutopilot.shared.start() } else { PipAutopilot.shared.stop() }
     }

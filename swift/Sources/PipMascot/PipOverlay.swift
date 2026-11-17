@@ -56,10 +56,12 @@ final class PipWebDelegate: NSObject, WKNavigationDelegate, WKScriptMessageHandl
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        PipOverlay.log("page failed: \(error.localizedDescription)")
         Task { @MainActor in Pip.onEvent?(.failedToLoad) }
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        PipOverlay.log("page failed to start: \(error.localizedDescription)")
         Task { @MainActor in Pip.onEvent?(.failedToLoad) }
     }
 
@@ -121,6 +123,7 @@ final class PipOverlay {
 
     private func attach() {
         guard let scene = activeScene() else {
+            log("no window scene yet, waiting for the app to become active")
             // Called before the app's window exists (for example in App.init); try again once a scene is active.
             if sceneObserver == nil {
                 sceneObserver = NotificationCenter.default.addObserver(forName: UIScene.didActivateNotification, object: nil, queue: .main) { _ in
@@ -141,8 +144,8 @@ final class PipOverlay {
         cfg.userContentController.add(d, name: "pip")
         cfg.allowsInlineMediaPlayback = true
 
-        let web = WKWebView(frame: vc.view.bounds, configuration: cfg)
-        web.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        let web = WKWebView(frame: scene.coordinateSpace.bounds, configuration: cfg)
+        web.translatesAutoresizingMaskIntoConstraints = false
         web.isOpaque = false
         web.backgroundColor = .clear
         web.scrollView.backgroundColor = .clear
@@ -154,6 +157,12 @@ final class PipOverlay {
             web.isInspectable = true   // lets you inspect Pip from Safari's Develop menu while testing
         }
         vc.view.addSubview(web)
+        NSLayoutConstraint.activate([
+            web.topAnchor.constraint(equalTo: vc.view.topAnchor),
+            web.bottomAnchor.constraint(equalTo: vc.view.bottomAnchor),
+            web.leadingAnchor.constraint(equalTo: vc.view.leadingAnchor),
+            web.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor)
+        ])
 
         // Shown, but never made the key window, so the app keeps its keyboard and focus.
         w.isHidden = false
@@ -161,6 +170,7 @@ final class PipOverlay {
         window = w
         webView = web
         delegate = d
+        log("overlay window created (\(Int(w.bounds.width))x\(Int(w.bounds.height)))")
         loadPage()
     }
 
@@ -177,6 +187,7 @@ final class PipOverlay {
         guard let web = webView else { return }
         guard let url = Bundle.module.url(forResource: "pip-mobile", withExtension: "html"),
               let html = try? String(contentsOf: url, encoding: .utf8) else {
+            log("could not find pip-mobile.html in the package resources")
             Pip.onEvent?(.failedToLoad)
             return
         }
@@ -185,6 +196,7 @@ final class PipOverlay {
     }
 
     func didLoad() {
+        log("page loaded, starting the mascot")
         loaded = true
         sendInit()
         let queued = pending
@@ -242,8 +254,16 @@ final class PipOverlay {
 
     private func run(_ js: String) {
         guard !js.isEmpty else { return }
-        webView?.evaluateJavaScript(js, completionHandler: nil)
+        webView?.evaluateJavaScript(js) { _, error in
+            if let error { PipOverlay.log("script error: \(error.localizedDescription) in \(js.prefix(60))") }
+        }
     }
+
+    nonisolated static func log(_ text: String) {
+        print("[Pip] \(text)")
+    }
+
+    private func log(_ text: String) { PipOverlay.log(text) }
 
     // MARK: Messages from the page
 
@@ -253,8 +273,10 @@ final class PipOverlay {
         case "rect":
             let num = { (k: String) -> CGFloat in CGFloat((m[k] as? NSNumber)?.doubleValue ?? 0) }
             window?.hitRect = CGRect(x: num("x"), y: num("y"), width: num("w"), height: num("h"))
-        case "ready": Pip.onEvent?(.ready)
-        case "error": Pip.onEvent?(.failedToLoad)
+        case "log": log((m["level"] as? String == "error" ? "page error: " : "page: ") + (m["text"] as? String ?? ""))
+        case "loaded": log("bridge ready")
+        case "ready": log("mascot ready"); Pip.onEvent?(.ready)
+        case "error": log("painted mascot failed to load"); Pip.onEvent?(.failedToLoad)
         case "tap": Pip.onEvent?(.tapped)
         case "hide": Pip.onEvent?(.hidden)
         case "show": Pip.onEvent?(.shown)
