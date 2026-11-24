@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pip Mascot Demo</title>
+<title>Critterkit builder</title>
 <script src="/painted.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -126,7 +126,7 @@ footer{font-size:13px;color:var(--muted)}
 <body>
 <main>
   <header>
-    <h1>Pip <span>mascot runtime · prototype</span></h1>
+    <h1>Critterkit <span>mascot builder</span></h1>
     <p>Describe a mascot, watch it come to life, then drop it into your app with one line.</p>
   </header>
   <nav class="tabs" role="tablist" aria-label="Views">
@@ -1116,7 +1116,7 @@ syncUI();
 
 /* export */
 function buildFile(){const c={...cfg};
-  return `/*! ${fileName()} · "${cfg.name}" mascot · made with Pip on ${new Date().toISOString().slice(0,10)}
+  return `/*! ${fileName()} · "${cfg.name}" mascot · made with Critterkit on ${new Date().toISOString().slice(0,10)}
  *
  * Usage:
  *   <script src="/${fileName()}"><\/script>
@@ -1245,7 +1245,7 @@ async function generate(image){
     const res=await sample(input,opts);
     const obj=extractJson(res&&res.text);if(!obj||typeof obj!=='object')throw {code:'invalid_json'};
     const next=sanitize(obj),drewHat=!!next.hat,drewItem=!!next.item;
-    if(obj.hat&&!drewHat)console.warn('Pip: AI hat SVG was rejected by the sanitizer');
+    if(obj.hat&&!drewHat)console.warn('Critterkit: AI hat SVG was rejected by the sanitizer');
     apply(next);mascot.react('success',1800);setTimeout(()=>mascot.say(cfg.greeting),350);
     setStatus(`Designed ${cfg.name}${next.body?' with an original body':''}${drewHat||drewItem?' and a custom '+[drewHat&&'hat',drewItem&&'prop'].filter(Boolean).join(' and '):''}. Tweak anything below.`,'ok');
   }catch(e){

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pip Painted Mascots</title>
+<title>Critterkit painter</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fredoka:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -104,18 +104,18 @@ details.guide ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--mut
 <body class="locked">
 <div class="gate" id="gate">
   <form id="gateForm" autocomplete="off">
-    <h1>Pip painter</h1>
+    <h1>Critterkit painter</h1>
     <p>This page is private. Enter the passcode to paint mascots.</p>
     <div class="field"><label for="gatePass">Passcode</label><input type="password" id="gatePass" required autocomplete="current-password"></div>
     <button type="submit" class="primary" id="gateGo">Unlock</button>
     <div class="err" id="gateErr" role="alert"></div>
-    <a href="/landing">Looking for Pip? Go to the home page</a>
+    <a href="/landing">Looking for Critterkit? Go to the home page</a>
   </form>
 </div>
 <main>
   <header>
-    <h1>Pip <span>painted mascots · beta</span></h1>
-    <p>An image model paints your mascot and its expressions, then Pip rigs the painting so it moves and reacts.</p>
+    <h1>Critterkit <span>painted mascots · beta</span></h1>
+    <p>An image model paints your mascot and its expressions, then Critterkit rigs the painting so it moves and reacts.</p>
     <nav class="tabs" aria-label="Views"><a href="/">Build</a><a href="/#live" id="liveLink">See it live</a><span class="cur" aria-current="page">Paint <span class="beta">beta</span></span></nav>
   </header>
 
@@ -167,7 +167,7 @@ details.guide ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--mut
 
   <section class="card" aria-labelledby="own">
     <h2 id="own">Use your own art</h2>
-    <p class="sub">Got drawings from a designer? Add one image per pose and Pip's rig brings them to life. Transparent PNGs work best. Only Neutral is required: missing poses reuse it, and a single pointing pose is mirrored for the other side.</p>
+    <p class="sub">Got drawings from a designer? Add one image per pose and Critterkit's rig brings them to life. Transparent PNGs work best. Only Neutral is required: missing poses reuse it, and a single pointing pose is mirrored for the other side.</p>
     <div class="poses" id="poses"></div>
     <div class="row">
       <label class="ghost" for="allFiles" style="cursor:pointer">Add several at once</label>
@@ -230,7 +230,7 @@ const pw=$('tryPw');pw.addEventListener('focus',()=>{rig.cover=true});pw.addEven
 
 const MODES={sheet:{steps:[['sheet','Sheet'],['face','Find face'],['f0','Neutral'],['f1','Blink'],['f2','Happy'],['f3','Talking'],['f4','Worried'],['f5','Surprised'],['f6','Confused'],['f7','Wave'],['f8','Wave 2'],['f9','Point'],['f10','Point 2'],['f11','Talk (ee)']],
     hint:'Paints all twelve poses and expressions together, so they always look like the same character.'},
-  simple:{steps:[['base','Character'],['face','Place face']],hint:'Paints the character with a blank face, then Pip draws the eyes and mouth live, so expressions, blinking, eye-tracking and talking are perfectly smooth. Best for toys, creatures and stylized characters.'}};
+  simple:{steps:[['base','Character'],['face','Place face']],hint:'Paints the character with a blank face, then Critterkit draws the eyes and mouth live, so expressions, blinking, eye-tracking and talking are perfectly smooth. Best for toys, creatures and stylized characters.'}};
 let STEP_LIST=MODES.sheet.steps;
 function renderSteps(mode){STEP_LIST=MODES[mode].steps;stepsEl.innerHTML=STEP_LIST.map(([k,l])=>`<li data-k="${k}" data-s="wait"><span class="th"></span><span>${l}</span></li>`).join('')}
 function stepState(k,s,thumb){const li=stepsEl.querySelector(`[data-k="${k}"]`);if(!li)return;li.dataset.s=s;if(thumb){li.querySelector('.th').innerHTML='';const im=new Image();im.alt='';im.src=thumb;li.querySelector('.th').appendChild(im)}}
@@ -370,7 +370,7 @@ async function buildSheet(){const cut=[];for(let i=0;i<12;i++)cut[i]=art[i]?awai
     if(same)x.drawImage(p.canvas,cx+C/2-((u.x+u.x2)/2)*s,cy+C*.92-u.y2*s,p.W*s,p.H*s);
     else x.drawImage(p.canvas,p.box.x,p.box.y,p.box.w,p.box.h,cx+C/2-p.box.w*s/2,cy+C*.92-p.box.h*s,p.box.w*s,p.box.h*s)});
   return canvasB64(sheet,'image/png')}
-$('useArt').addEventListener('click',async()=>{if(busy)return;if(!art[0]){$('artStatus').textContent='Add the Neutral pose first. It is the one Pip shows most.';$('artStatus').className='hint err';return}
+$('useArt').addEventListener('click',async()=>{if(busy)return;if(!art[0]){$('artStatus').textContent='Add the Neutral pose first. It is the one your mascot shows most.';$('artStatus').className='hint err';return}
   busy=true;$('useArt').disabled=true;$('useArt').textContent='Bringing it to life…';$('artStatus').textContent='Lining up your poses…';$('artStatus').className='hint';
   try{const sheet=await buildSheet();renderSteps('sheet');document.querySelector('.stage').scrollIntoView({behavior:'smooth',block:'start'});
     current={mode:'sheet',desc:'Your own art',style:'own',quality:'',sheet,mime:'image/png',model:'your art',grid:[4,3]};$('mname').value='';$('meta').textContent='Made from your own art';
