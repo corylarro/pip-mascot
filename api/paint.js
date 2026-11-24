@@ -42,14 +42,14 @@ const LIMBS_PROMPT = `This image is a character sheet: 12 panels in a grid of 4 
 Compare panels 8, 9, 10 and 11 with panel 1. For each, answer true if that panel shows MORE arms, legs or paws than panel 1 (an extra limb was added instead of lifting one of the existing ones), or if an animal that has paws was given a human hand with fingers. Otherwise answer false.
 Reply with ONLY this JSON (no prose): {"8":false,"9":false,"10":false,"11":false}`;
 
-import { whoIs, spend } from './_keys.js';
+import { whoIs, spend, refuse } from './_keys.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST.' }); return; }
   const key = process.env.OPENAI_API_KEY;
   if (!key) { res.status(500).json({ error: 'OPENAI_API_KEY is not set in the Vercel project’s environment variables.' }); return; }
   const who = await whoIs(req);
-  if (!who) { res.status(401).json({ error: 'This needs your Critterkit key (or the owner passcode).' }); return; }
+  if (refuse(res, who, 'Painting')) return;
 
   // Lock-screen check: confirms the passcode or key without painting anything.
   if (req.query && req.query.check) { res.status(200).json({ ok: true, owner: !!who.owner, credits: who.rec ? who.rec.credits : null }); return; }

@@ -3,7 +3,7 @@
 //   GET  /api/mascot?id=ID           -> mascot JSON (with an image URL that has CORS enabled)
 //   GET  /api/mascot?id=ID&img=1     -> the painting itself
 import { put, list } from '@vercel/blob';
-import { whoIs } from './_keys.js';
+import { whoIs, refuse } from './_keys.js';
 
 export const config = { maxDuration: 60 };
 
@@ -36,7 +36,7 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'POST') {
-      if (!await whoIs(req)) { res.status(401).json({ error: 'Saving needs your Critterkit key (or the owner passcode).' }); return; }
+      if (refuse(res, await whoIs(req), 'Saving')) return;
       const b = (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body) || {};
       if (!b.image || !b.face) { res.status(400).json({ error: 'Missing image or face data.' }); return; }
       const mode = b.mode === 'simple' ? 'simple' : 'sheet';
@@ -56,7 +56,7 @@ export default async function handler(req, res) {
 
     if (req.method === 'PUT') {
       // Add prepared poses to a mascot saved before they existed.
-      if (!await whoIs(req)) { res.status(401).json({ error: 'Updating needs your Critterkit key (or the owner passcode).' }); return; }
+      if (refuse(res, await whoIs(req), 'Updating')) return;
       const id = String(req.query.id || '');
       if (!ID.test(id)) { res.status(400).json({ error: 'Unknown mascot id.' }); return; }
       const meta = await findData(id);

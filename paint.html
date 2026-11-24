@@ -309,7 +309,8 @@ let current={},busy=false,prepared=null;
 let credits=null;
 function showCredits(n){if(n!==undefined)credits=n;const el=$('credits');if(credits===null||credits===undefined){el.hidden=true;return}
   el.hidden=false;el.innerHTML=credits>0?`${credits} paint${credits===1?'':'s'} left · each paint uses one`:`You’re out of paints. <a href="/api/checkout?plan=credits&key=${encodeURIComponent($('pass').value.trim())}">Get 10 more for $9</a>`}
-async function checkPass(p){try{const r=await fetch('/api/paint?check=1',{method:'POST',headers:{'Content-Type':'application/json',...(p?{'x-pip-pass':p}:{})},body:'{}'});if(!r.ok)return false;const j=await r.json().catch(()=>({}));showCredits(j.owner?null:j.credits);return true}catch(e){return false}}
+let lockMsg='';
+async function checkPass(p){try{const r=await fetch('/api/paint?check=1',{method:'POST',headers:{'Content-Type':'application/json',...(p?{'x-pip-pass':p}:{})},body:'{}'});if(r.status===429){lockMsg=((await r.json().catch(()=>({}))).error)||'Too many wrong tries. Try again later.';return false}lockMsg='';if(!r.ok)return false;const j=await r.json().catch(()=>({}));showCredits(j.owner?null:j.credits);return true}catch(e){return false}}
 function unlock(p){$('pass').value=p;try{localStorage.setItem('pip-pass',p)}catch(e){}document.body.classList.remove('locked')}
 (async()=>{let sp='';try{sp=localStorage.getItem('pip-pass')||''}catch(e){}
   // Back from paying: swap the checkout for a key (the server checks with Polar first)
@@ -324,7 +325,7 @@ function unlock(p){$('pass').value=p;try{localStorage.setItem('pip-pass',p)}catc
   try{localStorage.removeItem('pip-pass')}catch(e){}})();
 $('gateForm').addEventListener('submit',async e=>{e.preventDefault();const p=$('gatePass').value.trim();if(!p){$('haveKey').open=true;$('gatePass').focus();return}
   $('gateGo').disabled=true;$('gateErr').textContent='';
-  if(await checkPass(p))unlock(p);else{$('gateErr').textContent='That key didn’t work. Check it and try again.';$('gatePass').select()}
+  if(await checkPass(p))unlock(p);else{$('gateErr').textContent=lockMsg||'That key didn’t work. Check it and try again.';$('gatePass').select()}
   $('gateGo').disabled=false});
 
 try{const sp=localStorage.getItem('pip-pass');if(sp){$('pass').value=sp}}catch(e){}
