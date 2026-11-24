@@ -86,6 +86,18 @@ body.locked .gate{display:flex}
 .gate p{margin:0;color:var(--muted);font-size:15px}
 .gate .err{color:var(--bad);font-size:14px;min-height:1.4em}
 .gate a{color:var(--ink);font-size:14px}
+
+/* Your own art: one tile per pose */
+.poses{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.pose{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:var(--muted);text-align:center;cursor:pointer}
+.pose .th{width:100%;aspect-ratio:1;border-radius:10px;background:var(--bg);border:1.5px dashed var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:20px;color:var(--muted)}
+.pose .th img{width:100%;height:100%;object-fit:contain}
+.pose.has .th{border-style:solid}
+.pose.req span:last-child::after{content:" *";color:var(--bad)}
+.pose input{position:absolute;width:1px;height:1px;opacity:0}
+.pose:focus-within .th{outline:3px solid var(--accent);outline-offset:2px}
+details.guide summary{cursor:pointer;font-size:14px;font-weight:500}
+details.guide ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
 </style>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 </head>
@@ -141,6 +153,29 @@ body.locked .gate{display:flex}
     <button type="button" class="primary" id="go">Paint it</button>
     <p class="hint" id="status">Describe your character and pick a look. Painting takes about a minute.</p>
     <ol class="steps" id="steps"></ol>
+  </section>
+
+  <section class="card" aria-labelledby="own">
+    <h2 id="own">Use your own art</h2>
+    <p class="sub">Got drawings from a designer? Add one image per pose and Pip's rig brings them to life. Transparent PNGs work best. Only Neutral is required: missing poses reuse it, and a single pointing pose is mirrored for the other side.</p>
+    <div class="poses" id="poses"></div>
+    <div class="row">
+      <label class="ghost" for="allFiles" style="cursor:pointer">Add several at once</label>
+      <input type="file" id="allFiles" accept="image/*" multiple hidden>
+      <button type="button" class="ghost" id="clearPoses">Clear all</button>
+    </div>
+    <details class="guide"><summary>What to ask your designer for</summary>
+      <ul>
+        <li>The same character, same size and position, on the same canvas size in every image.</li>
+        <li>Full body, facing the viewer, with a transparent background (or a plain one).</li>
+        <li>Neutral, Blink (eyes closed), Happy, Talking "ah" and "ee", Worried, Surprised, Confused.</li>
+        <li>Wave (one hand raised) and a second wave frame with the same hand a bit lower.</li>
+        <li>Pointing left and pointing right with the arm stretched out.</li>
+        <li>Name files after the pose (e.g. <code>happy.png</code>) and "Add several at once" sorts them for you.</li>
+      </ul>
+    </details>
+    <button type="button" class="primary" id="useArt">Bring it to life</button>
+    <p class="hint" id="artStatus">Add at least the Neutral pose.</p>
   </section>
 
   <section class="card" id="useCard" aria-labelledby="use" hidden>
@@ -276,6 +311,54 @@ async function paint(){
   }catch(e){setStatus(explain(e),'err');STEP_LIST.forEach(([k])=>{const li=stepsEl.querySelector(`[data-k="${k}"]`);if(li&&li.dataset.s==='work')li.dataset.s='fail'})}
   finally{clearInterval(tick);busy=false;$('go').disabled=false;$('go').textContent='Paint it'}}
 $('go').addEventListener('click',paint);
+/* ---------- your own art: build the same 4x3 pose sheet the painter makes ---------- */
+const POSES=[['Neutral',/neutral|idle|default|base/],['Blink',/blink|closed/],['Happy',/happy|joy|smile|cheer/],['Talk ah',/talk.?ah|\bah\b|talk(?!.*ee)/],
+  ['Worried',/worr|sad|concern/],['Surprised',/surpris|shock|wow/],['Confused',/confus|puzzl/],['Wave',/wave(?!.?2)/],
+  ['Wave 2',/wave.?2/],['Point left',/point.?l|left/],['Point right',/point.?r|right/],['Talk ee',/\bee\b|talk.?ee|smile.?talk/]];
+const art=new Array(12).fill(null);
+function renderPoses(){$('poses').innerHTML=POSES.map(([n],i)=>`<label class="pose${art[i]?' has':''}${i===0?' req':''}"><input type="file" accept="image/*" data-i="${i}" aria-label="${n} image"><span class="th">${art[i]?`<img alt="" src="${art[i].url}">`:'+'}</span><span>${n}</span></label>`).join('');
+  $('poses').querySelectorAll('input').forEach(inp=>inp.addEventListener('change',()=>{const f=inp.files[0];if(f)setPose(+inp.dataset.i,f)}));
+  $('artStatus').textContent=art[0]?`${art.filter(Boolean).length} of 12 poses added.`:'Add at least the Neutral pose.';$('artStatus').className='hint'}
+function setPose(i,f){if(art[i])URL.revokeObjectURL(art[i].url);art[i]={file:f,url:URL.createObjectURL(f)};renderPoses()}
+$('allFiles').addEventListener('change',e=>{const files=[...e.target.files].sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
+  const left=[];for(const f of files){const n=f.name.toLowerCase().replace(/\.[a-z]+$/,'');const i=POSES.findIndex(([,re],k)=>!art[k]&&re.test(n));if(i>=0)setPose(i,f);else left.push(f)}
+  for(const f of left){const i=art.findIndex(a=>!a);if(i<0)break;setPose(i,f)}e.target.value=''});
+$('clearPoses').addEventListener('click',()=>{art.forEach((a,i)=>{if(a)URL.revokeObjectURL(a.url);art[i]=null});renderPoses()});
+renderPoses();
+
+// Turn one upload into a cut-out canvas: keep real transparency, otherwise remove the plain background.
+async function cutOut(file){const im=await loadImg(URL.createObjectURL(file)),W=im.naturalWidth,H=im.naturalHeight,c=canvasOf(W,H),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0);
+  const d=x.getImageData(0,0,W,H).data;let clear=0;for(const [px,py] of [[1,1],[W-2,1],[1,H-2],[W-2,H-2],[W>>1,1]])if(d[(py*W+px)*4+3]<16)clear++;
+  const cv=clear>=3?c:keyOut(im).canvas,a=cv.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  let x0=W,y0=H,x1=-1,y1=-1;for(let y=0;y<H;y+=2)for(let xx=0;xx<W;xx+=2)if(a[(y*W+xx)*4+3]>40){if(xx<x0)x0=xx;if(xx>x1)x1=xx;if(y<y0)y0=y;if(y>y1)y1=y}
+  if(x1<0)throw new Error(`${file.name} looks empty.`);return {canvas:cv,W,H,box:{x:x0,y:y0,w:x1-x0+2,h:y1-y0+2}}}
+function flipped(p){const c=canvasOf(p.W,p.H),x=c.getContext('2d');x.translate(p.W,0);x.scale(-1,1);x.drawImage(p.canvas,0,0);return {canvas:c,W:p.W,H:p.H,box:{x:p.W-p.box.x-p.box.w,y:p.box.y,w:p.box.w,h:p.box.h}}}
+async function buildSheet(){const cut=[];for(let i=0;i<12;i++)cut[i]=art[i]?await cutOut(art[i].file):null;
+  if(!cut[9]&&cut[10])cut[9]=flipped(cut[10]);if(!cut[10]&&cut[9])cut[10]=flipped(cut[9]);if(!cut[8]&&cut[7])cut[8]=cut[7];
+  if(!cut[11]&&cut[3])cut[11]=cut[3];for(let i=0;i<12;i++)if(!cut[i])cut[i]=cut[0];
+  // Same canvas size everywhere: keep the designer's framing. Otherwise line them up by their feet.
+  const same=cut.every(p=>p.W===cut[0].W&&p.H===cut[0].H);
+  const u=same?cut.reduce((b,p)=>({x:Math.min(b.x,p.box.x),y:Math.min(b.y,p.box.y),x2:Math.max(b.x2,p.box.x+p.box.w),y2:Math.max(b.y2,p.box.y+p.box.h)}),{x:1e9,y:1e9,x2:-1e9,y2:-1e9}):null;
+  const maxW=same?u.x2-u.x:Math.max(...cut.map(p=>p.box.w)),maxH=same?u.y2-u.y:Math.max(...cut.map(p=>p.box.h));
+  const C=640,s=Math.min(C*.84/maxW,C*.8/maxH);
+  // Pick a background colour the art doesn't use (the cut-out step removes it again).
+  let mag=0,tot=0;for(const p of cut.slice(0,1)){const d=p.canvas.getContext('2d',{willReadFrequently:true}).getImageData(0,0,p.W,p.H).data;for(let i=0;i<d.length;i+=16)if(d[i+3]>128){tot++;if(d[i]>170&&d[i+2]>170&&d[i+1]<110)mag++}}
+  const key=mag>tot*.002?'#00FF00':'#FF00FF';
+  const sheet=canvasOf(C*4,C*3),x=sheet.getContext('2d');x.fillStyle=key;x.fillRect(0,0,sheet.width,sheet.height);
+  cut.forEach((p,i)=>{const cx=(i%4)*C,cy=Math.floor(i/4)*C;
+    if(same)x.drawImage(p.canvas,cx+C/2-((u.x+u.x2)/2)*s,cy+C*.92-u.y2*s,p.W*s,p.H*s);
+    else x.drawImage(p.canvas,p.box.x,p.box.y,p.box.w,p.box.h,cx+C/2-p.box.w*s/2,cy+C*.92-p.box.h*s,p.box.w*s,p.box.h*s)});
+  return canvasB64(sheet,'image/png')}
+$('useArt').addEventListener('click',async()=>{if(busy)return;if(!art[0]){$('artStatus').textContent='Add the Neutral pose first. It is the one Pip shows most.';$('artStatus').className='hint err';return}
+  busy=true;$('useArt').disabled=true;$('useArt').textContent='Bringing it to life…';$('artStatus').textContent='Lining up your poses…';$('artStatus').className='hint';
+  try{const sheet=await buildSheet();renderSteps('sheet');document.querySelector('.stage').scrollIntoView({behavior:'smooth',block:'start'});
+    current={mode:'sheet',desc:'Your own art',style:'own',quality:'',sheet,mime:'image/png',model:'your art',grid:[4,3]};$('mname').value='';$('meta').textContent='Made from your own art';
+    await loadSheet(current,true);DB.put(current);showUse();
+    $('artStatus').textContent='Done. Poke it, try the reactions, then save it below to get the code.';$('artStatus').className='hint ok';
+    setStatus('Your art is rigged. Try the reactions below.','ok');rig.react('wave',1800);rig.say('Hi! I came from your drawings.')}
+  catch(e){$('artStatus').textContent=e&&e.status?explain(e):'Couldn’t use that art: '+((e&&e.message)||e);$('artStatus').className='hint err'}
+  finally{busy=false;$('useArt').disabled=false;$('useArt').textContent='Bring it to life'}});
+
 
 async function loadSheet(m,fresh){
   const [cols,rows]=m.grid||[3,2];
