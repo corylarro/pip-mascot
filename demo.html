@@ -24,7 +24,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,500..800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="preload" as="fetch" href="https://pip-mascot.vercel.app/api/mascot?id=fd89vpfu99qm" crossorigin="anonymous">
-<script src="/pip-mascot.js"></script>
+<script src="/critter.js"></script>
 <style>
 :root{--haze:#ECEBFF;--ink:#221E3F;--ink-2:#4A4570;--peach:#FF9466;--sprout:#2FAF74;--butter:#FFD35A;--white:#fff;--line:#D6D3F2;
   --display:'Bricolage Grotesque',ui-rounded,system-ui,sans-serif;--body:'Figtree',system-ui,-apple-system,sans-serif}
@@ -287,7 +287,7 @@ let pip = null, kind = 'painted', corner = 'bottom-right';
 const esc = s => s.replace(/</g, '&lt;');
 function code() {
   const attrs = (kind === 'painted' ? ` <span class="a">mascot</span>="your-mascot-id"` : '') + (corner !== 'bottom-right' ? ` <span class="a">position</span>="${corner}"` : '');
-  $('codeTaskly').innerHTML = `<span class="t">&lt;script</span> <span class="a">src</span>="https://pip-mascot.vercel.app/pip-mascot.js"<span class="t">&gt;&lt;/script&gt;</span>\n<span class="t">&lt;pip-mascot</span>${attrs} <span class="a">autopilot</span> <span class="a">greet</span><span class="t">&gt;&lt;/pip-mascot&gt;</span>`;
+  $('codeTaskly').innerHTML = `<span class="t">&lt;script</span> <span class="a">src</span>="https://pip-mascot.vercel.app/critter.js"<span class="t">&gt;&lt;/script&gt;</span>\n<span class="t">&lt;critter-mascot</span>${attrs} <span class="a">autopilot</span> <span class="a">greet</span><span class="t">&gt;&lt;/critter-mascot&gt;</span>`;
 }
 function logIt(d) {
   const ul = $('apLog'), e = ul.querySelector('.empty'); if (e) e.remove();
@@ -297,7 +297,7 @@ function logIt(d) {
 }
 function mount() {
   if (pip) pip.remove();
-  pip = document.createElement('pip-mascot');
+  pip = document.createElement('critter-mascot');
   pip.setAttribute('autopilot', ''); pip.setAttribute('greet', ''); pip.setAttribute('position', corner);
   if (kind === 'painted') {
     pip.setAttribute('mascot', PAINTED_ID); pip.style.setProperty('--pip-size', innerWidth < 600 ? '104px' : '140px');

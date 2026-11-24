@@ -17,7 +17,7 @@
 </head>
 <body>
   <h1>Plain page, one line</h1>
-  <p>This page has no mascot code of its own. It just loads <code>/pip-mascot.js</code> and adds <code>&lt;pip-mascot autopilot greet&gt;</code>. Try submitting empty, typing a password, or tapping the button really fast.</p>
+  <p>This page has no mascot code of its own. It just loads <code>/critter.js</code> and adds <code>&lt;critter-mascot autopilot greet&gt;</code>. Try submitting empty, typing a password, or tapping the button really fast.</p>
   <form id="f">
     <label for="e">Email</label><input id="e" type="email" required placeholder="you@example.com">
     <label for="p">Password</label><input id="p" type="password" required minlength="8" placeholder="8+ characters">
@@ -31,12 +31,12 @@
   </script>
 
   <!-- The only two lines added for the mascot -->
-  <script src="/pip-mascot.js"></script>
-  <pip-mascot autopilot greet></pip-mascot>
+  <script src="/critter.js"></script>
+  <critter-mascot autopilot greet></critter-mascot>
   <script>
     // Testing helper: /embed-test?mascot=ID swaps in a saved painted mascot.
     var id=new URLSearchParams(location.search).get('mascot');
-    if(id){var old=document.querySelector('pip-mascot'),m=document.createElement('pip-mascot');m.setAttribute('mascot',id);m.setAttribute('autopilot','');m.setAttribute('greet','');m.style.setProperty('--pip-size','150px');old.replaceWith(m)}
+    if(id){var old=document.querySelector('critter-mascot'),m=document.createElement('critter-mascot');m.setAttribute('mascot',id);m.setAttribute('autopilot','');m.setAttribute('greet','');m.style.setProperty('--pip-size','150px');old.replaceWith(m)}
   </script>
 </body>
 </html>

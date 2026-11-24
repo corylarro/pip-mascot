@@ -62,7 +62,7 @@
         return;
       }
       if (el) el.remove();
-      el = document.createElement('pip-mascot');
+      el = document.createElement('critter-mascot');
       el.setAttribute('float', '');
       if (cfg.mascot) el.setAttribute('mascot', cfg.mascot);
       if (cfg.position) el.setAttribute('position', cfg.position);
@@ -80,7 +80,7 @@
       el.addEventListener('pointerdown', function () { post('tap'); });
       document.body.appendChild(el);
       el._kbSpot = kbSpot;
-      post('log', { level: 'log', text: 'mascot created (' + (cfg.mascot ? 'painted ' + cfg.mascot : 'drawn') + '), page ' + innerWidth + 'x' + innerHeight + ', custom element ' + (customElements.get('pip-mascot') ? 'ok' : 'MISSING') });
+      post('log', { level: 'log', text: 'mascot created (' + (cfg.mascot ? 'painted ' + cfg.mascot : 'drawn') + '), page ' + innerWidth + 'x' + innerHeight + ', custom element ' + (customElements.get('critter-mascot') ? 'ok' : 'MISSING') });
       clearInterval(timer); timer = setInterval(report, 50);
       return true;
     },
@@ -108,6 +108,7 @@
     // The on-screen keyboard's top edge in points (null when it closes). Pip sits on it.
     keyboard: function (top) {
       kbTop = (top == null || top <= 0) ? null : top;
+      if (el) el._kbTop = kbTop;
       if (!el || !el._m) return;
       if (kbTop == null) { if (!busy()) el.home(); return; }
       if (busy()) return;

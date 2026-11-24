@@ -1,9 +1,10 @@
-/*! pip-mascot.js · Pip mascot runtime
+/*! critter.js · Critterkit mascot runtime
  * Usage:
- *   <script src="https://pip-mascot.vercel.app/pip-mascot.js"></script>
- *   <pip-mascot autopilot greet></pip-mascot>                 (vector mascot)
- *   <pip-mascot mascot="YOUR_ID" autopilot greet></pip-mascot> (painted mascot made at pip-mascot.vercel.app/paint)
- * Methods: setState(s), react(s, ms), say(text), point(element, text), home(), watch(input)
+ *   <script src="https://pip-mascot.vercel.app/critter.js"></script>
+ *   <critter-mascot autopilot greet></critter-mascot>                 (drawn mascot)
+ *   <critter-mascot mascot="YOUR_ID" autopilot greet></critter-mascot> (painted mascot made at pip-mascot.vercel.app/paint)
+ * The old <pip-mascot> tag and pip-mascot.js still work.
+ * Methods: setState(s), react(s, ms), say(text), point(element, text), tour(steps), home(), watch(input)
  */
 (function(){
 "use strict";
@@ -795,7 +796,7 @@ return {reachSide,matchScale,encodeAtlas,buildAtlas,framesFromAtlas,attachFrames
 
 var paintedEngine=PipPaintedEngine();
 (function definePipElement(engine,defaultConfig,painted,origin){
-  if(typeof customElements==='undefined'||customElements.get('pip-mascot'))return;
+  if(typeof customElements==='undefined'||customElements.get('critter-mascot'))return;
   origin=origin||'https://pip-mascot.vercel.app';
   // Wrap a painted rig so it speaks the same language as the vector mascot.
   const adapt=rig=>({rig,get state(){return rig.state},get cfg(){return rig.cfg},get focusEl(){return rig.focusEl},set focusEl(v){rig.focusEl=v},
@@ -876,7 +877,7 @@ var paintedEngine=PipPaintedEngine();
       const sleepAfter=sa===null?20000:Number(sa)*1000;let m;
       if(isPainted){const rig=new painted.PaintRig(root.querySelector('canvas[role=img]'),{bubble:root.querySelector('.bubble'),fit:.94,pad:.4,padTop:.45,hit:this,sleepAfter,onState});m=this._m=adapt(rig);
         this._ready=fetch(`${this.getAttribute('api')||origin}/api/mascot?id=${encodeURIComponent(mid)}`).then(r=>{if(!r.ok)throw new Error('Mascot not found');return r.json()})
-          .then(d=>painted.mountMascot(rig,d)).then(()=>this.dispatchEvent(new CustomEvent('ready'))).catch(e=>{console.warn('pip-mascot:',e);this.dispatchEvent(new CustomEvent('error',{detail:String(e)}))})}
+          .then(d=>painted.mountMascot(rig,d)).then(()=>this.dispatchEvent(new CustomEvent('ready'))).catch(e=>{console.warn('critter-mascot:',e);this.dispatchEvent(new CustomEvent('error',{detail:String(e)}))})}
       else{m=this._m=new engine.Mascot(root.querySelector('svg'),cfg,{bubble:root.querySelector('.bubble'),sleepAfter,onState});this._ready=Promise.resolve()}
       const say=m.say.bind(m);m.say=(t,o)=>{this._placeBubble();return say(t,o)};
       const st=this.getAttribute('state');if(st)m.setState(st);
@@ -967,16 +968,23 @@ var paintedEngine=PipPaintedEngine();
       if(!this._float||!el||!this._m)return;clearTimeout(this._homeT);this._goAt=Date.now();this._m.unpoint();
       let r=el.getBoundingClientRect();
       if(r.bottom<60||r.top>innerHeight-60){el.scrollIntoView({block:'center',behavior:RM<1?'auto':'smooth'});await wait(480);r=el.getBoundingClientRect();this._goAt=Date.now()}
-      const [w,h]=this._size();let x,y;
-      if(mode==='sit'){x=r.left+r.width/2-w/2;y=r.top-h*.93+4}
-      else{y=r.top+r.height/2-h*.6;if(r.right+w+6<innerWidth)x=r.right+4;else if(r.left-w-6>0)x=r.left-w-4;
-        // No room beside it (full-width cards and fields): stand at its right end, level with it, and point into it
-        else x=clamp(r.right-w*.92,4,innerWidth-w-4)}
-      x=clamp(x,4,innerWidth-w-4);y=clamp(y,4,innerHeight-h-4);
+      const [w,h]=this._size();let x,y,level=true;
+      if(mode==='sit'){x=clamp(r.left+r.width/2-w/2,4,innerWidth-w-4);y=clamp(r.top-h*.93+4,4,innerHeight-h-4)}
+      else{const p=this._bestSpot(el,r,w,h);x=p.x;y=p.y;level=p.level}
       await this.walkTo(x,y);if(!this._m)return;
-      if(mode==='point'){const c=el.getBoundingClientRect();this._m.point(c.left+c.width/2,c.top+c.height/2)}
+      if(mode==='point'){const c=el.getBoundingClientRect();if(level)this._m.point(c.left+c.width/2,c.top+c.height/2);else this._m.lookAt(c.left+c.width/2,c.top+c.height/2)}
       if(state)this._m.react(state,2600);if(text)this._m.say(text,{hold:2600});
       if(!stay)this._homeT=setTimeout(()=>this.home(),Math.max(3400,(text||'').length*45+2600))}
+    // Smart placement: try spots around the target and pick the one that stays on screen and covers the least (buttons, fields, text).
+    _bestSpot(el,r,w,h){const vv=window.visualViewport,top=vv?vv.offsetTop:0,bottom=Math.min(vv?vv.offsetTop+vv.height:innerHeight,this._kbTop||Infinity),ly=r.top+r.height/2-h*.6;
+      const C=[[r.right+4,ly,0,1],[r.left-w-4,ly,.5,1],[r.right-w*.92,ly,2,1],[r.left-w*.08,ly,2.5,1],[r.right-w-6,r.top-h*.93+4,4,0],[r.right-w-6,r.bottom+2,4.5,0]];
+      const isEl=el&&typeof el.contains==='function',canSee=typeof document.elementsFromPoint==='function',skip=n=>n===this||this.contains(n)||n===document.body||n===document.documentElement;
+      const BUSY='a,button,input,select,textarea,label,summary,[role=button],[role=link],[contenteditable]';let best=null;
+      for(const [cx,cy,base,lv] of C){const x=clamp(cx,4,innerWidth-w-4),y=clamp(cy,top+4,Math.max(top+4,bottom-h-4));let cost=base+Math.hypot(x-cx,y-cy)/12;
+        if(canSee)for(let i=0;i<5;i++)for(let j=0;j<5;j++){const hit=document.elementsFromPoint(x+w*(.2+i*.15),y+h*(.2+j*.15)).find(n=>!skip(n));if(!hit)continue;
+          if(isEl&&(hit===el||el.contains(hit)))cost+=.08;else if(hit.closest(BUSY))cost+=.6;else if([...hit.childNodes].some(n=>n.nodeType===3&&n.textContent.trim()))cost+=.25}
+        if(!best||cost<best.cost)best={x,y,cost,level:!!lv}}
+      return best}
     // Phones: hop onto the focused field so the keyboard doesn't hide the mascot
     // Switch between floating over the screen (fixed) and riding along with the page (absolute), keeping the same spot
     _setAbs(abs){if(!!this._abs===abs)return;const p=this._pos;this._abs=abs;this.style.position=abs?'absolute':'fixed';this._setPos(p[0],p[1])}
@@ -1111,6 +1119,8 @@ var paintedEngine=PipPaintedEngine();
     log('Autopilot is on and watching this page','wave');
     return ()=>{offs.forEach(f=>f());clearTimeout(thinkT);clearTimeout(invT);clearTimeout(scanT)};
   }
-  customElements.define('pip-mascot',PipMascot);
+  customElements.define('critter-mascot',PipMascot);
+  // The old name keeps working for anything embedded before the rename
+  if(!customElements.get('pip-mascot'))customElements.define('pip-mascot',class extends PipMascot{});
 })(engine, {"name":"Pip","shape":"bean","color":"#FFC23D","accent":"#6BCB77","eyeColor":"#5A3A1E","topper":"sprout","eyes":"round","pattern":"none","accessory":"none","tooth":false,"hat":"","item":"","greeting":"Hi, I'm Pip!"}, paintedEngine, origin);
 })();

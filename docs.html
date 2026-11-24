@@ -13,7 +13,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,500..800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="/pip-mascot.js"></script>
+<script src="/critter.js"></script>
 <style>
 :root{--haze:#ECEBFF;--ink:#221E3F;--ink-2:#4A4570;--peach:#FF9466;--sprout:#2FAF74;--butter:#FFD35A;--white:#fff;--line:#D6D3F2;
   --display:'Bricolage Grotesque',ui-rounded,system-ui,sans-serif;--body:'Figtree',system-ui,-apple-system,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
@@ -87,8 +87,8 @@ ul.list{margin:0 0 8px;padding-left:20px;display:flex;flex-direction:column;gap:
       <section id="install" aria-labelledby="h-install">
         <h2 id="h-install">Install</h2>
         <p>Paste these before the closing <code>&lt;/body&gt;</code> tag. Swap in your mascot's id from the paint page, or leave <code>mascot</code> out to use the drawn mascot.</p>
-<pre><span class="t">&lt;script</span> <span class="a">src</span>=<span class="s">"https://pip-mascot.vercel.app/pip-mascot.js"</span><span class="t">&gt;&lt;/script&gt;</span>
-<span class="t">&lt;pip-mascot</span> <span class="a">mascot</span>=<span class="s">"your-mascot-id"</span> <span class="a">autopilot</span> <span class="a">greet</span><span class="t">&gt;&lt;/pip-mascot&gt;</span></pre>
+<pre><span class="t">&lt;script</span> <span class="a">src</span>=<span class="s">"https://pip-mascot.vercel.app/critter.js"</span><span class="t">&gt;&lt;/script&gt;</span>
+<span class="t">&lt;critter-mascot</span> <span class="a">mascot</span>=<span class="s">"your-mascot-id"</span> <span class="a">autopilot</span> <span class="a">greet</span><span class="t">&gt;&lt;/critter-mascot&gt;</span></pre>
         <p><code>autopilot</code> lets Pip float in a corner and react to your app. <code>greet</code> makes it say hello when the page loads.</p>
       </section>
 
@@ -104,8 +104,8 @@ ul.list{margin:0 0 8px;padding-left:20px;display:flex;flex-direction:column;gap:
     &lt;html lang=<span class="s">"en"</span>&gt;
       &lt;body&gt;
         {children}
-        &lt;<span class="t">pip-mascot</span> <span class="a">mascot</span>=<span class="s">"your-mascot-id"</span> <span class="a">autopilot</span>=<span class="s">""</span> <span class="a">greet</span>=<span class="s">""</span> /&gt;
-        &lt;<span class="t">Script</span> <span class="a">src</span>=<span class="s">"https://pip-mascot.vercel.app/pip-mascot.js"</span> <span class="a">strategy</span>=<span class="s">"afterInteractive"</span> /&gt;
+        &lt;<span class="t">critter-mascot</span> <span class="a">mascot</span>=<span class="s">"your-mascot-id"</span> <span class="a">autopilot</span>=<span class="s">""</span> <span class="a">greet</span>=<span class="s">""</span> /&gt;
+        &lt;<span class="t">Script</span> <span class="a">src</span>=<span class="s">"https://pip-mascot.vercel.app/critter.js"</span> <span class="a">strategy</span>=<span class="s">"afterInteractive"</span> /&gt;
       &lt;/body&gt;
     &lt;/html&gt;
   )
@@ -114,14 +114,14 @@ ul.list{margin:0 0 8px;padding-left:20px;display:flex;flex-direction:column;gap:
         <h3>TypeScript</h3>
         <p>To stop TypeScript complaining about an unknown tag, add this once anywhere in your project:</p>
 <pre><span class="t">declare</span> <span class="t">namespace</span> JSX {
-  <span class="t">interface</span> IntrinsicElements { <span class="s">'pip-mascot'</span>: <span class="t">any</span> }
+  <span class="t">interface</span> IntrinsicElements { <span class="s">'critter-mascot'</span>: <span class="t">any</span> }
 }</pre>
       </section>
 
       <section id="placement" aria-labelledby="h-place">
         <h2 id="h-place">Placement and size</h2>
         <p>Pip sits in the bottom-right corner by default. Move it if something else lives there.</p>
-<pre><span class="t">&lt;pip-mascot</span> <span class="a">autopilot</span> <span class="a">position</span>=<span class="s">"bottom-left"</span> <span class="a">offset</span>=<span class="s">"24 90"</span> <span class="a">size</span>=<span class="s">"small"</span> <span class="a">mobile-size</span>=<span class="s">"80"</span><span class="t">&gt;&lt;/pip-mascot&gt;</span></pre>
+<pre><span class="t">&lt;critter-mascot</span> <span class="a">autopilot</span> <span class="a">position</span>=<span class="s">"bottom-left"</span> <span class="a">offset</span>=<span class="s">"24 90"</span> <span class="a">size</span>=<span class="s">"small"</span> <span class="a">mobile-size</span>=<span class="s">"80"</span><span class="t">&gt;&lt;/critter-mascot&gt;</span></pre>
         <ul class="list">
           <li><code>position</code>: <code>bottom-right</code>, <code>bottom-left</code>, <code>top-right</code> or <code>top-left</code>.</li>
           <li><code>offset</code>: distance from the edges in pixels, sideways then up or down. One number sets both.</li>
@@ -136,7 +136,7 @@ ul.list{margin:0 0 8px;padding-left:20px;display:flex;flex-direction:column;gap:
         <h3>Living in a spot on the page</h3>
         <p>Instead of floating in a corner, Pip can live inside an element, like a hero section, and step out when it needs to. Point <code>dock</code> at the element, or leave it empty to use the tag's parent.</p>
 <pre><span class="t">&lt;div</span> <span class="a">id</span>=<span class="s">"pip-home"</span> <span class="a">style</span>=<span class="s">"height:280px"</span><span class="t">&gt;&lt;/div&gt;</span>
-<span class="t">&lt;pip-mascot</span> <span class="a">mascot</span>=<span class="s">"your-mascot-id"</span> <span class="a">dock</span>=<span class="s">"#pip-home"</span><span class="t">&gt;&lt;/pip-mascot&gt;</span></pre>
+<span class="t">&lt;critter-mascot</span> <span class="a">mascot</span>=<span class="s">"your-mascot-id"</span> <span class="a">dock</span>=<span class="s">"#pip-home"</span><span class="t">&gt;&lt;/critter-mascot&gt;</span></pre>
       </section>
 
       <section id="autopilot" aria-labelledby="h-auto">
@@ -157,7 +157,7 @@ ul.list{margin:0 0 8px;padding-left:20px;display:flex;flex-direction:column;gap:
       <section id="api" aria-labelledby="h-api">
         <h2 id="h-api">Make Pip react</h2>
         <p>Grab the element and call any of these.</p>
-<pre><span class="t">const</span> pip = document.querySelector(<span class="s">'pip-mascot'</span>)
+<pre><span class="t">const</span> pip = document.querySelector(<span class="s">'critter-mascot'</span>)
 
 <span class="c">// celebrate next to an element, then walk home</span>
 pip.goTo(streakCard, { mode: <span class="s">'sit'</span>, state: <span class="s">'success'</span>, text: <span class="s">'7 days in a row!'</span> })
@@ -206,12 +206,12 @@ pip.say(<span class="s">'Saved!'</span>, { hold: <span class="s">1500</span> })<
 
       <section id="theming" aria-labelledby="h-theme">
         <h2 id="h-theme">Theming</h2>
-<pre><span class="t">pip-mascot</span> {
+<pre><span class="t">critter-mascot</span> {
   --pip-size: <span class="s">120px</span>;          <span class="c">/* width of the mascot */</span>
   --pip-bubble-bg: <span class="s">#1F2A44</span>;    <span class="c">/* speech bubble background */</span>
   --pip-bubble-ink: <span class="s">#ffffff</span>;   <span class="c">/* speech bubble text */</span>
 }
-<span class="t">pip-mascot</span>::part(bubble) { font-family: <span class="s">inherit</span>; }</pre>
+<span class="t">critter-mascot</span>::part(bubble) { font-family: <span class="s">inherit</span>; }</pre>
       </section>
 
       <section id="reference" aria-labelledby="h-ref">
@@ -239,7 +239,7 @@ pip.say(<span class="s">'Saved!'</span>, { hold: <span class="s">1500</span> })<
   </div>
 </div>
 
-<pip-mascot id="docPip" mascot="fd89vpfu99qm" autopilot greeting="Hi! Try moving me with the buttons in Placement."></pip-mascot>
+<critter-mascot id="docPip" mascot="fd89vpfu99qm" autopilot greeting="Hi! Try moving me with the buttons in Placement."></critter-mascot>
 <script>
 const p = document.getElementById('docPip');
 document.querySelectorAll('[data-pos]').forEach(b => b.addEventListener('click', () => {

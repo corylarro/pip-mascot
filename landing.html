@@ -24,7 +24,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,500..800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="preload" as="fetch" href="https://pip-mascot.vercel.app/api/mascot?id=fd89vpfu99qm" crossorigin="anonymous">
-<script src="/pip-mascot.js"></script>
+<script src="/critter.js"></script>
 <style>
 :root{
   --haze:#ECEBFF;--ink:#221E3F;--ink-2:#4A4570;--peach:#FF9466;--peach-deep:#E8703F;--sprout:#2FAF74;--butter:#FFD35A;--white:#fff;
@@ -192,7 +192,7 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
     <div class="stage">
       <span class="play-label">Hi, I'm Pip. Poke me.</span>
       <div class="spot" id="pipHome"></div>
-      <pip-mascot id="pipPainted" class="loading" mascot="fd89vpfu99qm" dock="#pipHome" greet greeting="Hi! I'm Pip."></pip-mascot>
+      <critter-mascot id="pipPainted" class="loading" mascot="fd89vpfu99qm" dock="#pipHome" greet greeting="Hi! I'm Pip."></critter-mascot>
       <div class="play" role="group" aria-label="Make Pip react">
         <button data-r="wave">Wave</button><button data-r="success">Cheer</button><button data-r="error">Oops</button><button data-r="love">Love</button><button data-r="sleeping">Nap</button>
       </div>
@@ -244,8 +244,8 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
     <div class="step"><h3>Watch it get painted</h3><p>Pip paints twelve poses and expressions in one go, so your character looks like itself in every one of them.</p>
       <div class="sheet" aria-hidden="true"><div>🙂</div><div>😌</div><div>😄</div><div>🗣️</div><div>😟</div><div>😮</div><div>🤨</div><div>👋</div><div>👋</div><div>👈</div><div>👉</div><div>😁</div></div></div>
     <div class="step"><h3>Add one line</h3><p>Paste it into any site. React, Next, Svelte, plain HTML, or whatever your AI builder made. <a href="/docs">See the docs</a>.</p>
-<pre><span class="t">&lt;script</span> <span class="a">src</span>="https://pip-mascot.vercel.app/pip-mascot.js"<span class="t">&gt;&lt;/script&gt;</span>
-<span class="t">&lt;pip-mascot</span> <span class="a">mascot</span>="your-id" <span class="a">autopilot</span><span class="t">&gt;&lt;/pip-mascot&gt;</span></pre></div>
+<pre><span class="t">&lt;script</span> <span class="a">src</span>="https://pip-mascot.vercel.app/critter.js"<span class="t">&gt;&lt;/script&gt;</span>
+<span class="t">&lt;critter-mascot</span> <span class="a">mascot</span>="your-id" <span class="a">autopilot</span><span class="t">&gt;&lt;/critter-mascot&gt;</span></pre></div>
   </div>
 </section>
 
@@ -289,14 +289,14 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
 
 <style>.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}</style>
 <script>
-// Pip's saved painted mascot (set in the <pip-mascot mascot="…"> tag above).
+// Pip's saved painted mascot (set in the <critter-mascot mascot="…"> tag above).
 const painted = document.getElementById('pipPainted');
 const PIP_ID = painted.getAttribute('mascot');
 let pip = painted;
 painted.addEventListener('ready', () => requestAnimationFrame(() => painted.classList.remove('loading')));
 // If the painting can't load, the drawn seed takes its place.
 painted.addEventListener('error', () => {
-  painted.remove(); const d = document.createElement('pip-mascot'); d.id = 'pipDrawn'; d.setAttribute('greet', ''); d.setAttribute('greeting', "Hi! I'm Pip.");
+  painted.remove(); const d = document.createElement('critter-mascot'); d.id = 'pipDrawn'; d.setAttribute('greet', ''); d.setAttribute('greeting', "Hi! I'm Pip.");
   document.getElementById('pipHome').appendChild(d); pip = d;
 });
 // Optional: a Stripe Payment Link for pre-orders. Leave empty to use the waitlist only.

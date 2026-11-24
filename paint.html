@@ -388,7 +388,7 @@ async function loadSimple(m,fresh){
 /* ---------- save & share ---------- */
 async function reencode(b64,mime){const im=await loadImg(b64ToDataUrl(b64,mime)),c=canvasOf(im.naturalWidth,im.naturalHeight);c.getContext('2d').drawImage(im,0,0);
   let q=.9,out=canvasB64(c,'image/webp');for(const qq of [.88,.8,.7]){q=qq;out=c.toDataURL('image/webp',q).split(',')[1];if(out.length<3000000)break}return out}
-function showSnippet(id){const code=`<script src="${location.origin}/pip-mascot.js"><\/script>\n<pip-mascot mascot="${id}" autopilot greet></pip-mascot>`;
+function showSnippet(id){const code=`<script src="${location.origin}/critter.js"><\/script>\n<critter-mascot mascot="${id}" autopilot greet></critter-mascot>`;
   $('snippet').textContent=code;$('snippet').hidden=false;$('tryPlain').href='/embed-test?mascot='+encodeURIComponent(id);$('useActions').hidden=false;$('save').textContent='Save again as a new copy';
   try{localStorage.setItem('pip-painted-id',id);localStorage.setItem('pip-painted-name',$('mname').value.trim()||'Painted mascot')}catch(e){}}
 function showUse(){$('useCard').hidden=false;if(current.savedId){$('mname').value=current.name||'';showSnippet(current.savedId);$('saveMsg').textContent='Saved. Paste this into your site, before the closing </body> tag.'}
