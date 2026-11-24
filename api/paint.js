@@ -44,6 +44,7 @@ Also say whether the character in panel 1 is an animal with paws, and for panels
 Reply with ONLY this JSON (no prose): {"arms":{"1":2,"8":2,"9":2,"10":2,"11":2},"pawAnimal":false,"fingers":{"8":false,"9":false,"10":false,"11":false}}`;
 
 import { whoIs, spend, refuse } from './_keys.js';
+import { moderate } from './_moderate.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST.' }); return; }
@@ -62,6 +63,11 @@ export default async function handler(req, res) {
   if ((b.step === 'base' || b.step === 'reference') && who.rec && !(who.rec.credits > 0)) { res.status(402).json({ error: 'You’re out of paint credits.', credits: 0 }); return; }
 
   try {
+    // Screen what the person typed (and any photo) before painting, so a blocked request never uses a paint.
+    if (b.step === 'base' || b.step === 'reference') {
+      const block = await moderate({ key, desc: b.desc, photo: b.step === 'reference' ? b.photo : null, photoMime: b.photoMime, visionModels: VISION_MODELS() });
+      if (block) { console.log('paint blocked:', block.reason); res.status(422).json({ error: block.message, blocked: block.reason }); return; }
+    }
     if (b.step === 'base') {
       const prompt = String(b.prompt || '').slice(0, 6000);
       const sizes = uniq([b.size, ...(b.fallbackSizes || []), '1024x1024']).filter(x => /^\d{3,4}x\d{3,4}$/.test(x));

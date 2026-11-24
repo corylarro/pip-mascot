@@ -337,6 +337,7 @@ async function withRetry(fn,label){for(let a=0;;a++){try{return await fn()}catch
   if(e.status===429&&a<3){setStatus(`OpenAI asked us to slow down. Waiting a moment before ${label}…`,'');await new Promise(r=>setTimeout(r,20000*(a+1)));continue}throw e}}}
 function explain(e){const m=(e&&e.msg)||String(e);
   if(e&&e.status===401){$('passWrap').hidden=false;return 'Your key didn’t work. Enter it above and try again.'}
+  if(e&&e.status===422)return m;
   if(e&&e.status===402)return 'You’re out of paints. Get 10 more below, then try again.';
   if(/verif/i.test(m))return 'OpenAI says your organization must be verified to use its image models. Verify it at platform.openai.com → Settings → Organization, then try again. ('+m+')';
   if(/billing|quota|credit|insufficient/i.test(m))return 'OpenAI says the account is out of credit or over its limit: '+m;
@@ -362,13 +363,13 @@ async function paint(){
   try{
     if(mode==='sheet'){
       setStatus('Painting all twelve poses and expressions in one image…','ok');stepState('sheet','work');
-      const r=await withRetry(()=>api({...ref,prompt:fromPhoto(photo)+sheetPrompt(desc,style),quality,size:'2560x1920',fallbackSizes:['2304x1728','2048x1536','1536x1024']}),'painting');
+      const r=await withRetry(()=>api({...ref,desc:typed,prompt:fromPhoto(photo)+sheetPrompt(desc,style),quality,size:'2560x1920',fallbackSizes:['2304x1728','2048x1536','1536x1024']}),'painting');
       current={mode,desc,style,quality,sheet:r.image,mime:r.mime,model:r.model,grid:[4,3]};$('mname').value='';
       $('meta').textContent=`Image model: ${r.model} · ${r.size}`;
       await loadSheet(current,true);
     }else{
       setStatus('Painting your character with a blank face…','ok');stepState('base','work');
-      const r=await withRetry(()=>api({...ref,prompt:fromPhoto(photo)+simplePrompt(desc,style),quality}),'painting');
+      const r=await withRetry(()=>api({...ref,desc:typed,prompt:fromPhoto(photo)+simplePrompt(desc,style),quality}),'painting');
       current={mode,desc,style,quality,base:r.image,mime:r.mime,model:r.model};$('mname').value='';
       $('meta').textContent=`Image model: ${r.model}`;
       await loadSimple(current,true);
