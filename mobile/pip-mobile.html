@@ -224,7 +224,7 @@ const STATES={
   confused:{skew:1,curve:-.12,mouthW:.6,tilt:8,q:1,look:[-.4,-.5],hands:'chin'},
   giggle:{happy:1,curve:1,mouthOpen:.45,blush:1,hands:'cheeks'},
   dance:{happy:1,curve:1,mouthOpen:.55,blush:1,browY:-5,hands:'up'},
-  sad:{browTilt:12,browY:1,curve:-.55,mouthW:.7,open:.78,blush:.2,droop:.9,look:[0,.65],hands:'rest'},
+  sad:{browTilt:12,browY:1,curve:-.55,mouthW:.7,open:.86,blush:.2,droop:.9,look:[0,.25],hands:'rest'},
   peek:{curve:.4,browY:-4,look:[0,-.75],hands:'rest'}
 };
 function handTargets(mode,g,cover,peek,t,pd){
@@ -626,7 +626,7 @@ class PaintRig{
     const lift=Math.min(-this.jumpY/260,1);const sg=ctx.createRadialGradient(W/2,ground,0,W/2,ground,B.w*scale*.5);sg.addColorStop(0,'rgba(25,25,60,.28)');sg.addColorStop(1,'rgba(25,25,60,0)');
     ctx.save();ctx.globalAlpha=1-clamp(sink,0,1)*.9;ctx.translate(W/2,ground);ctx.scale(1-lift*.4,.16);ctx.translate(-W/2,-ground);ctx.fillStyle=sg;ctx.beginPath();ctx.arc(W/2,ground,B.w*scale*.5,0,Math.PI*2);ctx.fill();ctx.restore();
     // body
-    const sinkPx=sink*B.h*scale*.62;ctx.save();if(sink>.01){ctx.beginPath();ctx.rect(0,0,W,ground+1);ctx.clip()}
+    const sinkPx=sink*B.h*scale*.5;ctx.save();if(sink>.01){ctx.beginPath();ctx.rect(0,0,W,ground+1);ctx.clip()}
     ctx.translate(W/2+shx+dbx,ground+this.jumpY+wb+dby+sinkPx+slump*3);ctx.rotate((v.tilt+giggle+v.lean+wr+drot)*Math.PI/180);ctx.scale(sx*(1+.035*slump)*scale,sy*(1-.06*slump)*scale);ctx.translate(-footX,-footY);
     const FF=this.full||{},pointing=this.pointSide&&performance.now()<this.pointUntil&&FF['point'+this.pointSide],waving=!pointing&&this.state==='wave'&&FF.waveA;
     if(pointing){const fr=FF['point'+this.pointSide];ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
@@ -810,8 +810,42 @@ var paintedEngine=PipPaintedEngine();
       inp.addEventListener('input',()=>{rig.lookAtCaret(inp);rig.bump()});inp.addEventListener('blur',()=>{rig.focusEl=null;if(secret)rig.cover=false})}});
   const RM=engine.RM,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),wait=ms=>new Promise(r=>setTimeout(r,ms)),pick=a=>a[Math.floor(Math.random()*a.length)];
   const RATIO=254/240;
+  // Seasonal touches that drift around the mascot without changing how it looks. Picked by date; seasonal="off" turns them off.
+  const SEASONS=['snow','leaves','confetti','hearts','bats'];
+  const seasonFor=d=>{const m=d.getMonth()+1,day=d.getDate(),h=d.getHours();
+    if(m===10&&day>=24)return 'bats';if(m===11)return 'leaves';if((m===12&&day===31&&h>=18)||(m===1&&day===1))return 'confetti';
+    if(m===12)return 'snow';if(m===2&&day>=10&&day<=14)return 'hearts';return null};
+  function runSeason(cv,kind,host){const x=cv.getContext('2d');let W=0,H=0,dpr=1,last=performance.now(),raf=0,stop=false;const ps=[];
+    const N={snow:16,leaves:9,confetti:14,hearts:7,bats:4}[kind]||10,COL={leaves:['#E8833A','#D9502F','#F2B134','#B5562B'],confetti:['#FF6B7A','#6E9BFF','#7DDC8A','#FFC23D','#B58CFF'],hearts:['#FF6B8A','#FF8FA8','#E84A6F']};
+    const size=()=>{const r=cv.getBoundingClientRect();dpr=Math.min(devicePixelRatio||1,2);const w=Math.round(r.width*dpr),h=Math.round(r.height*dpr);if(w!==cv.width||h!==cv.height){cv.width=w;cv.height=h}W=r.width;H=r.height};
+    const spawn=fresh=>{const p={x:Math.random()*W,y:fresh?Math.random()*H:-12,r:Math.random()*6,vr:(Math.random()-.5)*2,ph:Math.random()*6.28,s:.7+Math.random()*.6,c:null,vx:0,vy:0};
+      if(kind==='snow'){p.vy=12+Math.random()*14;p.s=1.4+Math.random()*2.2}
+      else if(kind==='leaves'){p.vy=16+Math.random()*12;p.c=pick(COL.leaves)}
+      else if(kind==='confetti'){p.vy=40+Math.random()*30;p.c=pick(COL.confetti)}
+      else if(kind==='hearts'){p.y=fresh?Math.random()*H:H+12;p.vy=-(12+Math.random()*10);p.c=pick(COL.hearts)}
+      else{p.y=H*(.08+Math.random()*.5);p.x=fresh?Math.random()*W:-14;p.vx=14+Math.random()*10}
+      return p};
+    size();for(let i=0;i<N;i++)ps.push(spawn(true));
+    const frame=now=>{if(stop)return;if(!cv.isConnected){stop=true;return}const dt=Math.min((now-last)/1000,.05);last=now;
+      x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
+      if(host.hasAttribute('data-hidden')){raf=requestAnimationFrame(frame);return}
+      for(let i=0;i<ps.length;i++){const p=ps[i];p.ph+=dt;p.y+=p.vy*dt;p.r+=p.vr*dt;
+        if(kind==='bats')p.x+=p.vx*dt;else p.x+=Math.sin(p.ph*1.3)*(kind==='leaves'?18:8)*dt;
+        if(kind==='hearts'?p.y<-14:kind==='bats'?p.x>W+14:p.y>H+12){ps[i]=spawn(false);continue}
+        const a=clamp(Math.min(p.y+12,H-p.y)/(H*.18),0,1)*.85;if(a<=0)continue;x.globalAlpha=a;x.save();x.translate(p.x,p.y);
+        if(kind==='snow'){x.beginPath();x.arc(0,0,p.s,0,6.283);x.fillStyle='#fff';x.fill();x.lineWidth=.8;x.strokeStyle='rgba(110,130,170,.65)';x.stroke()}
+        else if(kind==='leaves'){x.rotate(p.r+Math.sin(p.ph*2)*.6);x.scale(p.s,p.s);x.fillStyle=p.c;x.beginPath();x.moveTo(0,-7);x.quadraticCurveTo(6,-2,0,7);x.quadraticCurveTo(-6,-2,0,-7);x.fill();
+          x.strokeStyle='rgba(90,40,20,.5)';x.lineWidth=.8;x.beginPath();x.moveTo(0,-6);x.lineTo(0,9);x.stroke()}
+        else if(kind==='confetti'){x.rotate(p.r*3);x.fillStyle=p.c;x.fillRect(-3,-2,6,4)}
+        else if(kind==='hearts'){x.scale(p.s,p.s);x.fillStyle=p.c;x.beginPath();x.moveTo(0,4);x.bezierCurveTo(-7,-1,-5,-7,0,-3);x.bezierCurveTo(5,-7,7,-1,0,4);x.fill()}
+        else{const f=Math.sin(p.ph*14)*.8;x.scale(p.s,p.s);x.fillStyle='#3B2A4D';x.beginPath();x.ellipse(0,0,2.6,3.2,0,0,6.283);x.fill();
+          for(const sd of [-1,1]){x.beginPath();x.moveTo(0,-1);x.quadraticCurveTo(sd*6,-6*f-2,sd*11,-2*f);x.quadraticCurveTo(sd*7,1,0,2);x.fill()}}
+        x.restore()}
+      x.globalAlpha=1;raf=requestAnimationFrame(frame)};
+    raf=requestAnimationFrame(frame);const ro=typeof ResizeObserver!=='undefined'?new ResizeObserver(size):null;if(ro)ro.observe(cv);
+    return ()=>{stop=true;cancelAnimationFrame(raf);if(ro)ro.disconnect();x.setTransform(1,0,0,1,0,0);x.clearRect(0,0,cv.width,cv.height)}}
   class PipMascot extends HTMLElement{
-    static get observedAttributes(){return ['state','position','offset','size','mobile-size']}
+    static get observedAttributes(){return ['state','position','offset','size','mobile-size','seasonal']}
     connectedCallback(){
       if(this._m)return;const root=this.shadowRoot||this.attachShadow({mode:'open'});
       this._anchor=this.hasAttribute('dock')?(this.getAttribute('dock')?document.querySelector(this.getAttribute('dock')):this.parentElement):null;
@@ -825,7 +859,8 @@ var paintedEngine=PipPaintedEngine();
         .bubble.r{left:auto;right:4px;transform:translate(0,4px)}.bubble.l{left:4px;transform:translate(0,4px)}.bubble.r.show,.bubble.l.show{transform:none}
         .bubble.below{bottom:auto;top:92%}
         @media (prefers-reduced-motion: reduce){.bubble{transition:none}}
-        canvas{width:180%;margin-left:-40%;margin-top:-50.4%;aspect-ratio:1.8/1.624;display:block;pointer-events:none}:host([painted]){cursor:pointer;touch-action:manipulation}
+        canvas[role=img]{position:relative;width:180%;margin-left:-40%;margin-top:-50.4%;aspect-ratio:1.8/1.624;display:block;pointer-events:none}svg[role=img]{position:relative}
+        .season{position:absolute;left:-30%;top:-55%;width:160%;height:155%;pointer-events:none}:host([painted]){cursor:pointer;touch-action:manipulation}
         .hide,.peek{display:none;place-items:center;padding:0;cursor:pointer;border:2px solid #2A2140;background:#fff;color:#2A2140;border-radius:50%;font:inherit}
         .hide{position:absolute;top:0;right:-2px;width:28px;height:28px;z-index:2;opacity:0;transition:opacity .15s}
         .hide svg{width:10px;height:10px;cursor:pointer}.peek svg{width:24px;height:24px;cursor:pointer}
@@ -837,7 +872,8 @@ var paintedEngine=PipPaintedEngine();
         :host([data-hidden]){pointer-events:none}
         :host([data-hidden]) .peek{display:grid}
         :host([data-hidden]) canvas,:host([data-hidden]) svg[role=img],:host([data-hidden]) .bubble,:host([data-hidden]) .hide{visibility:hidden}
-        </style><div class="bubble" part="bubble" aria-live="polite"></div>${isPainted?'<canvas role="img" aria-label="Animated mascot"></canvas>':'<svg viewBox="0 -22 240 254" role="img"></svg>'}<button class="hide" part="hide" type="button" aria-label="Hide the mascot" title="Hide"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button><button class="peek" part="peek" type="button" aria-label="Show the mascot" title="Show"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#FFD35A" stroke="#2A2140" stroke-width="2"/><circle cx="9" cy="10.5" r="1.5" fill="#2A2140"/><circle cx="15" cy="10.5" r="1.5" fill="#2A2140"/><path d="M8.3 14.6c1.3 1.7 6.1 1.7 7.4 0" stroke="#2A2140" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg></button>`;
+        </style><canvas class="season" part="season" aria-hidden="true"></canvas><div class="bubble" part="bubble" aria-live="polite"></div>${isPainted?'<canvas role="img" aria-label="Animated mascot"></canvas>':'<svg viewBox="0 -22 240 254" role="img"></svg>'}<button class="hide" part="hide" type="button" aria-label="Hide the mascot" title="Hide"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button><button class="peek" part="peek" type="button" aria-label="Show the mascot" title="Show"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#FFD35A" stroke="#2A2140" stroke-width="2"/><circle cx="9" cy="10.5" r="1.5" fill="#2A2140"/><circle cx="15" cy="10.5" r="1.5" fill="#2A2140"/><path d="M8.3 14.6c1.3 1.7 6.1 1.7 7.4 0" stroke="#2A2140" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg></button>`;
+      this._season();
       let cfg=defaultConfig;try{const a=this.getAttribute('config');if(a)cfg=JSON.parse(a)}catch(e){}
       const sa=this.getAttribute('sleep-after');
       const onState=(s,why)=>this.dispatchEvent(new CustomEvent('statechange',{detail:{state:s,reason:why||null}}));
@@ -880,9 +916,12 @@ var paintedEngine=PipPaintedEngine();
       }else setTimeout(greet,500);
       if(this.hasAttribute('autopilot'))this._ap=autopilot(this);
     }
-    disconnectedCallback(){if(this._ap){this._ap();this._ap=null}if(this._m){this._m.destroy();this._m=null}
+    disconnectedCallback(){if(this._seasonStop){this._seasonStop();this._seasonStop=null}if(this._ap){this._ap();this._ap=null}if(this._m){this._m.destroy();this._m=null}
       clearInterval(this._avT);if(this._onResize){removeEventListener('resize',this._onResize);removeEventListener('scroll',this._onResize)}if(this._aro)this._aro.disconnect();clearTimeout(this._homeT);this._walkTok=(this._walkTok||0)+1}
-    attributeChangedCallback(n,o,v){if(this._m&&n==='state'&&v)return this._m.setState(v);
+    _season(){if(this._seasonStop){this._seasonStop();this._seasonStop=null}const cv=this.shadowRoot&&this.shadowRoot.querySelector('.season');if(!cv)return;
+      const a=(this.getAttribute('seasonal')||'auto').trim().toLowerCase();if(['off','false','none','no'].includes(a)||RM<1)return;
+      const kind=a==='auto'||a==='on'||a==='true'?seasonFor(new Date()):a;if(SEASONS.includes(kind))this._seasonStop=runSeason(cv,kind,this)}
+    attributeChangedCallback(n,o,v){if(n==='seasonal'){if(this._m)this._season();return}if(this._m&&n==='state'&&v)return this._m.setState(v);
       if(!this._m||o===v)return;if(n==='size'||n==='mobile-size')this._applySize();if(n==='position')this.toggleAttribute('data-left',this._place().h==='left');
       if(this._float&&!this._anchor){this._avoidCheck(true);if(this._docked&&!this._walking){if(n==='position'||n==='offset')this.home();else{const d=this._dock();this._setPos(d[0],d[1])}}}}
     // Where a floating mascot lives: position="bottom-right" (default) | bottom-left | top-right | top-left, offset="x y" in px
@@ -1150,6 +1189,7 @@ var paintedEngine=PipPaintedEngine();
       if (cfg.greet) el.setAttribute('greet', '');
       if (cfg.greeting) el.setAttribute('greeting', cfg.greeting);
       if (cfg.hideable === false) el.setAttribute('no-hide', '');
+      if (cfg.seasonal) el.setAttribute('seasonal', cfg.seasonal);
       el.setAttribute('sleep-after', String(cfg.sleepAfter == null ? 30 : cfg.sleepAfter));
       el.setAttribute('avoid', 'false');   // nothing else lives in this layer
       ['ready', 'error', 'statechange', 'pip:hide', 'pip:show'].forEach(function (n) {
@@ -1180,6 +1220,7 @@ var paintedEngine=PipPaintedEngine();
       return el.tour(list, { done: done || undefined });
     },
     stopTour: function () { if (el && el.stopTour) el.stopTour(); },
+    season: function (name) { if (el) el.setAttribute('seasonal', name || 'auto'); },
     hide: function () { if (el && el.hideMascot) el.hideMascot(); },
     show: function () { if (el && el.showMascot) el.showMascot(); },
     // The on-screen keyboard's top edge in points (null when it closes). Pip sits on it.

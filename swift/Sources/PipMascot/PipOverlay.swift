@@ -213,6 +213,7 @@ final class PipOverlay {
             "greet": config.greets,
             "hideable": config.hideable,
             "sleepAfter": config.sleepAfter,
+            "seasonal": config.seasonal ? "auto" : "off",
             "offset": offsets()
         ]
         if let id = config.mascotID { c["mascot"] = id }

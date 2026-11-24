@@ -71,6 +71,7 @@
       if (cfg.greet) el.setAttribute('greet', '');
       if (cfg.greeting) el.setAttribute('greeting', cfg.greeting);
       if (cfg.hideable === false) el.setAttribute('no-hide', '');
+      if (cfg.seasonal) el.setAttribute('seasonal', cfg.seasonal);
       el.setAttribute('sleep-after', String(cfg.sleepAfter == null ? 30 : cfg.sleepAfter));
       el.setAttribute('avoid', 'false');   // nothing else lives in this layer
       ['ready', 'error', 'statechange', 'pip:hide', 'pip:show'].forEach(function (n) {
@@ -101,6 +102,7 @@
       return el.tour(list, { done: done || undefined });
     },
     stopTour: function () { if (el && el.stopTour) el.stopTour(); },
+    season: function (name) { if (el) el.setAttribute('seasonal', name || 'auto'); },
     hide: function () { if (el && el.hideMascot) el.hideMascot(); },
     show: function () { if (el && el.showMascot) el.showMascot(); },
     // The on-screen keyboard's top edge in points (null when it closes). Pip sits on it.

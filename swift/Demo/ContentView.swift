@@ -703,6 +703,15 @@ struct DemoMenu: View {
             Button("Nap") { Pip.set(.sleeping) }
             Button("Wake up") { Pip.set(.idle) }
         }
+        Menu("Seasonal") {
+            Button("By date") { Pip.season(.auto) }
+            Button("Leaves") { Pip.season(.leaves) }
+            Button("Snow") { Pip.season(.snow) }
+            Button("Confetti") { Pip.season(.confetti) }
+            Button("Hearts") { Pip.season(.hearts) }
+            Button("Bats") { Pip.season(.bats) }
+            Button("Off") { Pip.season(.off) }
+        }
         Button("Give the tour") {
             Pip.tour([("streak", "This is your streak. Keep it going!"),
                       ("feelings", "Tell me how you feel each night."),

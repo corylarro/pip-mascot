@@ -16,6 +16,7 @@ public enum Pip {
     public typealias Mood = PipMood
     public typealias Event = PipEvent
     public typealias Configuration = PipConfiguration
+    public typealias Season = PipSeason
 
     /// Called when Pip finishes loading, is tapped, hidden, shown, or changes state.
     public static var onEvent: ((Event) -> Void)?
@@ -110,6 +111,9 @@ public enum Pip {
         if let done { call("tour", list, done) } else { call("tour", list, NSNull()) }
     }
 
+    /// Force a seasonal effect (handy for screenshots), or go back to picking by date with `.auto`.
+    public static func season(_ season: Season) { call("season", season.rawValue) }
+
     /// Stop a tour early and send Pip home.
     public static func stopTour() { call("stopTour") }
 
@@ -168,6 +172,10 @@ public enum PipCorner: String, Sendable {
     case bottomRight = "bottom-right", bottomLeft = "bottom-left", topRight = "top-right", topLeft = "top-left"
 }
 
+public enum PipSeason: String, Sendable {
+    case auto, off, snow, leaves, confetti, hearts, bats
+}
+
 public enum PipMood: String, Sendable {
     case idle, thinking, success, error, surprised, confused, love, wave, talking, sleeping
     /// A happy little dance with music notes. Good for big wins.
@@ -199,6 +207,8 @@ public struct PipConfiguration: Sendable {
     public var hideable: Bool
     /// Seconds of quiet before Pip dozes off. 0 keeps it awake.
     public var sleepAfter: TimeInterval
+    /// Holiday touches that drift around Pip by date (leaves in November, snow in December…). They never change how Pip looks.
+    public var seasonal: Bool
 
     public init(mascotID: String? = nil,
                 corner: PipCorner = .bottomRight,
@@ -208,7 +218,8 @@ public struct PipConfiguration: Sendable {
                 greeting: String? = nil,
                 autopilot: Bool = true,
                 hideable: Bool = true,
-                sleepAfter: TimeInterval = 30) {
+                sleepAfter: TimeInterval = 30,
+                seasonal: Bool = true) {
         self.mascotID = mascotID
         self.corner = corner
         self.offset = offset
@@ -218,5 +229,6 @@ public struct PipConfiguration: Sendable {
         self.autopilot = autopilot
         self.hideable = hideable
         self.sleepAfter = sleepAfter
+        self.seasonal = seasonal
     }
 }
