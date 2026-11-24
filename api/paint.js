@@ -42,18 +42,23 @@ const LIMBS_PROMPT = `This image is a character sheet: 12 panels in a grid of 4 
 Compare panels 8, 9, 10 and 11 with panel 1. For each, answer true if that panel shows MORE arms, legs or paws than panel 1 (an extra limb was added instead of lifting one of the existing ones), or if an animal that has paws was given a human hand with fingers. Otherwise answer false.
 Reply with ONLY this JSON (no prose): {"8":false,"9":false,"10":false,"11":false}`;
 
+import { whoIs, spend } from './_keys.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST.' }); return; }
   const key = process.env.OPENAI_API_KEY;
   if (!key) { res.status(500).json({ error: 'OPENAI_API_KEY is not set in the Vercel project’s environment variables.' }); return; }
-  const pass = process.env.PAINT_PASSCODE;
-  if (pass && req.headers['x-pip-pass'] !== pass) { res.status(401).json({ error: 'This site needs a passcode to paint mascots.' }); return; }
+  const who = await whoIs(req);
+  if (!who) { res.status(401).json({ error: 'This needs your Critterkit key (or the owner passcode).' }); return; }
 
-  // Lock-screen check: confirms the passcode without painting anything.
-  if (req.query && req.query.check) { res.status(200).json({ ok: true }); return; }
+  // Lock-screen check: confirms the passcode or key without painting anything.
+  if (req.query && req.query.check) { res.status(200).json({ ok: true, owner: !!who.owner, credits: who.rec ? who.rec.credits : null }); return; }
   const b = (typeof req.body === 'string' ? (() => { try { return JSON.parse(req.body); } catch (e) { return {}; } })() : req.body) || {};
   const auth = { Authorization: `Bearer ${key}` };
   const quality = ['low', 'medium', 'high'].includes(b.quality) ? b.quality : 'medium';
+
+  // A paint uses one credit for buyers; checks and touch-ups are free. Credits are only used when the paint succeeds.
+  if ((b.step === 'base' || b.step === 'reference') && who.rec && !(who.rec.credits > 0)) { res.status(402).json({ error: 'You’re out of paint credits.', credits: 0 }); return; }
 
   try {
     if (b.step === 'base') {
@@ -66,7 +71,7 @@ export default async function handler(req, res) {
             method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },
             body: JSON.stringify({ model, prompt, size, quality, output_format: 'webp', n: 1 })
           });
-          if (r.ok && r.json && r.json.data && r.json.data[0]) { res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model, size }); return; }
+          if (r.ok && r.json && r.json.data && r.json.data[0]) { const credits = await spend(who).catch(() => null); res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model, size, credits }); return; }
           last = r;
           if (/size|resolution|dimension/i.test(r.msg || '') && r.status === 400) continue;   // try the next size
           if (!tryNext(r.status, r.msg)) break outer;
@@ -92,7 +97,7 @@ export default async function handler(req, res) {
             fd.append('size', size); fd.append('quality', quality); fd.append('output_format', 'webp'); fd.append('n', '1');
             if (hiFi) fd.append('input_fidelity', 'high');
             const r = await call(`${API}/images/edits`, { method: 'POST', headers: auth, body: fd });
-            if (r.ok && r.json && r.json.data && r.json.data[0]) { res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model, size }); return; }
+            if (r.ok && r.json && r.json.data && r.json.data[0]) { const credits = await spend(who).catch(() => null); res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model, size, credits }); return; }
             last = r;
             if (hiFi && /input_fidelity|fidelity/i.test(r.msg || '')) continue;   // same model and size, without the optional setting
             break;
