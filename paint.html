@@ -462,7 +462,14 @@ async function loadSimple(m,fresh){
 /* ---------- save & share ---------- */
 async function reencode(b64,mime){const im=await loadImg(b64ToDataUrl(b64,mime)),c=canvasOf(im.naturalWidth,im.naturalHeight);c.getContext('2d').drawImage(im,0,0);
   // keep each upload under the server's size limit (about 4.5 MB per request)
-  let out='';for(const qq of [.88,.8,.7,.6,.5,.4]){out=c.toDataURL('image/webp',qq).split(',')[1];if(out.length<3200000)break}return out}
+  // iPhone Safari can't make WebP and quietly hands back a big PNG instead, so check what came out
+  const MAX=3200000;
+  for(const qq of [.88,.8,.7,.6]){const u=c.toDataURL('image/webp',qq);if(!u.startsWith('data:image/webp'))break;const d=u.split(',')[1];if(d.length<MAX)return{data:d,mime:'image/webp'}}
+  // PNG fallback: keep edges crisp (no JPEG smudging around the key colour), shrink until it fits
+  let w=im.naturalWidth,h=im.naturalHeight,src=c;
+  for(let i=0;i<8;i++){const d=src.toDataURL('image/png').split(',')[1];if(d.length<MAX)return{data:d,mime:'image/png'};
+    w=Math.round(w*.85);h=Math.round(h*.85);const n=canvasOf(w,h),x=n.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(im,0,0,w,h);src=n}
+  throw new Error('the painting is too large to upload')}
 function showSnippet(id){const code=`<script src="${location.origin}/critter.js"><\/script>\n<critter-mascot mascot="${id}" autopilot greet></critter-mascot>`;
   $('snippet').textContent=code;$('snippet').hidden=false;$('tryPlain').href='/embed-test?mascot='+encodeURIComponent(id);$('useActions').hidden=false;$('save').textContent='Save again as a new copy';
   try{localStorage.setItem('pip-painted-id',id);localStorage.setItem('pip-painted-name',$('mname').value.trim()||'Painted mascot')}catch(e){}}
@@ -470,13 +477,13 @@ function showUse(){$('useCard').hidden=false;if(current.savedId){$('mname').valu
   else{$('snippet').hidden=true;$('useActions').hidden=true;$('save').textContent='Save and get the code';$('saveMsg').textContent=''}}
 $('save').addEventListener('click',async()=>{if(!current||!(current.sheet||current.base)||!current.face)return;const btn=$('save');btn.disabled=true;btn.textContent='Saving…';$('saveMsg').textContent='';
   try{const name=$('mname').value.trim();const raw=current.mode==='sheet'?current.sheet:current.base;
-    const image=await reencode(raw,current.mime);
+    const {data:image,mime:imgMime}=await reencode(raw,current.mime);
     const atlas=current.mode==='sheet'&&prepared?await encodeAtlas(prepared.frames,prepared.face).catch(()=>({})):{};
     const pass=$('pass').value.trim();
     const H={'Content-Type':'application/json',...(pass?{'x-pip-pass':pass}:{})};
     // two smaller uploads: the painting first, then the prepared poses
     const r=await fetch('/api/mascot',{method:'POST',headers:H,
-      body:JSON.stringify({mode:current.mode,image,mime:'image/webp',face:current.face,grid:current.grid||[3,2],name,greeting:name?`Hi, I'm ${name}!`:'Hi there!',desc:current.desc})});
+      body:JSON.stringify({mode:current.mode,image,mime:imgMime,face:current.face,grid:current.grid||[3,2],name,greeting:name?`Hi, I'm ${name}!`:'Hi there!',desc:current.desc})});
     let j={};try{j=await r.json()}catch(e){}
     if(!r.ok){if(r.status===401)$('passWrap').hidden=false;throw new Error(j.error||(r.status===413?'the painting is too large to upload':`the server answered ${r.status}`))}
     if(atlas&&atlas.atlas){btn.textContent='Saving poses…';
