@@ -108,7 +108,8 @@ const FSTATES={idle:{},thinking:{curve:.08,mouthW:.6,browY:-.25},success:{happy:
   sleeping:{open:.03,curve:.2,mouthOpen:.15,mouthW:.5},love:{love:1,curve:.95,mouthOpen:.25,blush:1},wave:{curve:.85,mouthOpen:.35,blush:.7},
   confused:{browTilt:-8,curve:-.15,mouthW:.6},giggle:{happy:1,curve:1,mouthOpen:.45,blush:1}};
 const STATES={idle:{},thinking:{look:[.5,-.85],tilt:-3},success:{happy:1},error:{worried:1},surprised:{surprised:1},talking:{},
-  sleeping:{blink:1,tilt:4,zzz:1},love:{happy:1},wave:{happy:.7},confused:{confused:1,tilt:7,q:1},giggle:{happy:1}};
+  sleeping:{blink:1,tilt:4,zzz:1},love:{happy:1},wave:{happy:.7},confused:{confused:1,tilt:7,q:1},giggle:{happy:1},
+  dance:{happy:1},sad:{worried:1,tilt:-2,look:[0,.75]},peek:{look:[0,-.7]}};
 class PaintRig{
   constructor(canvas,{bubble,onState,fit,sleepAfter,pad,padTop}={}){
     this.fit=fit||0;this.pad=pad||0;this.padTop=padTop||0;this.sleepAfter=sleepAfter===undefined?20000:sleepAfter;this.cfg={name:'',greeting:'Hi there!'};this._ls=[];this.focusLook=0;
@@ -117,7 +118,7 @@ class PaintRig{
     this.s={happy:new Spring(0,520,44),worried:new Spring(0,520,44),surprised:new Spring(0,560,46),confused:new Spring(0,520,44),talk:new Spring(0,700,32),blinkHold:new Spring(0,200,22),
       lookX:new Spring(0,120,16),lookY:new Spring(0,120,16),tilt:new Spring(0,90,12),lean:new Spring(0,90,12),zzz:new Spring(0),q:new Spring(0)};
     for(const [k,v0] of Object.entries(FBASE))this.s['f_'+k]=new Spring(v0,170,20);
-    this.squash=new Spring(1,320,13);this.state='idle';this.look=[0,0];this.timer=null;this.cover=false;
+    this.squash=new Spring(1,320,13);this.sink=new Spring(0,150,17);this.slump=new Spring(0,120,14);this.groove=new Spring(0,90,12);this.state='idle';this.look=[0,0];this.timer=null;this.cover=false;
     this.jumpY=0;this.jumpV=0;this.shake=0;this.t=0;this.nextBlink=1.2;this.blinkStart=-1;this.parts=[];this.pokes=[];this.lastAct=performance.now();this.lastPointer=0;this.nextGlance=0;
     const on=(t,ev,fn,o)=>{t.addEventListener(ev,fn,o);this._ls.push([t,ev,fn,o])};
     this._resize();on(window,'resize',()=>this._resize());
@@ -172,7 +173,7 @@ class PaintRig{
     if(n==='success'){this.hop(360);setTimeout(()=>this.hop(250),560);this.burst('confetti')}
     if(n==='error'){this.shake=10;this.squash.v-=3}
     if(n==='surprised'){this.hop(220);this.squash.v+=2}
-    if(n==='love')this.burst('hearts');if(n==='wave')this.hop(140)}
+    if(n==='love')this.burst('hearts');if(n==='wave')this.hop(140);if(n==='dance')this.hop(220);if(n==='sad')this.squash.v+=1.5}
   lookAt(x,y){const r=this.cv.getBoundingClientRect();if(!r.width)return;this.look=[clamp((x-(r.left+r.width/2))/(r.width*.7),-1,1),clamp((y-(r.top+r.height*.45))/(r.height*.8),-1,1)]}
   hop(v){if(this.jumpY>-1&&this.jumpV>=0&&!this._hopT){if(RM<1){this.jumpV=-v*Math.sqrt(RM);return}this.squash.v-=v*.0075;this._hopT=setTimeout(()=>{this._hopT=null;this.jumpV=-v},75)}}
   poke(){if(!this.base)return;const now=performance.now();this.pokes=this.pokes.filter(p=>now-p<4000);this.pokes.push(now);this.squash.v-=4;
@@ -195,9 +196,11 @@ class PaintRig{
     if(this.state==='confused'&&!P0.confused)this.s.worried.t=.5;
     this.s.blinkHold.t=(S.blink||(this.cover?1:0));this.s.tilt.t=S.tilt||0;this.s.zzz.t=S.zzz||0;this.s.q.t=S.q||0;
     const lk=S.look||this.look;this.s.lookX.t=lk[0];this.s.lookY.t=lk[1];
-    const FS=FSTATES[this.state]||{};for(const k in FBASE)this.s['f_'+k].t=(FS[k]!==undefined?FS[k]:FBASE[k]);
+    const FS=FSTATES[this.state]||FSTATES[{sad:'error',dance:'success',peek:'idle'}[this.state]]||{};for(const k in FBASE)this.s['f_'+k].t=(FS[k]!==undefined?FS[k]:FBASE[k]);
     if(this.cover&&this.state!=='sleeping'){this.s.f_open.t=.03;this.s.f_curve.t=.6}
     const v={};for(const k in this.s)v[k]=this.s[k].step(dt);const sq=this.squash.step(dt);
+    this.sink.t=this.state==='peek'?1:0;this.slump.t=this.state==='sad'?1:0;this.groove.t=this.state==='dance'?1:0;
+    const sink=this.sink.step(dt),slump=this.slump.step(dt),grv=this.groove.step(dt),beat=t*8.4,dbx=Math.sin(t*4.2)*9*grv*RM,drot=Math.sin(beat)*7*grv*RM,dby=-Math.abs(Math.sin(beat))*9*grv*RM;
     if(t>this.nextBlink){this.blinkStart=t;this.nextBlink=t+2.2+Math.random()*3.5}
     let blink=0;if(this.blinkStart>=0){const p=(t-this.blinkStart)/.16;blink=p<1?(p<.5?p*2:(1-p)*2):0}
     if(this.jumpY<0||this.jumpV<0){this.jumpV+=1500*dt;this.jumpY+=this.jumpV*dt;if(this.jumpY>=0){this.jumpY=0;if(this.jumpV>120)this.squash.v-=this.jumpV*.011;this.jumpV=0}}
@@ -212,9 +215,10 @@ class PaintRig{
     const B=this.base.bbox,ground=this.fit?H*.97:H*.9,scale=this.fit?Math.min(W/(1+2*this.pad)*this.fit/B.w,H/(1+this.padTop)*this.fit/B.h):Math.min(W*.66/B.w,H*.68/B.h),footX=B.x+B.w/2,footY=B.y+B.h;
     // shadow
     const lift=Math.min(-this.jumpY/260,1);const sg=ctx.createRadialGradient(W/2,ground,0,W/2,ground,B.w*scale*.5);sg.addColorStop(0,'rgba(25,25,60,.28)');sg.addColorStop(1,'rgba(25,25,60,0)');
-    ctx.save();ctx.translate(W/2,ground);ctx.scale(1-lift*.4,.16);ctx.translate(-W/2,-ground);ctx.fillStyle=sg;ctx.beginPath();ctx.arc(W/2,ground,B.w*scale*.5,0,Math.PI*2);ctx.fill();ctx.restore();
+    ctx.save();ctx.globalAlpha=1-clamp(sink,0,1)*.9;ctx.translate(W/2,ground);ctx.scale(1-lift*.4,.16);ctx.translate(-W/2,-ground);ctx.fillStyle=sg;ctx.beginPath();ctx.arc(W/2,ground,B.w*scale*.5,0,Math.PI*2);ctx.fill();ctx.restore();
     // body
-    ctx.save();ctx.translate(W/2+shx,ground+this.jumpY+wb);ctx.rotate((v.tilt+giggle+v.lean+wr)*Math.PI/180);ctx.scale(sx*scale,sy*scale);ctx.translate(-footX,-footY);
+    const sinkPx=sink*B.h*scale*.5;ctx.save();if(sink>.01){ctx.beginPath();ctx.rect(0,0,W,ground+1);ctx.clip()}
+    ctx.translate(W/2+shx+dbx,ground+this.jumpY+wb+dby+sinkPx+slump*3);ctx.rotate((v.tilt+giggle+v.lean+wr+drot)*Math.PI/180);ctx.scale(sx*(1+.035*slump)*scale,sy*(1-.06*slump)*scale);ctx.translate(-footX,-footY);
     const FF=this.full||{},pointing=this.pointSide&&performance.now()<this.pointUntil&&FF['point'+this.pointSide],waving=!pointing&&this.state==='wave'&&FF.waveA;
     if(pointing){const fr=FF['point'+this.pointSide];ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
     else if(waving){const fr=(FF.waveB&&Math.floor(t*3.4)%2)?FF.waveB:FF.waveA;ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
@@ -231,6 +235,9 @@ class PaintRig{
     const headY=ground-B.h*scale;
     if(v.zzz>.05){ctx.fillStyle='rgba(60,50,90,.75)';for(let i=0;i<3;i++){const p=(t*.45+i/3)%1;ctx.globalAlpha=v.zzz*Math.sin(p*Math.PI);ctx.font=`600 ${12+p*12}px Fredoka, sans-serif`;ctx.fillText('z',W/2+B.w*scale*.3+p*30,headY+20-p*40)}ctx.globalAlpha=1}
     if(v.q>.05){ctx.globalAlpha=v.q;ctx.fillStyle='rgba(40,30,60,.85)';ctx.font='700 30px Fredoka, sans-serif';ctx.fillText('?',W/2+B.w*scale*.36,headY+24+Math.sin(t*3)*3);ctx.globalAlpha=1}
+    if(grv>.05){ctx.fillStyle='rgba(40,30,60,.8)';for(let i=0;i<2;i++){const p=(t*.5+i/2)%1;ctx.globalAlpha=grv*Math.sin(p*Math.PI);ctx.font=`700 ${16+p*8}px Fredoka, sans-serif`;ctx.fillText(i?'\u266B':'\u266A',W/2+(i?1:-1)*B.w*scale*.42+Math.sin(t*3+i)*6,headY+10-p*44)}ctx.globalAlpha=1}
+    if(slump>.05){const cx=W/2,cy=headY-14+Math.sin(t*1.6)*2;ctx.globalAlpha=slump*.85;ctx.fillStyle='#9AA3B5';ctx.beginPath();ctx.arc(cx-12,cy,10,0,Math.PI*2);ctx.arc(cx+2,cy-6,13,0,Math.PI*2);ctx.arc(cx+16,cy,10,0,Math.PI*2);ctx.rect(cx-12,cy,28,10);ctx.fill();
+      ctx.fillStyle='#6E9BFF';for(let i=0;i<3;i++){const p=(t*1.4+i/3)%1;ctx.globalAlpha=slump*(1-p);ctx.beginPath();ctx.ellipse(cx-8+i*10,cy+14+p*22,1.8,3.2,0,0,Math.PI*2);ctx.fill()}ctx.globalAlpha=1}
     if(this.state==='thinking'){ctx.fillStyle='rgba(40,30,60,.8)';for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(W/2+B.w*scale*.3+i*14,headY+8+Math.sin(t*7-i*.9)*4,4.5,0,Math.PI*2);ctx.fill()}}
     this.parts=this.parts.filter(p=>{p.life-=dt;p.vy+=p.g*dt;p.vx*=Math.pow(.4,dt);p.x+=p.vx*dt;p.y+=p.vy*dt;p.a+=p.va*dt;
       ctx.save();ctx.globalAlpha=clamp(p.life*1.5,0,1);ctx.translate(W/2+p.x+(p.h?Math.sin(t*4+p.life*3)*6:0),ground+p.y);ctx.rotate(p.a);ctx.fillStyle=p.c;

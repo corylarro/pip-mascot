@@ -173,12 +173,13 @@ pip.say(<span class="s">'Saved!'</span>, { hold: <span class="s">1500</span> })<
             <tr><td><code>react(name, ms)</code></td><td>Shows a reaction for a moment, then goes back to normal.</td></tr>
             <tr><td><code>setState(name)</code></td><td>Holds a state until you change it, for example <code>'thinking'</code> while something loads.</td></tr>
             <tr><td><code>say(text, { hold })</code></td><td>Shows a speech bubble. <code>hold</code> is how long it stays, in milliseconds.</td></tr>
+            <tr><td><code>tour(steps, { done })</code></td><td>Walks people through a screen. Pass <code>[{ target: '#plan', text: 'Pick a plan' }, …]</code> and Pip points at each one in turn, says the text, then heads home. <code>done</code> is an optional last line. <code>stopTour()</code> ends it early.</td></tr>
             <tr><td><code>home()</code></td><td>Walks back to its corner or spot.</td></tr>
             <tr><td><code>lookAt(x, y)</code></td><td>Looks toward a point on the screen.</td></tr>
             <tr><td><code>cover(true)</code></td><td>Covers its eyes. <code>cover(false)</code> uncovers them.</td></tr>
           </tbody>
         </table></div>
-        <p style="margin-top:12px">Reactions and states: <code>idle</code>, <code>thinking</code>, <code>success</code>, <code>error</code>, <code>surprised</code>, <code>confused</code>, <code>love</code>, <code>wave</code>, <code>talking</code>, <code>sleeping</code>.</p>
+        <p style="margin-top:12px">Reactions and states: <code>idle</code>, <code>thinking</code>, <code>success</code>, <code>error</code>, <code>surprised</code>, <code>confused</code>, <code>love</code>, <code>wave</code>, <code>talking</code>, <code>sleeping</code>, <code>dance</code> (a little dance with music notes, for big wins), <code>sad</code> (slumps under a tiny rain cloud, for empty states) and <code>peek</code> (ducks down so only its head shows, then pops back up).</p>
       </section>
 
       <section id="events" aria-labelledby="h-ev">

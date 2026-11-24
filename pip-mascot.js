@@ -204,8 +204,8 @@ function render(cfg,uid){
 
 class Spring{constructor(x,k=170,d=20){this.x=x;this.v=0;this.t=x;this.k=k;this.d=d}
   step(dt){const a=this.k*(this.t-this.x)-this.d*this.v;this.v+=a*dt;this.x+=this.v*dt;return this.x}}
-const ENERGY={idle:1,thinking:.6,success:1.7,error:.45,talking:1.1,sleeping:.15,wave:1.4,love:1.3,surprised:1.2,confused:.7,giggle:1.6};
-const DROOP={error:.8,sleeping:1,confused:.3};
+const ENERGY={idle:1,thinking:.6,success:1.7,error:.45,talking:1.1,sleeping:.15,wave:1.4,love:1.3,surprised:1.2,confused:.7,giggle:1.6,dance:2,sad:.4,peek:1};
+const DROOP={error:.8,sleeping:1,confused:.3,sad:.9};
 const BASE={open:.98,squint:0,happy:0,love:0,pupil:1,browTilt:0,browY:0,skew:0,curve:.55,mouthOpen:0,mouthW:1,blush:.5,sweat:0,tilt:0,droop:0,dots:0,zzz:0,q:0};
 const STATES={
   idle:{hands:'rest'},
@@ -218,7 +218,10 @@ const STATES={
   love:{love:1,curve:.95,mouthOpen:.25,blush:1,browY:-4,tilt:-3,hands:'hug'},
   surprised:{open:1.3,pupil:.62,browY:-9,curve:0,mouthW:.32,mouthOpen:.95,blush:.3,hands:'cheeks'},
   confused:{skew:1,curve:-.12,mouthW:.6,tilt:8,q:1,look:[-.4,-.5],hands:'chin'},
-  giggle:{happy:1,curve:1,mouthOpen:.45,blush:1,hands:'cheeks'}
+  giggle:{happy:1,curve:1,mouthOpen:.45,blush:1,hands:'cheeks'},
+  dance:{happy:1,curve:1,mouthOpen:.55,blush:1,browY:-5,hands:'up'},
+  sad:{browTilt:12,browY:1,curve:-.55,mouthW:.7,open:.86,blush:.2,droop:.9,look:[0,.25],hands:'rest'},
+  peek:{curve:.4,browY:-4,look:[0,-.75],hands:'rest'}
 };
 function handTargets(mode,g,cover,peek,t,pd){
   const e=g.eyes,L=[g.sideL-2,g.handY],R=[g.sideR+2,g.handY];
@@ -246,7 +249,7 @@ class Mascot{
     this.s={};for(const k in BASE)this.s[k]=new Spring(BASE[k]);
     this.s.lookX=new Spring(0,140,18);this.s.lookY=new Spring(0,140,18);
     this.hands=[0,1].map(()=>[new Spring(0,220,18),new Spring(0,220,18)]);
-    this.squash=new Spring(1,320,13);this.talk=new Spring(0,700,32);
+    this.squash=new Spring(1,320,13);this.talk=new Spring(0,700,32);this.sink=new Spring(0,150,17);this.slump=new Spring(0,120,14);this.groove=new Spring(0,90,12);
     this.lean=0;this.leanS=new Spring(0,90,12);this.pointDir=null;
     this.look=[0,0];this.state='idle';this.coverOn=false;this.peekOn=false;this.timer=null;this.focusEl=null;
     this.jumpY=0;this.jumpV=0;this.shake=0;this.parts=[];this.t=0;this.nextBlink=1.5;this.blinkStart=-1;this.sayToken=0;
@@ -282,6 +285,7 @@ class Mascot{
     if(n==='surprised'){this.hop(200);this.squash.v+=2}
     if(n==='love')this.burst('hearts');
     if(n==='wave')this.hop(120);
+    if(n==='dance')this.hop(220);
     if(prev==='sleeping'&&n!=='sleeping')this.hop(170)}
   lookAt(x,y){const r=this.svg.getBoundingClientRect();if(!r.width)return;const cx=r.left+r.width/2,cy=r.top+r.height*.52;
     this.look=[clamp((x-cx)/(r.width*.85),-1,1),clamp((y-cy)/(r.height*.85),-1,1)]}
@@ -347,9 +351,11 @@ class Mascot{
     const breathe=(sleeping?Math.sin(t*1.2)*.035:Math.sin(t*2.3)*.017)*RM;
     const air=this.jumpY<0?Math.min(Math.abs(this.jumpV)/2600,.12):0;
     const sy=sq+breathe+air,sxs=1+(1-sy)*.9,fl=this.cfg.feet==='none'?Math.sin(t*2.1)*5*RM-6:0,jy=this.jumpY+fl;
-    E.body.setAttribute('transform',`translate(${120+sx0} ${206+jy}) rotate(${v.tilt+giggle+lean}) scale(${sxs} ${sy}) translate(-120 -206)`);
+    this.sink.t=this.state==='peek'?1:0;this.slump.t=this.state==='sad'?1:0;this.groove.t=this.state==='dance'?1:0;
+    const sink=this.sink.step(dt),slump=this.slump.step(dt),grv=this.groove.step(dt),beat=t*8.4,dbx=Math.sin(t*4.2)*9*grv*RM,drot=Math.sin(beat)*7*grv*RM,dby=-Math.abs(Math.sin(beat))*9*grv*RM,sinkY=sink*(206-g.top)*.62+slump*3;
+    E.body.setAttribute('transform',`translate(${120+sx0+dbx} ${206+jy+dby+sinkY}) rotate(${v.tilt+giggle+lean+drot}) scale(${sxs*(1+.035*slump)} ${sy*(1-.06*slump)}) translate(-120 -206)`);
     const lift=Math.min(Math.max(-jy,0)/260,1);
-    E.shadow.setAttribute('transform',`translate(120 214) scale(${(1-lift*.45)*sxs} 1) translate(-120 -214)`);E.shadow.setAttribute('opacity',1-lift*.6);
+    E.shadow.setAttribute('transform',`translate(120 214) scale(${(1-lift*.45)*sxs} 1) translate(-120 -214)`);E.shadow.setAttribute('opacity',(1-lift*.6)*(1-clamp(sink,0,1)*.9));
     E.face.setAttribute('transform',`translate(${v.lookX*6} ${v.lookY*4+clamp(this.jumpV*.006,-4,4)})`);
     const en=ENERGY[this.state]||1,dr=DROOP[this.state]||0,perk=this.state==='surprised'?1:0;
     for(const p of this.limbs||[]){if(!p.el)continue;let a=0;
@@ -383,7 +389,7 @@ class Mascot{
     E.topper.setAttribute('transform',`rotate(${Math.sin(t*1.7)*3.5*RM+v.tilt*.6+v.droop*(this.cfg.topper==='sprout'?30:10)} 120 ${g.top+8})`);
     const qa=clamp(v.q,0,1);E.q.setAttribute('opacity',qa);E.q.setAttribute('transform',`translate(0 ${Math.sin(t*3)*3*RM+jy}) rotate(${12+Math.sin(t*2)*6} ${g.sideR+6} ${g.top-6})`);
     const hb=jy*.92-breathe*60;
-    E.hands.forEach((h,i)=>h.setAttribute('transform',`translate(${hp[i][0]+sx0} ${hp[i][1]+hb}) rotate(${i?20:-20})`));
+    E.hands.forEach((h,i)=>h.setAttribute('transform',`translate(${hp[i][0]+sx0+dbx} ${hp[i][1]+hb+dby+sinkY}) rotate(${i?20:-20})`));
     const d=clamp(v.dots,0,1);E.dots.setAttribute('opacity',d);
     [...E.dots.children].forEach((c2,i)=>c2.setAttribute('transform',`translate(0 ${Math.sin(t*7-i*.9)*4*RM})`));
     const z=clamp(v.zzz,0,1);
@@ -507,7 +513,8 @@ const FSTATES={idle:{},thinking:{curve:.08,mouthW:.6,browY:-.25},success:{happy:
   sleeping:{open:.03,curve:.2,mouthOpen:.15,mouthW:.5},love:{love:1,curve:.95,mouthOpen:.25,blush:1},wave:{curve:.85,mouthOpen:.35,blush:.7},
   confused:{browTilt:-8,curve:-.15,mouthW:.6},giggle:{happy:1,curve:1,mouthOpen:.45,blush:1}};
 const STATES={idle:{},thinking:{look:[.5,-.85],tilt:-3},success:{happy:1},error:{worried:1},surprised:{surprised:1},talking:{},
-  sleeping:{blink:1,tilt:4,zzz:1},love:{happy:1},wave:{happy:.7},confused:{confused:1,tilt:7,q:1},giggle:{happy:1}};
+  sleeping:{blink:1,tilt:4,zzz:1},love:{happy:1},wave:{happy:.7},confused:{confused:1,tilt:7,q:1},giggle:{happy:1},
+  dance:{happy:1},sad:{worried:1,tilt:-2,look:[0,.75]},peek:{look:[0,-.7]}};
 class PaintRig{
   constructor(canvas,{bubble,onState,fit,sleepAfter,pad,padTop}={}){
     this.fit=fit||0;this.pad=pad||0;this.padTop=padTop||0;this.sleepAfter=sleepAfter===undefined?20000:sleepAfter;this.cfg={name:'',greeting:'Hi there!'};this._ls=[];this.focusLook=0;
@@ -516,7 +523,7 @@ class PaintRig{
     this.s={happy:new Spring(0,520,44),worried:new Spring(0,520,44),surprised:new Spring(0,560,46),confused:new Spring(0,520,44),talk:new Spring(0,700,32),blinkHold:new Spring(0,200,22),
       lookX:new Spring(0,120,16),lookY:new Spring(0,120,16),tilt:new Spring(0,90,12),lean:new Spring(0,90,12),zzz:new Spring(0),q:new Spring(0)};
     for(const [k,v0] of Object.entries(FBASE))this.s['f_'+k]=new Spring(v0,170,20);
-    this.squash=new Spring(1,320,13);this.state='idle';this.look=[0,0];this.timer=null;this.cover=false;
+    this.squash=new Spring(1,320,13);this.sink=new Spring(0,150,17);this.slump=new Spring(0,120,14);this.groove=new Spring(0,90,12);this.state='idle';this.look=[0,0];this.timer=null;this.cover=false;
     this.jumpY=0;this.jumpV=0;this.shake=0;this.t=0;this.nextBlink=1.2;this.blinkStart=-1;this.parts=[];this.pokes=[];this.lastAct=performance.now();this.lastPointer=0;this.nextGlance=0;
     const on=(t,ev,fn,o)=>{t.addEventListener(ev,fn,o);this._ls.push([t,ev,fn,o])};
     this._resize();on(window,'resize',()=>this._resize());
@@ -571,7 +578,7 @@ class PaintRig{
     if(n==='success'){this.hop(360);setTimeout(()=>this.hop(250),560);this.burst('confetti')}
     if(n==='error'){this.shake=10;this.squash.v-=3}
     if(n==='surprised'){this.hop(220);this.squash.v+=2}
-    if(n==='love')this.burst('hearts');if(n==='wave')this.hop(140)}
+    if(n==='love')this.burst('hearts');if(n==='wave')this.hop(140);if(n==='dance')this.hop(220);if(n==='sad')this.squash.v+=1.5}
   lookAt(x,y){const r=this.cv.getBoundingClientRect();if(!r.width)return;this.look=[clamp((x-(r.left+r.width/2))/(r.width*.7),-1,1),clamp((y-(r.top+r.height*.45))/(r.height*.8),-1,1)]}
   hop(v){if(this.jumpY>-1&&this.jumpV>=0&&!this._hopT){if(RM<1){this.jumpV=-v*Math.sqrt(RM);return}this.squash.v-=v*.0075;this._hopT=setTimeout(()=>{this._hopT=null;this.jumpV=-v},75)}}
   poke(){if(!this.base)return;const now=performance.now();this.pokes=this.pokes.filter(p=>now-p<4000);this.pokes.push(now);this.squash.v-=4;
@@ -594,9 +601,11 @@ class PaintRig{
     if(this.state==='confused'&&!P0.confused)this.s.worried.t=.5;
     this.s.blinkHold.t=(S.blink||(this.cover?1:0));this.s.tilt.t=S.tilt||0;this.s.zzz.t=S.zzz||0;this.s.q.t=S.q||0;
     const lk=S.look||this.look;this.s.lookX.t=lk[0];this.s.lookY.t=lk[1];
-    const FS=FSTATES[this.state]||{};for(const k in FBASE)this.s['f_'+k].t=(FS[k]!==undefined?FS[k]:FBASE[k]);
+    const FS=FSTATES[this.state]||FSTATES[{sad:'error',dance:'success',peek:'idle'}[this.state]]||{};for(const k in FBASE)this.s['f_'+k].t=(FS[k]!==undefined?FS[k]:FBASE[k]);
     if(this.cover&&this.state!=='sleeping'){this.s.f_open.t=.03;this.s.f_curve.t=.6}
     const v={};for(const k in this.s)v[k]=this.s[k].step(dt);const sq=this.squash.step(dt);
+    this.sink.t=this.state==='peek'?1:0;this.slump.t=this.state==='sad'?1:0;this.groove.t=this.state==='dance'?1:0;
+    const sink=this.sink.step(dt),slump=this.slump.step(dt),grv=this.groove.step(dt),beat=t*8.4,dbx=Math.sin(t*4.2)*9*grv*RM,drot=Math.sin(beat)*7*grv*RM,dby=-Math.abs(Math.sin(beat))*9*grv*RM;
     if(t>this.nextBlink){this.blinkStart=t;this.nextBlink=t+2.2+Math.random()*3.5}
     let blink=0;if(this.blinkStart>=0){const p=(t-this.blinkStart)/.16;blink=p<1?(p<.5?p*2:(1-p)*2):0}
     if(this.jumpY<0||this.jumpV<0){this.jumpV+=1500*dt;this.jumpY+=this.jumpV*dt;if(this.jumpY>=0){this.jumpY=0;if(this.jumpV>120)this.squash.v-=this.jumpV*.011;this.jumpV=0}}
@@ -611,9 +620,10 @@ class PaintRig{
     const B=this.base.bbox,ground=this.fit?H*.97:H*.9,scale=this.fit?Math.min(W/(1+2*this.pad)*this.fit/B.w,H/(1+this.padTop)*this.fit/B.h):Math.min(W*.66/B.w,H*.68/B.h),footX=B.x+B.w/2,footY=B.y+B.h;
     // shadow
     const lift=Math.min(-this.jumpY/260,1);const sg=ctx.createRadialGradient(W/2,ground,0,W/2,ground,B.w*scale*.5);sg.addColorStop(0,'rgba(25,25,60,.28)');sg.addColorStop(1,'rgba(25,25,60,0)');
-    ctx.save();ctx.translate(W/2,ground);ctx.scale(1-lift*.4,.16);ctx.translate(-W/2,-ground);ctx.fillStyle=sg;ctx.beginPath();ctx.arc(W/2,ground,B.w*scale*.5,0,Math.PI*2);ctx.fill();ctx.restore();
+    ctx.save();ctx.globalAlpha=1-clamp(sink,0,1)*.9;ctx.translate(W/2,ground);ctx.scale(1-lift*.4,.16);ctx.translate(-W/2,-ground);ctx.fillStyle=sg;ctx.beginPath();ctx.arc(W/2,ground,B.w*scale*.5,0,Math.PI*2);ctx.fill();ctx.restore();
     // body
-    ctx.save();ctx.translate(W/2+shx,ground+this.jumpY+wb);ctx.rotate((v.tilt+giggle+v.lean+wr)*Math.PI/180);ctx.scale(sx*scale,sy*scale);ctx.translate(-footX,-footY);
+    const sinkPx=sink*B.h*scale*.62;ctx.save();if(sink>.01){ctx.beginPath();ctx.rect(0,0,W,ground+1);ctx.clip()}
+    ctx.translate(W/2+shx+dbx,ground+this.jumpY+wb+dby+sinkPx+slump*3);ctx.rotate((v.tilt+giggle+v.lean+wr+drot)*Math.PI/180);ctx.scale(sx*(1+.035*slump)*scale,sy*(1-.06*slump)*scale);ctx.translate(-footX,-footY);
     const FF=this.full||{},pointing=this.pointSide&&performance.now()<this.pointUntil&&FF['point'+this.pointSide],waving=!pointing&&this.state==='wave'&&FF.waveA;
     if(pointing){const fr=FF['point'+this.pointSide];ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
     else if(waving){const fr=(FF.waveB&&Math.floor(t*3.4)%2)?FF.waveB:FF.waveA;ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
@@ -630,6 +640,9 @@ class PaintRig{
     const headY=ground-B.h*scale;
     if(v.zzz>.05){ctx.fillStyle='rgba(60,50,90,.75)';for(let i=0;i<3;i++){const p=(t*.45+i/3)%1;ctx.globalAlpha=v.zzz*Math.sin(p*Math.PI);ctx.font=`600 ${12+p*12}px Fredoka, sans-serif`;ctx.fillText('z',W/2+B.w*scale*.3+p*30,headY+20-p*40)}ctx.globalAlpha=1}
     if(v.q>.05){ctx.globalAlpha=v.q;ctx.fillStyle='rgba(40,30,60,.85)';ctx.font='700 30px Fredoka, sans-serif';ctx.fillText('?',W/2+B.w*scale*.36,headY+24+Math.sin(t*3)*3);ctx.globalAlpha=1}
+    if(grv>.05){ctx.fillStyle='rgba(40,30,60,.8)';for(let i=0;i<2;i++){const p=(t*.5+i/2)%1;ctx.globalAlpha=grv*Math.sin(p*Math.PI);ctx.font=`700 ${16+p*8}px Fredoka, sans-serif`;ctx.fillText(i?'\u266B':'\u266A',W/2+(i?1:-1)*B.w*scale*.42+Math.sin(t*3+i)*6,headY+10-p*44)}ctx.globalAlpha=1}
+    if(slump>.05){const cx=W/2,cy=headY-14+Math.sin(t*1.6)*2;ctx.globalAlpha=slump*.85;ctx.fillStyle='#9AA3B5';ctx.beginPath();ctx.arc(cx-12,cy,10,0,Math.PI*2);ctx.arc(cx+2,cy-6,13,0,Math.PI*2);ctx.arc(cx+16,cy,10,0,Math.PI*2);ctx.rect(cx-12,cy,28,10);ctx.fill();
+      ctx.fillStyle='#6E9BFF';for(let i=0;i<3;i++){const p=(t*1.4+i/3)%1;ctx.globalAlpha=slump*(1-p);ctx.beginPath();ctx.ellipse(cx-8+i*10,cy+14+p*22,1.8,3.2,0,0,Math.PI*2);ctx.fill()}ctx.globalAlpha=1}
     if(this.state==='thinking'){ctx.fillStyle='rgba(40,30,60,.8)';for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(W/2+B.w*scale*.3+i*14,headY+8+Math.sin(t*7-i*.9)*4,4.5,0,Math.PI*2);ctx.fill()}}
     this.parts=this.parts.filter(p=>{p.life-=dt;p.vy+=p.g*dt;p.vx*=Math.pow(.4,dt);p.x+=p.vx*dt;p.y+=p.vy*dt;p.a+=p.va*dt;
       ctx.save();ctx.globalAlpha=clamp(p.life*1.5,0,1);ctx.translate(W/2+p.x+(p.h?Math.sin(t*4+p.life*3)*6:0),ground+p.y);ctx.rotate(p.a);ctx.fillStyle=p.c;
@@ -945,6 +958,13 @@ var paintedEngine=PipPaintedEngine();
     setState(s){this._m&&this._m.setState(s)} react(s,ms){this._m&&this._m.react(s,ms)} say(t,o){this._m&&this._m.say(t,o)}
     cover(on,peek){this._m&&this._m.cover(on,peek)} lookAt(x,y){this._m&&this._m.lookAt(x,y)} watch(input){this._m&&this._m.watch(input);return this}
     point(el,text){return this.goTo(el,{text})}
+    // Walk people through a screen: [{target:'#plan', text:'Pick a plan'}, …]. Pip points at each, then heads home.
+    async tour(steps,{done}={}){const id=this._tour=(this._tour||0)+1;
+      for(const s of steps||[]){if(id!==this._tour||!this._m||this._hiddenByUser)return;const el=typeof s.target==='string'?document.querySelector(s.target):s.target;if(!el)continue;
+        await this.goTo(el,{mode:s.mode||'point',text:s.text,state:s.state,stay:true});if(id!==this._tour)return;
+        await wait(s.ms||Math.max(2400,(s.text||'').length*55+1400))}
+      if(id!==this._tour||!this._m)return;if(done){this._m.react('success',1800);this._m.say(done,{hold:1800});await wait(1600)}return this.home()}
+    stopTour(){this._tour=(this._tour||0)+1;return this.home()}
     get state(){return this._m?this._m.state:null}
   }
 

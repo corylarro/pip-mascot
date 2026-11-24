@@ -91,6 +91,16 @@
     cover: function (on) { if (el) el.cover(!!on); },
     goTo: function (r, opts) { if (el && el.goTo) return el.goTo(stand(r), opts || {}); },
     home: function () { if (el && el.home) el.home(); },
+    tour: function (steps, done) {
+      if (!el || !el.tour) return;
+      var list = (steps || []).map(function (s) {
+        var r = s.r;
+        return { text: s.text, mode: s.mode, state: s.state,
+          target: { scrollIntoView: function () {}, getBoundingClientRect: function () { return { left: r.x, top: r.y, right: r.x + r.w, bottom: r.y + r.h, width: r.w, height: r.h, x: r.x, y: r.y }; } } };
+      });
+      return el.tour(list, { done: done || undefined });
+    },
+    stopTour: function () { if (el && el.stopTour) el.stopTour(); },
     hide: function () { if (el && el.hideMascot) el.hideMascot(); },
     show: function () { if (el && el.showMascot) el.showMascot(); },
     // The on-screen keyboard's top edge in points (null when it closes). Pip sits on it.

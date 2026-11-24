@@ -97,6 +97,22 @@ public enum Pip {
         go(to: rect, sit: sit, mood: mood, say: text, stay: stay)
     }
 
+    /// Walk people through a screen: Pip points at each `.pipTarget` in turn, then heads home.
+    ///
+    ///     Pip.tour([("plan", "Pick a plan"), ("start", "Then tap here")], done: "You're all set!")
+    public static func tour(_ steps: [(target: String, say: String)], done: String? = nil) {
+        let list: [[String: Any]] = steps.compactMap { step in
+            guard let r = PipTargets.frames[step.target] else { return nil }
+            let rect: [String: Any] = ["x": Double(r.minX), "y": Double(r.minY), "w": Double(r.width), "h": Double(r.height)]
+            return ["r": rect, "text": step.say, "mode": "point"]
+        }
+        guard !list.isEmpty else { return }
+        if let done { call("tour", list, done) } else { call("tour", list, NSNull()) }
+    }
+
+    /// Stop a tour early and send Pip home.
+    public static func stopTour() { call("stopTour") }
+
     /// Walk to a rectangle in screen coordinates. Pip walks home afterwards unless `stay` is true.
     public static func go(to rect: CGRect, sit: Bool = true, mood: Mood? = nil, say text: String? = nil, stay: Bool = false) {
         let r: [String: Any] = ["x": Double(rect.minX), "y": Double(rect.minY), "w": Double(rect.width), "h": Double(rect.height)]
@@ -154,6 +170,12 @@ public enum PipCorner: String, Sendable {
 
 public enum PipMood: String, Sendable {
     case idle, thinking, success, error, surprised, confused, love, wave, talking, sleeping
+    /// A happy little dance with music notes. Good for big wins.
+    case dance
+    /// Slumps under a tiny rain cloud. Good for empty states and "nothing here yet".
+    case sad
+    /// Ducks down so only its head peeks up from the edge, then pops back up.
+    case peek
 }
 
 public enum PipEvent: Sendable {

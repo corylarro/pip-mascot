@@ -455,8 +455,8 @@ function render(cfg,uid){
 
 class Spring{constructor(x,k=170,d=20){this.x=x;this.v=0;this.t=x;this.k=k;this.d=d}
   step(dt){const a=this.k*(this.t-this.x)-this.d*this.v;this.v+=a*dt;this.x+=this.v*dt;return this.x}}
-const ENERGY={idle:1,thinking:.6,success:1.7,error:.45,talking:1.1,sleeping:.15,wave:1.4,love:1.3,surprised:1.2,confused:.7,giggle:1.6};
-const DROOP={error:.8,sleeping:1,confused:.3};
+const ENERGY={idle:1,thinking:.6,success:1.7,error:.45,talking:1.1,sleeping:.15,wave:1.4,love:1.3,surprised:1.2,confused:.7,giggle:1.6,dance:2,sad:.4,peek:1};
+const DROOP={error:.8,sleeping:1,confused:.3,sad:.9};
 const BASE={open:.98,squint:0,happy:0,love:0,pupil:1,browTilt:0,browY:0,skew:0,curve:.55,mouthOpen:0,mouthW:1,blush:.5,sweat:0,tilt:0,droop:0,dots:0,zzz:0,q:0};
 const STATES={
   idle:{hands:'rest'},
@@ -469,7 +469,10 @@ const STATES={
   love:{love:1,curve:.95,mouthOpen:.25,blush:1,browY:-4,tilt:-3,hands:'hug'},
   surprised:{open:1.3,pupil:.62,browY:-9,curve:0,mouthW:.32,mouthOpen:.95,blush:.3,hands:'cheeks'},
   confused:{skew:1,curve:-.12,mouthW:.6,tilt:8,q:1,look:[-.4,-.5],hands:'chin'},
-  giggle:{happy:1,curve:1,mouthOpen:.45,blush:1,hands:'cheeks'}
+  giggle:{happy:1,curve:1,mouthOpen:.45,blush:1,hands:'cheeks'},
+  dance:{happy:1,curve:1,mouthOpen:.55,blush:1,browY:-5,hands:'up'},
+  sad:{browTilt:12,browY:1,curve:-.55,mouthW:.7,open:.86,blush:.2,droop:.9,look:[0,.25],hands:'rest'},
+  peek:{curve:.4,browY:-4,look:[0,-.75],hands:'rest'}
 };
 function handTargets(mode,g,cover,peek,t,pd){
   const e=g.eyes,L=[g.sideL-2,g.handY],R=[g.sideR+2,g.handY];
@@ -497,7 +500,7 @@ class Mascot{
     this.s={};for(const k in BASE)this.s[k]=new Spring(BASE[k]);
     this.s.lookX=new Spring(0,140,18);this.s.lookY=new Spring(0,140,18);
     this.hands=[0,1].map(()=>[new Spring(0,220,18),new Spring(0,220,18)]);
-    this.squash=new Spring(1,320,13);this.talk=new Spring(0,700,32);
+    this.squash=new Spring(1,320,13);this.talk=new Spring(0,700,32);this.sink=new Spring(0,150,17);this.slump=new Spring(0,120,14);this.groove=new Spring(0,90,12);
     this.lean=0;this.leanS=new Spring(0,90,12);this.pointDir=null;
     this.look=[0,0];this.state='idle';this.coverOn=false;this.peekOn=false;this.timer=null;this.focusEl=null;
     this.jumpY=0;this.jumpV=0;this.shake=0;this.parts=[];this.t=0;this.nextBlink=1.5;this.blinkStart=-1;this.sayToken=0;
@@ -533,6 +536,7 @@ class Mascot{
     if(n==='surprised'){this.hop(200);this.squash.v+=2}
     if(n==='love')this.burst('hearts');
     if(n==='wave')this.hop(120);
+    if(n==='dance')this.hop(220);
     if(prev==='sleeping'&&n!=='sleeping')this.hop(170)}
   lookAt(x,y){const r=this.svg.getBoundingClientRect();if(!r.width)return;const cx=r.left+r.width/2,cy=r.top+r.height*.52;
     this.look=[clamp((x-cx)/(r.width*.85),-1,1),clamp((y-cy)/(r.height*.85),-1,1)]}
@@ -598,9 +602,11 @@ class Mascot{
     const breathe=(sleeping?Math.sin(t*1.2)*.035:Math.sin(t*2.3)*.017)*RM;
     const air=this.jumpY<0?Math.min(Math.abs(this.jumpV)/2600,.12):0;
     const sy=sq+breathe+air,sxs=1+(1-sy)*.9,fl=this.cfg.feet==='none'?Math.sin(t*2.1)*5*RM-6:0,jy=this.jumpY+fl;
-    E.body.setAttribute('transform',`translate(${120+sx0} ${206+jy}) rotate(${v.tilt+giggle+lean}) scale(${sxs} ${sy}) translate(-120 -206)`);
+    this.sink.t=this.state==='peek'?1:0;this.slump.t=this.state==='sad'?1:0;this.groove.t=this.state==='dance'?1:0;
+    const sink=this.sink.step(dt),slump=this.slump.step(dt),grv=this.groove.step(dt),beat=t*8.4,dbx=Math.sin(t*4.2)*9*grv*RM,drot=Math.sin(beat)*7*grv*RM,dby=-Math.abs(Math.sin(beat))*9*grv*RM,sinkY=sink*(206-g.top)*.62+slump*3;
+    E.body.setAttribute('transform',`translate(${120+sx0+dbx} ${206+jy+dby+sinkY}) rotate(${v.tilt+giggle+lean+drot}) scale(${sxs*(1+.035*slump)} ${sy*(1-.06*slump)}) translate(-120 -206)`);
     const lift=Math.min(Math.max(-jy,0)/260,1);
-    E.shadow.setAttribute('transform',`translate(120 214) scale(${(1-lift*.45)*sxs} 1) translate(-120 -214)`);E.shadow.setAttribute('opacity',1-lift*.6);
+    E.shadow.setAttribute('transform',`translate(120 214) scale(${(1-lift*.45)*sxs} 1) translate(-120 -214)`);E.shadow.setAttribute('opacity',(1-lift*.6)*(1-clamp(sink,0,1)*.9));
     E.face.setAttribute('transform',`translate(${v.lookX*6} ${v.lookY*4+clamp(this.jumpV*.006,-4,4)})`);
     const en=ENERGY[this.state]||1,dr=DROOP[this.state]||0,perk=this.state==='surprised'?1:0;
     for(const p of this.limbs||[]){if(!p.el)continue;let a=0;
@@ -634,7 +640,7 @@ class Mascot{
     E.topper.setAttribute('transform',`rotate(${Math.sin(t*1.7)*3.5*RM+v.tilt*.6+v.droop*(this.cfg.topper==='sprout'?30:10)} 120 ${g.top+8})`);
     const qa=clamp(v.q,0,1);E.q.setAttribute('opacity',qa);E.q.setAttribute('transform',`translate(0 ${Math.sin(t*3)*3*RM+jy}) rotate(${12+Math.sin(t*2)*6} ${g.sideR+6} ${g.top-6})`);
     const hb=jy*.92-breathe*60;
-    E.hands.forEach((h,i)=>h.setAttribute('transform',`translate(${hp[i][0]+sx0} ${hp[i][1]+hb}) rotate(${i?20:-20})`));
+    E.hands.forEach((h,i)=>h.setAttribute('transform',`translate(${hp[i][0]+sx0+dbx} ${hp[i][1]+hb+dby+sinkY}) rotate(${i?20:-20})`));
     const d=clamp(v.dots,0,1);E.dots.setAttribute('opacity',d);
     [...E.dots.children].forEach((c2,i)=>c2.setAttribute('transform',`translate(0 ${Math.sin(t*7-i*.9)*4*RM})`));
     const z=clamp(v.zzz,0,1);
@@ -814,6 +820,13 @@ function definePipElement(engine,defaultConfig,painted,origin){
     setState(s){this._m&&this._m.setState(s)} react(s,ms){this._m&&this._m.react(s,ms)} say(t,o){this._m&&this._m.say(t,o)}
     cover(on,peek){this._m&&this._m.cover(on,peek)} lookAt(x,y){this._m&&this._m.lookAt(x,y)} watch(input){this._m&&this._m.watch(input);return this}
     point(el,text){return this.goTo(el,{text})}
+    // Walk people through a screen: [{target:'#plan', text:'Pick a plan'}, …]. Pip points at each, then heads home.
+    async tour(steps,{done}={}){const id=this._tour=(this._tour||0)+1;
+      for(const s of steps||[]){if(id!==this._tour||!this._m||this._hiddenByUser)return;const el=typeof s.target==='string'?document.querySelector(s.target):s.target;if(!el)continue;
+        await this.goTo(el,{mode:s.mode||'point',text:s.text,state:s.state,stay:true});if(id!==this._tour)return;
+        await wait(s.ms||Math.max(2400,(s.text||'').length*55+1400))}
+      if(id!==this._tour||!this._m)return;if(done){this._m.react('success',1800);this._m.say(done,{hold:1800});await wait(1600)}return this.home()}
+    stopTour(){this._tour=(this._tour||0)+1;return this.home()}
     get state(){return this._m?this._m.state:null}
   }
 

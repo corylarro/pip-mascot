@@ -364,6 +364,7 @@ struct HomeView: View {
                 }
             }
         }
+        .pipTarget("feelings")
     }
 
     private var sessionCard: some View {
@@ -447,7 +448,7 @@ struct HomeView: View {
         case .stressed:
             Pip.go(to: "session", sit: true, mood: .love, say: "Let's breathe it out together.")
         case .great:
-            Pip.react(.success)
+            Pip.react(.dance, for: 3)
             Pip.say("Yes! Ride that wave.")
         }
     }
@@ -696,8 +697,17 @@ struct DemoMenu: View {
             Button("Wave") { Pip.react(.wave); Pip.say("Hello there!") }
             Button("Cheer") { Pip.react(.success); Pip.say("We did it!") }
             Button("Love") { Pip.react(.love) }
+            Button("Dance") { Pip.react(.dance, for: 3); Pip.say("Big win!") }
+            Button("Sad") { Pip.react(.sad, for: 3); Pip.say("Nothing here yet…") }
+            Button("Peek") { Pip.react(.peek, for: 2.5) }
             Button("Nap") { Pip.set(.sleeping) }
             Button("Wake up") { Pip.set(.idle) }
+        }
+        Button("Give the tour") {
+            Pip.tour([("streak", "This is your streak. Keep it going!"),
+                      ("feelings", "Tell me how you feel each night."),
+                      ("session", "Then breathe with me here.")],
+                     done: "That's it. Enjoy!")
         }
         Button("Hide Pip") { Pip.hide() }
         Button("Show Pip") { Pip.show() }
