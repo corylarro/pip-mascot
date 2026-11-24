@@ -132,6 +132,16 @@ details.guide ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--mut
       <label for="desc">Describe your character</label>
       <textarea id="desc" rows="2" placeholder="e.g. a sleepy baby dragon barista with a tiny apron"></textarea>
     </div>
+    <div class="field">
+      <label for="photo">Start from a photo (optional)</label>
+      <div class="row">
+        <label class="ghost" for="photo" id="photoPick" style="cursor:pointer">Choose a photo</label>
+        <input type="file" id="photo" accept="image/*" hidden>
+        <img id="photoThumb" alt="Chosen photo" hidden style="width:44px;height:44px;object-fit:cover;border-radius:10px;border:1px solid var(--line)">
+        <button type="button" class="ghost" id="photoClear" hidden>Remove</button>
+      </div>
+      <p class="hint">Your dog, yourself, a plush toy… it gets painted as a cartoon mascot in the look you pick. With a photo, the description is optional.</p>
+    </div>
     <div class="row">
       <div class="field" style="flex:1"><label for="style">Look</label>
         <select id="style">
@@ -286,21 +296,32 @@ function explain(e){const m=(e&&e.msg)||String(e);
   if(/billing|quota|credit|insufficient/i.test(m))return 'OpenAI says the account is out of credit or over its limit: '+m;
   if(/OPENAI_API_KEY/.test(m))return 'The OpenAI key isn’t set up on Vercel yet. Add OPENAI_API_KEY in the Vercel project settings, then redeploy.';
   return 'Painting failed: '+m}
+// Optional reference photo, shrunk in the browser so uploads stay small.
+let photo=null;
+$('photo').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{const url=URL.createObjectURL(f),im=await loadImg(url),k=Math.min(1,1024/Math.max(im.naturalWidth,im.naturalHeight)),c=canvasOf(Math.round(im.naturalWidth*k),Math.round(im.naturalHeight*k));
+    c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(url);photo={b64:c.toDataURL('image/jpeg',.88).split(',')[1],mime:'image/jpeg'};
+    $('photoThumb').src='data:image/jpeg;base64,'+photo.b64;$('photoThumb').hidden=false;$('photoClear').hidden=false;$('photoPick').textContent='Change photo';
+    setStatus('Photo added. Pick a look and tap Paint it.','ok')}
+  catch(err){setStatus('Couldn’t read that photo. Try a JPEG or PNG.','err')}});
+$('photoClear').addEventListener('click',()=>{photo=null;$('photoThumb').hidden=true;$('photoClear').hidden=true;$('photoPick').textContent='Choose a photo'});
+const fromPhoto=p=>p?'Base the character on the attached reference photo: keep what makes it recognizable (species or breed, colors, markings, proportions and distinctive features), reimagined as a cute, appealing mascot in the style below. Do not copy the photo\'s background.\n':'';
 async function paint(){
-  if(busy)return;const desc=$('desc').value.trim();if(!desc){setStatus('Describe your character first, like “a sleepy baby dragon barista”.','err');$('desc').focus();return}
+  if(busy)return;const typed=$('desc').value.trim();if(!typed&&!photo){setStatus('Describe your character first, like “a sleepy baby dragon barista”, or add a photo.','err');$('desc').focus();return}
+  const desc=typed||'the pet, person or object in the reference photo',ref=photo?{step:'reference',photo:photo.b64,photoMime:photo.mime}:{step:'base'};
   const mode=modeSel.value,quality=$('quality').value,style=$('style').value;
   busy=true;$('go').disabled=true;renderSteps(mode);const t0=Date.now();
   const tick=setInterval(()=>{$('go').textContent=`Painting… ${Math.round((Date.now()-t0)/1000)}s`},1000);
   try{
     if(mode==='sheet'){
       setStatus('Painting all twelve poses and expressions in one image…','ok');stepState('sheet','work');
-      const r=await withRetry(()=>api({step:'base',prompt:sheetPrompt(desc,style),quality,size:'2560x1920',fallbackSizes:['2304x1728','2048x1536','1536x1024']}),'painting');
+      const r=await withRetry(()=>api({...ref,prompt:fromPhoto(photo)+sheetPrompt(desc,style),quality,size:'2560x1920',fallbackSizes:['2304x1728','2048x1536','1536x1024']}),'painting');
       current={mode,desc,style,quality,sheet:r.image,mime:r.mime,model:r.model,grid:[4,3]};$('mname').value='';
       $('meta').textContent=`Image model: ${r.model} · ${r.size}`;
       await loadSheet(current,true);
     }else{
       setStatus('Painting your character with a blank face…','ok');stepState('base','work');
-      const r=await withRetry(()=>api({step:'base',prompt:simplePrompt(desc,style),quality}),'painting');
+      const r=await withRetry(()=>api({...ref,prompt:fromPhoto(photo)+simplePrompt(desc,style),quality}),'painting');
       current={mode,desc,style,quality,base:r.image,mime:r.mime,model:r.model};$('mname').value='';
       $('meta').textContent=`Image model: ${r.model}`;
       await loadSimple(current,true);

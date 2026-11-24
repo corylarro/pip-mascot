@@ -1,5 +1,5 @@
 // Pip painted mascots: server-side proxy to OpenAI so the API key never reaches the browser.
-// Steps: "base" (paint the character), "edit" (repaint the face with a new expression), "face" (locate the face).
+// Steps: "base" (paint the character), "reference" (paint it from a photo), "edit" (repaint the face with a new expression), "face" (locate the face).
 export const config = { maxDuration: 300 };
 
 const API = 'https://api.openai.com/v1';
@@ -66,6 +66,35 @@ export default async function handler(req, res) {
           last = r;
           if (/size|resolution|dimension/i.test(r.msg || '') && r.status === 400) continue;   // try the next size
           if (!tryNext(r.status, r.msg)) break outer;
+          break;
+        }
+      }
+      res.status(last.status || 500).json({ error: last.msg, status: last.status }); return;
+    }
+
+    if (b.step === 'reference') {
+      // Paint from a photo: the photo is the reference, the prompt says how to draw it.
+      if (!b.photo) { res.status(400).json({ error: 'Missing photo.' }); return; }
+      const photo = Buffer.from(b.photo, 'base64');
+      const prompt = String(b.prompt || '').slice(0, 6000);
+      const sizes = uniq([b.size, ...(b.fallbackSizes || []), '1536x1024', '1024x1024']).filter(x => /^\d{3,4}x\d{3,4}$/.test(x));
+      let last = null;
+      outer: for (const model of IMAGE_MODELS()) {
+        for (const size of sizes) {
+          for (const hiFi of [true, false]) {
+            const fd = new FormData();
+            fd.append('model', model); fd.append('prompt', prompt);
+            fd.append('image', new Blob([photo], { type: b.photoMime || 'image/jpeg' }), 'photo.jpg');
+            fd.append('size', size); fd.append('quality', quality); fd.append('output_format', 'webp'); fd.append('n', '1');
+            if (hiFi) fd.append('input_fidelity', 'high');
+            const r = await call(`${API}/images/edits`, { method: 'POST', headers: auth, body: fd });
+            if (r.ok && r.json && r.json.data && r.json.data[0]) { res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model, size }); return; }
+            last = r;
+            if (hiFi && /input_fidelity|fidelity/i.test(r.msg || '')) continue;   // same model and size, without the optional setting
+            break;
+          }
+          if (last.status === 400 && /size|resolution|dimension/i.test(last.msg || '')) continue;   // try the next size
+          if (!tryNext(last.status, last.msg)) break outer;
           break;
         }
       }
