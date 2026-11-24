@@ -443,6 +443,10 @@ function keyOut(img){
   for(let p=0;p<W*H;p++){if(!band[p])continue;const i=p*4,r=d[i],g=d[i+1],b=d[i+2],k=1-(band[p]-1)*.13;
     if(magenta){const m=Math.min(r,b);if(m>g){d[i]=r-(m-g)*k;d[i+2]=b-(m-g)*k}}
     else{const m=Math.max(r,b);if(g>m)d[i+1]=g-(g-m)*k}}
+  // the painter sometimes tints light areas with the background colour (pinkish white fur): pull that tint out of light, mostly neutral pixels only
+  for(let p=0;p<W*H;p++){if(bg[p])continue;const i=p*4,r=d[i],g=d[i+1],b=d[i+2];
+    if(magenta){const m=Math.min(r,b),e=m-g;if(m>150&&e>0&&e<75)d[i+1]=g+e*(e<55?1:(75-e)/20)}
+    else{const m=Math.max(r,b),e=g-m;if(m>150&&e>0&&e<75)d[i+1]=g-e*(e<55?1:(75-e)/20)}}
   x.putImageData(id,0,0);
   return {canvas:c,bbox:{x:minX,y:minY,w:Math.max(1,maxX-minX),h:Math.max(1,maxY-minY)},key}}
 function b64ToDataUrl(b64,mime){return `data:${mime||'image/webp'};base64,${b64}`}

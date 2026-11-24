@@ -150,6 +150,14 @@ details.guide ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--mut
           <option value="clay">Clay figure</option>
           <option value="vinyl">Vinyl collectible</option>
           <option value="illustration">2D illustration</option>
+          <option value="cartoon">Classic cartoon</option>
+          <option value="chibi">Chibi anime</option>
+          <option value="flat">Flat vector</option>
+          <option value="sticker">Kawaii sticker</option>
+          <option value="pixel">Pixel art</option>
+          <option value="lowpoly">Low-poly 3D</option>
+          <option value="crochet">Crochet toy</option>
+          <option value="storybook">Storybook</option>
         </select></div>
       <div class="field" style="flex:1"><label for="mode">Face</label>
         <select id="mode"><option value="sheet">Painted expressions</option><option value="simple">Simple face (drawn live)</option></select></div>
@@ -242,9 +250,17 @@ const STYLE={
   plush:'Photorealistic plush stuffed toy, soft fuzzy fabric texture, visible stitching, felt details, soft studio lighting',
   clay:'Handmade claymation figure, soft polymer clay texture with subtle fingerprints, warm studio lighting',
   vinyl:'Glossy vinyl designer-toy collectible figure, smooth plastic, soft reflections, studio product lighting',
-  illustration:'Polished 2D digital illustration, clean shapes, soft cel shading, bold readable silhouette'};
+  illustration:'Polished 2D digital illustration, clean shapes, soft cel shading, bold readable silhouette',
+  cartoon:'Classic hand-drawn TV cartoon style, bold clean black outlines, flat bright colors with simple cel shading, expressive and bouncy',
+  chibi:'Cute chibi anime style, big head and small body, large sparkly eyes, clean line art, soft cel shading',
+  flat:'Flat vector mascot for a modern app brand, simple geometric shapes, a small limited color palette, no outlines or very thin ones, no texture, crisp edges',
+  sticker:'Kawaii sticker art, thick clean white outline around the whole character, bright cheerful colors, glossy highlights',
+  pixel:'Crisp pixel art game sprite, visible square pixels, limited retro color palette, clean pixel outlines, no blur or anti-aliasing',
+  lowpoly:'Low-poly 3D model, faceted geometric surfaces with flat shading, soft studio lighting',
+  crochet:'Handmade crochet amigurumi toy, visible yarn stitches, soft wool texture, soft studio lighting',
+  storybook:'Soft painted storybook illustration, gentle colors and brush texture, but with clean, well-defined edges around the character'};
 function keyColor(desc){return /pink|magenta|purple|violet|fuchsia|lavender/i.test(desc)?{name:'pure green',hex:'#00FF00'}:{name:'pure magenta',hex:'#FF00FF'}}
-function bgLine(desc){const k=keyColor(desc);return `Background: a completely flat, uniform ${k.name} (${k.hex}) filling the whole image, with no gradient, no floor, no cast shadow, no reflections, no props, no text. Do not use ${k.name} anywhere on the character.`}
+function bgLine(desc){const k=keyColor(desc);return `Background: a completely flat, uniform ${k.name} (${k.hex}) filling the whole image, with no gradient, no floor, no cast shadow, no reflections, no props, no text. Do not use ${k.name} anywhere on the character. Light the character with neutral white light only: the background colour must not reflect onto, glow on or tint the character, its edges or its fur.`}
 function simplePrompt(desc,style){return `Mascot character for an app: ${desc}.
 ${STYLE[style]||STYLE['3d']}.
 Composition: one character only, full body, standing upright and facing the viewer straight on, centered, the whole character visible with generous empty margin on all sides. Arms (if any) relaxed at the sides.
@@ -266,8 +282,8 @@ Panel 7: confused; one eyebrow raised and the other lowered, mouth pulled to one
 Panel 8: waving hello; the hand on the RIGHT side of the image raised high beside the head, palm open toward the viewer (a four-legged animal lifts its front paw on that side instead, leaving only three legs on the ground); big friendly smile; the other arm down as in panel 1.
 Row 3:
 Panel 9: the next moment of the same wave: identical to panel 8 with the SAME hand still raised, a little lower and tilted slightly outward. Do NOT switch hands.
-Panel 10: pointing to the LEFT side of the image: the arm on that side stretched straight out sideways with the index finger pointing left (a four-legged animal stretches its front paw on that side out instead), looking toward where it points, helpful expression. The other arm down. Keep the whole arm inside this panel.
-Panel 11: the mirror of panel 10: pointing to the RIGHT side of the image with the arm on that side stretched straight out, looking right, helpful expression. Keep the whole arm inside this panel.
+Panel 10: pointing to the LEFT side of the image: the arm on that side stretched straight out sideways with the index finger pointing left. A four-legged animal instead lifts its front leg on that side off the ground and holds that paw out toward the left, so only three legs stay on the ground; animal paws have no fingers, so never draw a hand or a pointing finger on an animal; looking toward where it points, helpful expression. The other arm down. Keep the whole arm inside this panel.
+Panel 11: the mirror of panel 10: pointing to the RIGHT side of the image with the arm (or, for a four-legged animal, the lifted front paw) on that side stretched straight out, looking right, helpful expression. Keep the whole arm inside this panel.
 Panel 12: talking; neutral eyes, smiling mouth slightly open with teeth showing, as if saying "ee".
 Leave generous empty space between panels and around each character so nothing touches. No panel borders, no grid lines, no text, no labels, no numbers.
 ${bgLine(desc)} The background is the same flat colour across the entire sheet.`}
