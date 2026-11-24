@@ -63,6 +63,10 @@ p{margin:0}
 .btn:hover{background:#FFA27A}.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
 .btn.ghost{background:var(--white)}.btn.ghost:hover{background:#F6F5FF}
 .btn[disabled]{opacity:.6;cursor:progress}
+.ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}.end .ctas{justify-content:center}
+.launch{font-size:.95rem;color:var(--ink-2);margin-top:-8px}
+.join.small{flex-direction:column;gap:8px;margin-top:10px;max-width:470px}.join.small label{font-weight:600;font-size:.95rem}
+.join.small .row{display:flex;gap:10px;flex-wrap:wrap}.join.small input{padding:11px 14px;font-size:1rem}.join.small .btn{padding:11px 16px;font-size:.95rem;box-shadow:0 3px 0 var(--ink)}
 .note{font-size:.95rem;color:var(--ink-2);min-height:1.5em}
 .note.ok{color:#17784C;font-weight:600}.note.bad{color:#B4381A;font-weight:600}
 
@@ -182,12 +186,13 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
     <div class="hero-copy">
       <h1>Give your app a character people remember.</h1>
       <p class="lede">Describe a mascot in a sentence. Critterkit paints it, brings it to life, and adds it to your app with one line of code.</p>
-      <form class="join" id="join1" novalidate>
-        <label for="email1" class="sr">Email</label>
-        <input id="email1" name="email" type="email" required placeholder="you@yourapp.com" autocomplete="email">
-        <button class="btn" type="submit">Join the waitlist</button>
+      <div class="ctas"><a class="btn" href="/api/checkout?plan=painted">Get your mascot · $19</a><a class="btn ghost" href="/builder">Try it free</a></div>
+      <p class="launch">Launch price, normally $29. One time, yours to keep.</p>
+      <form class="join small" id="join1" novalidate>
+        <label for="email1">Not ready yet? Get updates by email.</label>
+        <div class="row"><input id="email1" name="email" type="email" required placeholder="you@yourapp.com" autocomplete="email"><button class="btn ghost" type="submit">Notify me</button></div>
       </form>
-      <p class="note" id="note1" aria-live="polite">Early access opens soon. Waitlist members get the launch price.</p>
+      <p class="note" id="note1" aria-live="polite"></p>
     </div>
     <div class="stage">
       <span class="play-label">Hi, I'm Pip. Poke me.</span>
@@ -276,12 +281,7 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
 
 <section class="end" aria-labelledby="eh">
   <h2 id="eh">Your users will remember who helped them.</h2>
-  <form class="join" id="join2" novalidate>
-    <label for="email2" class="sr">Email</label>
-    <input id="email2" name="email" type="email" required placeholder="you@yourapp.com" autocomplete="email">
-    <button class="btn" type="submit">Join the waitlist</button>
-  </form>
-  <p class="note" id="note2" aria-live="polite"></p>
+  <div class="ctas"><a class="btn" href="/api/checkout?plan=painted">Get your mascot · $19</a><a class="btn ghost" href="/demo">See the live demo</a></div>
 </section>
 
 <footer><span>Critterkit. Made for people who ship.</span><span><a href="/docs">Docs</a> · <a href="/demo">Live demo</a> · <a href="/builder">Builder</a></span></footer>
@@ -398,27 +398,27 @@ function wire(formId, noteId) {
     e.preventDefault();
     const email = input.value.trim();
     if (!EMAIL.test(email)) {
-      note.className = 'note bad'; note.textContent = email ? 'That email looks off. Check for a typo.' : 'Add your email to join.';
+      note.className = 'note bad'; note.textContent = email ? 'That email looks off. Check for a typo.' : 'Add your email first.';
       if (!touch) input.focus({ preventScroll: true }); else input.blur();   // on phones, let them tap the field so the keyboard doesn't shove the page around
       roamTo(input, email ? 'Hmm, is that right?' : 'Your email goes here!');
       return;
     }
-    btn.disabled = true; btn.textContent = 'Joining…';
+    btn.disabled = true; btn.textContent = 'Adding…';
     try {
       const r = await fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, source: formId }) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Something went wrong. Try again in a moment.');
-      note.className = 'note ok'; note.textContent = "You're on the list. We'll email you when early access opens.";
-      input.value = ''; btn.textContent = 'Joined';
+      note.className = 'note ok'; note.textContent = "You're on the list. We'll email you with news, nothing spammy.";
+      input.value = ''; btn.textContent = 'Added';
       if (pip.classList.contains('small')) await goHome(); await toHero(); pip.react('love', 2600); say("Yay! You're in. See you soon.", 2800);
     } catch (err) {
-      note.className = 'note bad'; note.textContent = err.message; btn.disabled = false; btn.textContent = 'Join the waitlist';
+      note.className = 'note bad'; note.textContent = err.message; btn.disabled = false; btn.textContent = 'Notify me';
       if (inHero) { pip.react('error', 2200); say("That didn't go through. Try again?"); }
     }
   });
   input.addEventListener('input', () => { if (note.classList.contains('bad')) { note.className = 'note'; note.textContent = ''; } });
 }
-wire('join1', 'note1'); wire('join2', 'note2');
+wire('join1', 'note1');
 
 // Pretend meditation app: finish today's session and Pip celebrates the streak
 const calmBtn = document.getElementById('calmBtn'), calmReset = document.getElementById('calmReset'), calm = document.getElementById('calm');
