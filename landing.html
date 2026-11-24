@@ -199,7 +199,7 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
       <div class="spot" id="pipHome"></div>
       <critter-mascot id="pipPainted" class="loading" mascot="fd89vpfu99qm" dock="#pipHome" greet greeting="Hi! I'm Pip."></critter-mascot>
       <div class="play" role="group" aria-label="Make Pip react">
-        <button data-r="wave">Wave</button><button data-r="success">Cheer</button><button data-r="error">Oops</button><button data-r="love">Love</button><button data-r="sleeping">Nap</button>
+        <button data-r="wave">Wave</button><button data-r="success">Cheer</button><button data-r="dance">Dance</button><button data-r="error">Oops</button><button data-r="sleeping">Nap</button>
       </div>
     </div>
   </div>
@@ -217,6 +217,8 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
       <div class="moment"><b>They come back after a while</b><button data-m="back">Show me</button><span>A sleepy stretch and a welcome back. The small moment people screenshot.</span></div>
       <div class="moment"><b>They're typing a password</b><button data-m="pass">Show me</button><span>Your mascot covers its eyes. Nobody asked for this, and everybody loves it.</span></div>
       <div class="moment"><b>They tap the button six times</b><button data-m="rage">Show me</button><span>Your mascot notices the frustration and calms things down.</span></div>
+      <div class="moment"><b>They hit a big milestone</b><button data-m="dance">Show me</button><span>A hundred days, a first sale, level ten. Your mascot breaks into a little dance.</span></div>
+      <div class="moment"><b>The seasons change</b><button data-m="season">Show me</button><span>Falling leaves in the fall, snow in December, confetti at New Year's. It happens by date, all on its own, and never changes how your mascot looks.</span></div>
     </div>
     <a class="btn demo-link" href="/demo">See it in a real app</a>
   </div>
@@ -371,14 +373,15 @@ document.querySelectorAll('.join input').forEach(i => i.addEventListener('input'
 
 // Reaction chips
 document.querySelectorAll('.play button').forEach(b => b.addEventListener('click', () => {
-  const r = b.dataset.r, lines = { wave: 'Hello there!', success: 'We did it!', error: 'Uh oh.', love: 'I like you.', sleeping: '' };
+  const r = b.dataset.r, lines = { wave: 'Hello there!', success: 'We did it!', dance: 'Party time!', error: 'Uh oh.', love: 'I like you.', sleeping: '' };
   if (r === 'sleeping') { pip.setState('sleeping'); return; }
-  pip.setState('idle'); pip.react(r, 2400); if (lines[r]) say(lines[r]);
+  pip.setState('idle'); pip.react(r, r === 'dance' ? 3200 : 2400); if (lines[r]) say(lines[r]);
 }));
 
 // Moments: replay what autopilot does, on the hero Pip
 const hero = document.querySelector('.stage');
 const toHero = async () => { if (pip.classList.contains('small')) goHome(); if (hero.getBoundingClientRect().top < -40) { hero.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' }); await wait(600); } };
+let seasonT;
 const moments = {
   field: async () => { const i = document.getElementById('email1'); await roamTo(i, 'Pop your email in here!'); if (!touch) i.focus({ preventScroll: true }); },
   success: async () => { await toHero(); pip.react('success', 2600); say('It worked! Nice one.'); },
@@ -386,6 +389,8 @@ const moments = {
   back: async () => { await toHero(); pip.setState('sleeping'); await wait(1800); pip.setState('idle'); pip.react('wave', 2200); say('Oh! Welcome back.'); },
   pass: async () => { await toHero(); pip.cover(true); say("I'm not looking!", 2000); await wait(2400); pip.cover(false); },
   rage: async () => { await toHero(); pip.react('surprised', 1600); say('Easy there. I think it heard you.', 2600); },
+  dance: async () => { await toHero(); pip.setState('idle'); pip.react('dance', 3400); say('100 days in a row!', 3000); },
+  season: async () => { await toHero(); clearTimeout(seasonT); pip.setAttribute('seasonal', 'snow'); say('Holiday mode, on its own.', 2600); seasonT = setTimeout(() => pip.setAttribute('seasonal', 'auto'), 8000); },
 };
 document.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', () => moments[b.dataset.m]()));
 

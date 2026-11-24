@@ -75,7 +75,7 @@ export default async function handler(req, res) {
       if (!meta) { res.status(404).json({ error: 'Mascot not found.' }); return; }
       if (req.query.img) {
         const atlas = req.query.img === 'atlas' && meta.atlasUrl;
-        const r = await fetch(atlas ? meta.atlasUrl : meta.imageUrl);
+        const r = await fetch(atlas ? `${meta.atlasUrl}?v=${meta.atlasV || ''}` : meta.imageUrl, { cache: 'no-store' });
         if (!r.ok) { res.status(502).json({ error: 'Could not load the painting.' }); return; }
         let bytes = Buffer.from(await r.arrayBuffer()), type = (atlas ? meta.atlasMime : meta.mime) || 'image/webp';
         // ?fmt=png converts for places that can't read WebP (like the iOS simulator)
