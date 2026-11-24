@@ -435,7 +435,7 @@ async function loadSheet(m,fresh){
   const frames=splitSheet(k,cols,rows),L=frames[0].canvas.width;
   // Quality check: if a wave or point pose grew an extra limb, drop it (the mascot then waves with a hop and points by looking)
   if(m.limbs===undefined&&cols===4&&rows===3){try{setStatus('Checking the poses…','ok');const sm=canvasOf(1280,Math.round(1280*k.canvas.height/k.canvas.width));sm.getContext('2d').drawImage(k.canvas,0,0,sm.width,sm.height);
-      const r=await api({step:'limbs',image:sm.toDataURL('image/webp',.8).split(',')[1],mime:'image/webp'});m.limbs=r.extra||{}}catch(e){if(e.status===401)throw e;m.limbs={}}}
+      const u=sm.toDataURL('image/jpeg',.85),r=await api({step:'limbs',image:u.split(',')[1],mime:'image/jpeg'});m.limbs=r.extra||{}}catch(e){if(e.status===401)throw e;m.limbs={}}}
   const dropped=[];for(const [panel,idx,name] of [['8',7,'wave'],['9',8,'wave'],['10',9,'point'],['11',10,'point']])if(m.limbs&&m.limbs[panel]===true){frames[idx]=frames[0];if(!dropped.includes(name))dropped.push(name)}
   m.dropped=dropped;
   $('empty').hidden=true;$('badge').hidden=false;rig.simple=null;rig.setBase(frames[0]);if(fresh)frames.forEach((f,i)=>stepState('f'+i,'done',f.canvas.toDataURL('image/webp',.7)));

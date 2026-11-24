@@ -39,8 +39,9 @@ Reply with ONLY this JSON (no prose). All numbers are fractions of the image wid
 "face" must tightly cover the eyes, eyebrows and mouth (not the whole head, ears or hair). List every visible eye, left to right. Each eye box covers just that eye (not the eyebrow). The mouth box covers just the lips/mouth opening, even if partly hidden by a beard.`;
 
 const LIMBS_PROMPT = `This image is a character sheet: 12 panels in a grid of 4 columns and 3 rows, all showing the same character. Panels are numbered 1 to 12, left to right, top to bottom (panel 1 is top-left, panel 8 is the right end of the middle row).
-Compare panels 8, 9, 10 and 11 with panel 1. For each, answer true if that panel shows MORE arms, legs or paws than panel 1 (an extra limb was added instead of lifting one of the existing ones), or if an animal that has paws was given a human hand with fingers. Otherwise answer false.
-Reply with ONLY this JSON (no prose): {"8":false,"9":false,"10":false,"11":false}`;
+For panels 1, 8, 9, 10 and 11, count the character's ARMS: the upper limbs, including any arm that is raised to wave or stretched out to point. For a four-legged animal, count its FRONT legs instead (a lifted front paw still counts as one front leg). Do not count back legs or feet. Look carefully at each panel on its own; a raised arm usually means the other arm stays down, so two arms is normal.
+Also say whether the character in panel 1 is an animal with paws, and for panels 8 to 11 whether a hand with separate human-style fingers appears.
+Reply with ONLY this JSON (no prose): {"arms":{"1":2,"8":2,"9":2,"10":2,"11":2},"pawAnimal":false,"fingers":{"8":false,"9":false,"10":false,"11":false}}`;
 
 import { whoIs, spend, refuse } from './_keys.js';
 
@@ -147,7 +148,12 @@ export default async function handler(req, res) {
             { type: 'input_image', image_url: `data:${b.mime || 'image/webp'};base64,${b.image}` }
           ] }] })
         });
-        if (r.ok) { const extra = parseJson(extractText(r.json)); if (extra) { res.json({ extra, model }); return; } last = { status: 502, msg: 'Could not read the check.' }; continue; }
+        if (r.ok) { const v = parseJson(extractText(r.json));
+          if (v && v.arms) {
+            // only drop a pose on a clear miscount (more arms than the standing pose), not on a hunch
+            const base = Number(v.arms['1']) || 2, extra = {};
+            for (const p of ['8', '9', '10', '11']) extra[p] = (Number(v.arms[p]) > base) || !!(v.pawAnimal && v.fingers && v.fingers[p]);
+            res.json({ extra, arms: v.arms, model }); return; } last = { status: 502, msg: 'Could not read the check.' }; continue; }
         last = r; if (!tryNext(r.status, r.msg)) break;
       }
       res.status(last.status || 500).json({ error: last.msg, status: last.status }); return;
