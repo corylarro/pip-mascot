@@ -8,6 +8,8 @@ const PRODUCTS = {
   painted: process.env.POLAR_PRODUCT_PAINTED || '4e2de512-68ad-4643-88ab-52662c42ca03',
   credits: process.env.POLAR_PRODUCT_CREDITS || '557e1836-e7c6-4ab2-9af8-01b256588799'
 };
+// Launch price: $10 off the painted plan, applied automatically. Set POLAR_DISCOUNT_ID to 'none' to end it.
+const LAUNCH_DISCOUNT = process.env.POLAR_DISCOUNT_ID === 'none' ? '' : (process.env.POLAR_DISCOUNT_ID || '2d70fe5a-754b-4f7b-9aca-cea91656059b');
 const CREDITS = { painted: 6, credits: 10 };   // painted: the first paint + 5 repaints
 const API = () => (process.env.POLAR_SERVER === 'sandbox' ? 'https://sandbox-api.polar.sh' : 'https://api.polar.sh');
 
@@ -51,7 +53,7 @@ export default async function handler(req, res) {
       method: 'POST', headers: H,
       body: JSON.stringify({ products: [product], success_url: `${origin}/paint?checkout_id={CHECKOUT_ID}`, allow_discount_codes: true, metadata: meta,
         // launch price: a Polar discount applied automatically to the painted plan
-        ...(plan === 'painted' && process.env.POLAR_DISCOUNT_ID ? { discount_id: process.env.POLAR_DISCOUNT_ID } : {}) })
+        ...(plan === 'painted' && LAUNCH_DISCOUNT ? { discount_id: LAUNCH_DISCOUNT } : {}) })
     });
     const c = await r.json().catch(() => ({}));
     if (!r.ok || !c.url) { res.status(502).json({ error: 'Couldn’t start checkout. Try again in a moment.', detail: c.detail || c.error || null }); return; }
