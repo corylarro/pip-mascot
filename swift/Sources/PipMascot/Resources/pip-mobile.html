@@ -974,7 +974,8 @@ var paintedEngine=PipPaintedEngine();
       const [w,h]=this._size();let x,y;
       if(mode==='sit'){x=r.left+r.width/2-w/2;y=r.top-h*.93+4}
       else{y=r.top+r.height/2-h*.6;if(r.right+w+6<innerWidth)x=r.right+4;else if(r.left-w-6>0)x=r.left-w-4;
-        else{x=clamp(r.left+r.width-w*.8,4,innerWidth-w-4);y=r.top-h*.98;if(y<4)y=r.bottom+2}}
+        // No room beside it (full-width cards and fields): stand at its right end, level with it, and point into it
+        else x=clamp(r.right-w*.92,4,innerWidth-w-4)}
       x=clamp(x,4,innerWidth-w-4);y=clamp(y,4,innerHeight-h-4);
       await this.walkTo(x,y);if(!this._m)return;
       if(mode==='point'){const c=el.getBoundingClientRect();this._m.point(c.left+c.width/2,c.top+c.height/2)}
