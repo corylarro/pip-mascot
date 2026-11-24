@@ -874,7 +874,7 @@ var paintedEngine=PipPaintedEngine();
       const sa=this.getAttribute('sleep-after');
       const onState=(s,why)=>this.dispatchEvent(new CustomEvent('statechange',{detail:{state:s,reason:why||null}}));
       const sleepAfter=sa===null?20000:Number(sa)*1000;let m;
-      if(isPainted){const rig=new painted.PaintRig(root.querySelector('canvas'),{bubble:root.querySelector('.bubble'),fit:.94,pad:.4,padTop:.45,hit:this,sleepAfter,onState});m=this._m=adapt(rig);
+      if(isPainted){const rig=new painted.PaintRig(root.querySelector('canvas[role=img]'),{bubble:root.querySelector('.bubble'),fit:.94,pad:.4,padTop:.45,hit:this,sleepAfter,onState});m=this._m=adapt(rig);
         this._ready=fetch(`${this.getAttribute('api')||origin}/api/mascot?id=${encodeURIComponent(mid)}`).then(r=>{if(!r.ok)throw new Error('Mascot not found');return r.json()})
           .then(d=>painted.mountMascot(rig,d)).then(()=>this.dispatchEvent(new CustomEvent('ready'))).catch(e=>{console.warn('pip-mascot:',e);this.dispatchEvent(new CustomEvent('error',{detail:String(e)}))})}
       else{m=this._m=new engine.Mascot(root.querySelector('svg'),cfg,{bubble:root.querySelector('.bubble'),sleepAfter,onState});this._ready=Promise.resolve()}
