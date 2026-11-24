@@ -461,7 +461,8 @@ async function loadSimple(m,fresh){
 
 /* ---------- save & share ---------- */
 async function reencode(b64,mime){const im=await loadImg(b64ToDataUrl(b64,mime)),c=canvasOf(im.naturalWidth,im.naturalHeight);c.getContext('2d').drawImage(im,0,0);
-  let q=.9,out=canvasB64(c,'image/webp');for(const qq of [.88,.8,.7]){q=qq;out=c.toDataURL('image/webp',q).split(',')[1];if(out.length<3000000)break}return out}
+  // keep each upload under the server's size limit (about 4.5 MB per request)
+  let out='';for(const qq of [.88,.8,.7,.6,.5,.4]){out=c.toDataURL('image/webp',qq).split(',')[1];if(out.length<3200000)break}return out}
 function showSnippet(id){const code=`<script src="${location.origin}/critter.js"><\/script>\n<critter-mascot mascot="${id}" autopilot greet></critter-mascot>`;
   $('snippet').textContent=code;$('snippet').hidden=false;$('tryPlain').href='/embed-test?mascot='+encodeURIComponent(id);$('useActions').hidden=false;$('save').textContent='Save again as a new copy';
   try{localStorage.setItem('pip-painted-id',id);localStorage.setItem('pip-painted-name',$('mname').value.trim()||'Painted mascot')}catch(e){}}
@@ -472,10 +473,15 @@ $('save').addEventListener('click',async()=>{if(!current||!(current.sheet||curre
     const image=await reencode(raw,current.mime);
     const atlas=current.mode==='sheet'&&prepared?await encodeAtlas(prepared.frames,prepared.face).catch(()=>({})):{};
     const pass=$('pass').value.trim();
-    const r=await fetch('/api/mascot',{method:'POST',headers:{'Content-Type':'application/json',...(pass?{'x-pip-pass':pass}:{})},
-      body:JSON.stringify({mode:current.mode,image,mime:'image/webp',face:current.face,grid:current.grid||[3,2],name,greeting:name?`Hi, I'm ${name}!`:'Hi there!',desc:current.desc,...atlas})});
+    const H={'Content-Type':'application/json',...(pass?{'x-pip-pass':pass}:{})};
+    // two smaller uploads: the painting first, then the prepared poses
+    const r=await fetch('/api/mascot',{method:'POST',headers:H,
+      body:JSON.stringify({mode:current.mode,image,mime:'image/webp',face:current.face,grid:current.grid||[3,2],name,greeting:name?`Hi, I'm ${name}!`:'Hi there!',desc:current.desc})});
     let j={};try{j=await r.json()}catch(e){}
-    if(!r.ok){if(r.status===401)$('passWrap').hidden=false;throw new Error(j.error||r.statusText)}
+    if(!r.ok){if(r.status===401)$('passWrap').hidden=false;throw new Error(j.error||(r.status===413?'the painting is too large to upload':`the server answered ${r.status}`))}
+    if(atlas&&atlas.atlas){btn.textContent='Saving poses…';
+      const r2=await fetch('/api/mascot?id='+encodeURIComponent(j.id),{method:'PUT',headers:H,body:JSON.stringify(atlas)}).catch(()=>null);
+      if(!r2||!r2.ok)console.warn('Poses were not saved; the mascot still works, it just prepares them when it loads.')}
     current.savedId=j.id;current.name=name;DB.put(current);showSnippet(j.id);$('saveMsg').textContent='Saved. Paste this into your site, before the closing </body> tag.';rig.react('success',1600)}
   catch(e){$('saveMsg').textContent='Couldn’t save: '+(e.message||e);btn.textContent='Save and get the code'}finally{btn.disabled=false}});
 $('copySnip').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('snippet').textContent);$('copySnip').textContent='Copied'}catch(e){
