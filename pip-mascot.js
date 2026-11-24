@@ -425,6 +425,8 @@ function keyOut(img){
   const push=p=>{if(!bg[p]&&dist(p*4)<T1){bg[p]=1;q[qt++]=p}};
   for(let i=0;i<W;i++){push(i);push((H-1)*W+i)}for(let j=0;j<H;j++){push(j*W);push(j*W+W-1)}
   while(qh<qt){const p=q[qh++],px=p%W,py=(p/W)|0;if(px>0)push(p-1);if(px<W-1)push(p+1);if(py>0)push(p-W);if(py<H-1)push(p+W)}
+  // background showing through gaps the fill can't reach (curly fur, between arms): clearly key-coloured pockets go too
+  for(let p=0;p<W*H;p++)if(!bg[p]&&dist(p*4)<T1*.9)bg[p]=1;
   let minX=W,minY=H,maxX=0,maxY=0;
   for(let p=0;p<W*H;p++){const i=p*4;
     if(bg[p]){d[i+3]=0;continue}
@@ -436,9 +438,9 @@ function keyOut(img){
     if(px<minX)minX=px;if(px>maxX)maxX=px;if(py<minY)minY=py;if(py>maxY)maxY=py}
   // remove key-colour spill (pink/green fringe) in a band around the edge
   const band=new Uint8Array(W*H);let fr=[];for(let p=0;p<W*H;p++)if(bg[p])fr.push(p);
-  for(let layer=1;layer<=4;layer++){const nx=[];for(const p of fr){const px=p%W;for(const q of [px>0?p-1:-1,px<W-1?p+1:-1,p-W,p+W]){if(q<0||q>=W*H||bg[q]||band[q])continue;band[q]=layer;nx.push(q)}}fr=nx}
+  for(let layer=1;layer<=6;layer++){const nx=[];for(const p of fr){const px=p%W;for(const q of [px>0?p-1:-1,px<W-1?p+1:-1,p-W,p+W]){if(q<0||q>=W*H||bg[q]||band[q])continue;band[q]=layer;nx.push(q)}}fr=nx}
   const magenta=key[0]>key[1]&&key[2]>key[1];
-  for(let p=0;p<W*H;p++){if(!band[p])continue;const i=p*4,r=d[i],g=d[i+1],b=d[i+2],k=1-(band[p]-1)*.18;
+  for(let p=0;p<W*H;p++){if(!band[p])continue;const i=p*4,r=d[i],g=d[i+1],b=d[i+2],k=1-(band[p]-1)*.13;
     if(magenta){const m=Math.min(r,b);if(m>g){d[i]=r-(m-g)*k;d[i+2]=b-(m-g)*k}}
     else{const m=Math.max(r,b);if(g>m)d[i+1]=g-(g-m)*k}}
   x.putImageData(id,0,0);
