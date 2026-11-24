@@ -11,6 +11,9 @@ function canvasOf(w,h){const c=document.createElement('canvas');c.width=w;c.heig
 function keyOut(img){
   const W=img.naturalWidth||img.width,H=img.naturalHeight||img.height,c=canvasOf(W,H),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0);
   const id=x.getImageData(0,0,W,H),d=id.data;
+  // some paintings come back already cut out (transparent background). Keying those again reads the invisible
+  // leftover pixels as solid colour (the scribbly outline) and eats greens, so use their own transparency instead.
+  const cornerA=[[0,0],[W-1,0],[0,H-1],[W-1,H-1]].reduce((s,[cx,cy])=>s+d[(cy*W+cx)*4+3],0)/4,pre=cornerA<16;
   const samp=(sx,sy)=>{let r=0,g=0,b=0,n=0;for(let y=sy;y<sy+10;y++)for(let xx=sx;xx<sx+10;xx++){const i=(y*W+xx)*4;r+=d[i];g+=d[i+1];b+=d[i+2];n++}return [r/n,g/n,b/n]};
   const cs=[samp(2,2),samp(W-12,2),samp(2,H-12),samp(W-12,H-12)];
   const key=[0,1,2].map(k=>cs.map(c=>c[k]).sort((a,b)=>a-b).slice(1,3).reduce((a,b)=>a+b)/2);
@@ -19,11 +22,12 @@ function keyOut(img){
   const keyMag=key[0]>key[1]&&key[2]>key[1];
   // the fill also crosses glow and soft halos tinted with the background colour, so a faint ring around the character goes too
   const tinted=i=>keyMag?Math.min(d[i],d[i+2])-d[i+1]>65:d[i+1]-Math.max(d[i],d[i+2])>65;
-  const push=p=>{if(!bg[p]&&(dist(p*4)<T1||tinted(p*4))){bg[p]=1;q[qt++]=p}};
+  const push=p=>{if(pre)return;if(!bg[p]&&(dist(p*4)<T1||tinted(p*4))){bg[p]=1;q[qt++]=p}};
   for(let i=0;i<W;i++){push(i);push((H-1)*W+i)}for(let j=0;j<H;j++){push(j*W);push(j*W+W-1)}
   while(qh<qt){const p=q[qh++],px=p%W,py=(p/W)|0;if(px>0)push(p-1);if(px<W-1)push(p+1);if(py>0)push(p-W);if(py<H-1)push(p+W)}
   // background showing through gaps the fill can't reach (curly fur, between arms): clearly key-coloured pockets go too
-  for(let p=0;p<W*H;p++){if(bg[p])continue;const i=p*4,r=d[i],g=d[i+1],b=d[i+2];
+  if(pre)for(let p=0;p<W*H;p++){if(d[p*4+3]<40)bg[p]=1}
+  else for(let p=0;p<W*H;p++){if(bg[p])continue;const i=p*4,r=d[i],g=d[i+1],b=d[i+2];
     // also background that's darker because it sits in the character's shadow (same hue, lower brightness)
     if(dist(i)<T1*.9||(keyMag?(Math.min(r,b)-g>90&&Math.abs(r-b)<60):(g-Math.max(r,b)>90&&Math.abs(r-b)<60)))bg[p]=1}
   // drop specks and stray bits that aren't part of a character (every sizeable piece stays, so all twelve poses do)
@@ -41,7 +45,8 @@ function keyOut(img){
     if(bg[p]){d[i+3]=0;continue}
     const px=p%W,py=(p/W)|0;
     const nearBg=(px>0&&bg[p-1])||(px<W-1&&bg[p+1])||(py>0&&bg[p-W])||(py<H-1&&bg[p+W]);
-    if(nearBg){const a=clamp((dist(i)-T1)/(T2-T1),0,1);d[i+3]=Math.round(255*Math.max(a,.15));
+    if(pre){d[i+3]=Math.round(255*clamp((d[i+3]-40)/(235-40),0,1))}
+    else if(nearBg){const a=clamp((dist(i)-T1)/(T2-T1),0,1);d[i+3]=Math.round(255*Math.max(a,.15));
       // pull the background tint out of the soft edge
       for(let k=0;k<3;k++)d[i+k]=clamp(Math.round((d[i+k]-key[k]*(1-a))/Math.max(a,.35)),0,255)}
     if(px<minX)minX=px;if(px>maxX)maxX=px;if(py<minY)minY=py;if(py>maxY)maxY=py}
@@ -49,11 +54,11 @@ function keyOut(img){
   const band=new Uint8Array(W*H);let fr=[];for(let p=0;p<W*H;p++)if(bg[p])fr.push(p);
   for(let layer=1;layer<=6;layer++){const nx=[];for(const p of fr){const px=p%W;for(const q of [px>0?p-1:-1,px<W-1?p+1:-1,p-W,p+W]){if(q<0||q>=W*H||bg[q]||band[q])continue;band[q]=layer;nx.push(q)}}fr=nx}
   const magenta=key[0]>key[1]&&key[2]>key[1];
-  for(let p=0;p<W*H;p++){if(!band[p])continue;const i=p*4,r=d[i],g=d[i+1],b=d[i+2],k=1-(band[p]-1)*.13;
+  if(!pre)for(let p=0;p<W*H;p++){if(!band[p])continue;const i=p*4,r=d[i],g=d[i+1],b=d[i+2],k=1-(band[p]-1)*.13;
     if(magenta){const m=Math.min(r,b);if(m>g){d[i]=r-(m-g)*k;d[i+2]=b-(m-g)*k}}
     else{const m=Math.max(r,b);if(g>m)d[i+1]=g-(g-m)*k}}
   // the painter sometimes tints light areas with the background colour (pinkish white fur): pull that tint out of light, mostly neutral pixels only
-  for(let p=0;p<W*H;p++){if(bg[p])continue;const i=p*4,r=d[i],g=d[i+1],b=d[i+2];
+  if(!pre)for(let p=0;p<W*H;p++){if(bg[p])continue;const i=p*4,r=d[i],g=d[i+1],b=d[i+2];
     if(magenta){const m=Math.min(r,b),e=m-g;if(m>150&&e>0&&e<75)d[i+1]=g+e*(e<55?1:(75-e)/20)}
     else{const m=Math.max(r,b),e=g-m;if(m>150&&e>0&&e<75)d[i+1]=g-e*(e<55?1:(75-e)/20)}}
   x.putImageData(id,0,0);
