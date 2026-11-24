@@ -107,6 +107,7 @@ public enum Pip {
             let rect: [String: Any] = ["x": Double(r.minX), "y": Double(r.minY), "w": Double(r.width), "h": Double(r.height)]
             return ["r": rect, "text": step.say, "mode": "point"]
         }
+        PipOverlay.log("tour: \(list.count) of \(steps.count) targets found")
         guard !list.isEmpty else { return }
         if let done { call("tour", list, done) } else { call("tour", list, NSNull()) }
     }

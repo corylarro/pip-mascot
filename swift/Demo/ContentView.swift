@@ -713,10 +713,14 @@ struct DemoMenu: View {
             Button("Off") { Pip.season(.off) }
         }
         Button("Give the tour") {
-            Pip.tour([("streak", "This is your streak. Keep it going!"),
-                      ("feelings", "Tell me how you feel each night."),
-                      ("session", "Then breathe with me here.")],
-                     done: "That's it. Enjoy!")
+            // Let the menu finish closing before Pip starts walking.
+            Task {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                Pip.tour([("streak", "This is your streak. Keep it going!"),
+                          ("feelings", "Tell me how you feel each night."),
+                          ("session", "Then breathe with me here.")],
+                         done: "That's it. Enjoy!")
+            }
         }
         Button("Hide Pip") { Pip.hide() }
         Button("Show Pip") { Pip.show() }

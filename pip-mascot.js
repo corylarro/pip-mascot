@@ -998,12 +998,14 @@ var paintedEngine=PipPaintedEngine();
     cover(on,peek){this._m&&this._m.cover(on,peek)} lookAt(x,y){this._m&&this._m.lookAt(x,y)} watch(input){this._m&&this._m.watch(input);return this}
     point(el,text){return this.goTo(el,{text})}
     // Walk people through a screen: [{target:'#plan', text:'Pick a plan'}, …]. Pip points at each, then heads home.
-    async tour(steps,{done}={}){const id=this._tour=(this._tour||0)+1;
-      for(const s of steps||[]){if(id!==this._tour||!this._m||this._hiddenByUser)return;const el=typeof s.target==='string'?document.querySelector(s.target):s.target;if(!el)continue;
-        await this.goTo(el,{mode:s.mode||'point',text:s.text,state:s.state,stay:true});if(id!==this._tour)return;
-        await wait(s.ms||Math.max(2400,(s.text||'').length*55+1400))}
-      if(id!==this._tour||!this._m)return;if(done){this._m.react('success',1800);this._m.say(done,{hold:1800});await wait(1600)}return this.home()}
-    stopTour(){this._tour=(this._tour||0)+1;return this.home()}
+    async tour(steps,{done}={}){const id=this._tour=(this._tour||0)+1;this._touring=true;
+      try{for(const s of steps||[]){if(id!==this._tour||!this._m||this._hiddenByUser)return;const el=typeof s.target==='string'?document.querySelector(s.target):s.target;if(!el)continue;
+          await this.goTo(el,{mode:s.mode||'point',text:s.text,state:s.state,stay:true});if(id!==this._tour)return;
+          await wait(s.ms||Math.max(2400,(s.text||'').length*55+1400))}
+        if(id!==this._tour||!this._m)return;if(done){this._m.react('success',1800);this._m.say(done,{hold:1800});await wait(1600)}}
+      finally{if(id===this._tour)this._touring=false}
+      if(id===this._tour)return this.home()}
+    stopTour(){this._tour=(this._tour||0)+1;this._touring=false;return this.home()}
     get state(){return this._m?this._m.state:null}
   }
 
