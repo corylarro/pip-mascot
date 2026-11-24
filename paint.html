@@ -212,10 +212,10 @@ const DB={open(){return new Promise((res,rej)=>{const r=indexedDB.open('pip-pain
 /* ---------- UI ---------- */
 const badge=$('badge'),statesEl=$('states'),status=$('status'),stepsEl=$('steps');
 const rig=new PaintRig($('cv'),{bubble:$('bubble'),onState:s=>{badge.textContent=s;[...statesEl.children].forEach(c=>c.setAttribute('aria-pressed',String(c.dataset.s===s)))}});
-['idle','thinking','success','error','surprised','talking','love','wave','point','confused','sleeping'].forEach(s=>{const b=document.createElement('button');b.type='button';b.className='chip';b.dataset.s=s;
+['idle','thinking','success','error','surprised','talking','love','wave','point','confused','dance','sad','peek','sleeping'].forEach(s=>{const b=document.createElement('button');b.type='button';b.className='chip';b.dataset.s=s;
   b.textContent=s[0].toUpperCase()+s.slice(1);b.setAttribute('aria-pressed',String(s==='idle'));
   b.addEventListener('click',()=>{if(s==='point'){const r=$('cv').getBoundingClientRect(),left=Math.random()<.5;rig.point(left?r.left-200:r.right+200,r.top+r.height*.5);rig.say(left?'Over there!':'Right here!',{hold:1200});return}
-    if(['success','error','surprised','love','wave','confused'].includes(s))rig.react(s);else if(s==='talking'){rig.setState('idle');rig.say(`Hi! I'm ${current.name||'your mascot'}. I was painted, then rigged to move.`)}else rig.setState(s)});statesEl.appendChild(b)});
+    if(['success','error','surprised','love','wave','confused','dance','sad','peek'].includes(s))rig.react(s,s==='dance'||s==='sad'?3200:2300);else if(s==='talking'){rig.setState('idle');rig.say(`Hi! I'm ${current.name||'your mascot'}. I was painted, then rigged to move.`)}else rig.setState(s)});statesEl.appendChild(b)});
 const pw=$('tryPw');pw.addEventListener('focus',()=>{rig.cover=true});pw.addEventListener('blur',()=>{rig.cover=false});pw.addEventListener('input',()=>rig.squash.v-=1.2);
 
 const MODES={sheet:{steps:[['sheet','Sheet'],['face','Find face'],['f0','Neutral'],['f1','Blink'],['f2','Happy'],['f3','Talking'],['f4','Worried'],['f5','Surprised'],['f6','Confused'],['f7','Wave'],['f8','Wave 2'],['f9','Point'],['f10','Point 2'],['f11','Talk (ee)']],
