@@ -788,9 +788,14 @@ async function encodeAtlas(frames,face){let a=buildAtlas(frames,face);
 const SHEET_NAMES=['neutral','blink','happy','talk','worried','surprised','confused','waveA','waveB','pointL','pointR','talkE'];
 const FULL_FRAMES=['waveA','waveB','pointL','pointR'];
 // Attach every frame of a split sheet to a rig (expressions as face patches, poses as full frames), with sanity checks.
+function framesDiffer(a,b){const S=48,ca=canvasOf(S,S),cb=canvasOf(S,S),xa=ca.getContext('2d',{willReadFrequently:true}),xb=cb.getContext('2d',{willReadFrequently:true});
+  xa.drawImage(a.canvas,0,0,S,S);xb.drawImage(b.canvas,0,0,S,S);const da=xa.getImageData(0,0,S,S).data,db=xb.getImageData(0,0,S,S).data;let n=0;
+  for(let i=3;i<da.length;i+=4)if(Math.abs(da[i]-db[i])>60)n++;return n>6}
 function attachFrames(rig,frames,face){
   frames=frames.map((fr,i)=>i&&FULL_FRAMES.includes(SHEET_NAMES[i])?matchScale(frames[0],fr):fr);
   frames.forEach((fr,i)=>{const n=SHEET_NAMES[i];if(!n||n==='neutral')return;if(FULL_FRAMES.includes(n))rig.addFull(n,fr);else rig.addExpr(n,fr)});
+  // a wave pose that's just the neutral pose (dropped by the quality check, or never drawn) means: no painted wave
+  if(rig.full.waveA&&!framesDiffer(frames[0],rig.full.waveA)){delete rig.full.waveA;delete rig.full.waveB}
   if(rig.full.waveA&&rig.full.waveB){const a=raisedSide(frames[0],rig.full.waveA,face.box),b=raisedSide(frames[0],rig.full.waveB,face.box);if(!a||!b||a!==b)delete rig.full.waveB}
   const pl=frames[9],pr=frames[10];
   if(pl||pr){const sl=rig.full.pointL&&reachSide(frames[0],rig.full.pointL),sr=rig.full.pointR&&reachSide(frames[0],rig.full.pointR);delete rig.full.pointL;delete rig.full.pointR;

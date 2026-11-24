@@ -38,6 +38,10 @@ Reply with ONLY this JSON (no prose). All numbers are fractions of the image wid
 {"face":{"x":0,"y":0,"w":0,"h":0},"eyes":[{"x":0,"y":0,"w":0,"h":0}],"mouth":{"x":0,"y":0,"w":0,"h":0}}
 "face" must tightly cover the eyes, eyebrows and mouth (not the whole head, ears or hair). List every visible eye, left to right. Each eye box covers just that eye (not the eyebrow). The mouth box covers just the lips/mouth opening, even if partly hidden by a beard.`;
 
+const LIMBS_PROMPT = `This image is a character sheet: 12 panels in a grid of 4 columns and 3 rows, all showing the same character. Panels are numbered 1 to 12, left to right, top to bottom (panel 1 is top-left, panel 8 is the right end of the middle row).
+Compare panels 8, 9, 10 and 11 with panel 1. For each, answer true if that panel shows MORE arms, legs or paws than panel 1 (an extra limb was added instead of lifting one of the existing ones), or if an animal that has paws was given a human hand with fingers. Otherwise answer false.
+Reply with ONLY this JSON (no prose): {"8":false,"9":false,"10":false,"11":false}`;
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST.' }); return; }
   const key = process.env.OPENAI_API_KEY;
@@ -122,6 +126,24 @@ export default async function handler(req, res) {
           break;
         }
         if (!tryNext(last.status, last.msg)) break;
+      }
+      res.status(last.status || 500).json({ error: last.msg, status: last.status }); return;
+    }
+
+    if (b.step === 'limbs') {
+      // Quality check after painting: did the wave or point poses grow an extra limb?
+      if (!b.image) { res.status(400).json({ error: 'Missing image.' }); return; }
+      let last = null;
+      for (const model of VISION_MODELS()) {
+        const r = await call(`${API}/responses`, {
+          method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model, input: [{ role: 'user', content: [
+            { type: 'input_text', text: LIMBS_PROMPT },
+            { type: 'input_image', image_url: `data:${b.mime || 'image/webp'};base64,${b.image}` }
+          ] }] })
+        });
+        if (r.ok) { const extra = parseJson(extractText(r.json)); if (extra) { res.json({ extra, model }); return; } last = { status: 502, msg: 'Could not read the check.' }; continue; }
+        last = r; if (!tryNext(r.status, r.msg)) break;
       }
       res.status(last.status || 500).json({ error: last.msg, status: last.status }); return;
     }
