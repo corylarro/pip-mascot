@@ -157,7 +157,6 @@ details.guide ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--mut
           <option value="flat">Flat vector</option>
           <option value="pixel">Pixel art</option>
           <option value="lowpoly">Low-poly 3D</option>
-          <option value="crochet">Crochet toy</option>
           <option value="storybook">Storybook</option>
         </select></div>
       <div class="field" style="flex:1"><label for="mode">Face</label>
@@ -257,7 +256,6 @@ const STYLE={
   flat:'Flat vector mascot for a modern app brand, simple geometric shapes, a small limited color palette, no outlines or very thin ones, no texture, crisp edges',
   pixel:'Crisp pixel art game sprite, visible square pixels, limited retro color palette, clean pixel outlines, no blur or anti-aliasing',
   lowpoly:'Low-poly 3D model, faceted geometric surfaces with flat shading, soft studio lighting',
-  crochet:'Handmade crochet amigurumi toy, visible yarn stitches, soft wool texture, soft studio lighting',
   storybook:'Soft painted storybook illustration, gentle colors and brush texture, but with clean, well-defined edges around the character'};
 function keyColor(desc){return /pink|magenta|purple|violet|fuchsia|lavender/i.test(desc)?{name:'pure green',hex:'#00FF00'}:{name:'pure magenta',hex:'#FF00FF'}}
 function bgLine(desc){const k=keyColor(desc);return `Background: a completely flat, uniform ${k.name} (${k.hex}) filling the whole image, with no gradient, no floor, no cast shadow, no reflections, no props, no text. Do not use ${k.name} anywhere on the character. Light the character with neutral white light only: the background colour must not reflect onto, glow on or tint the character, its edges or its fur.`}

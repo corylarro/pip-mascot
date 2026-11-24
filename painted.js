@@ -20,7 +20,10 @@ function keyOut(img){
   for(let i=0;i<W;i++){push(i);push((H-1)*W+i)}for(let j=0;j<H;j++){push(j*W);push(j*W+W-1)}
   while(qh<qt){const p=q[qh++],px=p%W,py=(p/W)|0;if(px>0)push(p-1);if(px<W-1)push(p+1);if(py>0)push(p-W);if(py<H-1)push(p+W)}
   // background showing through gaps the fill can't reach (curly fur, between arms): clearly key-coloured pockets go too
-  for(let p=0;p<W*H;p++)if(!bg[p]&&dist(p*4)<T1*.9)bg[p]=1;
+  const keyMag=key[0]>key[1]&&key[2]>key[1];
+  for(let p=0;p<W*H;p++){if(bg[p])continue;const i=p*4,r=d[i],g=d[i+1],b=d[i+2];
+    // also background that's darker because it sits in the character's shadow (same hue, lower brightness)
+    if(dist(i)<T1*.9||(keyMag?(Math.min(r,b)-g>90&&Math.abs(r-b)<60):(g-Math.max(r,b)>90&&Math.abs(r-b)<60)))bg[p]=1}
   let minX=W,minY=H,maxX=0,maxY=0;
   for(let p=0;p<W*H;p++){const i=p*4;
     if(bg[p]){d[i+3]=0;continue}
