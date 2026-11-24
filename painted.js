@@ -16,14 +16,26 @@ function keyOut(img){
   const key=[0,1,2].map(k=>cs.map(c=>c[k]).sort((a,b)=>a-b).slice(1,3).reduce((a,b)=>a+b)/2);
   const dist=i=>Math.hypot(d[i]-key[0],d[i+1]-key[1],d[i+2]-key[2]);
   const T1=58,T2=120,bg=new Uint8Array(W*H),q=new Int32Array(W*H);let qh=0,qt=0;
-  const push=p=>{if(!bg[p]&&dist(p*4)<T1){bg[p]=1;q[qt++]=p}};
+  const keyMag=key[0]>key[1]&&key[2]>key[1];
+  // the fill also crosses glow and soft halos tinted with the background colour, so a faint ring around the character goes too
+  const tinted=i=>keyMag?Math.min(d[i],d[i+2])-d[i+1]>65:d[i+1]-Math.max(d[i],d[i+2])>65;
+  const push=p=>{if(!bg[p]&&(dist(p*4)<T1||tinted(p*4))){bg[p]=1;q[qt++]=p}};
   for(let i=0;i<W;i++){push(i);push((H-1)*W+i)}for(let j=0;j<H;j++){push(j*W);push(j*W+W-1)}
   while(qh<qt){const p=q[qh++],px=p%W,py=(p/W)|0;if(px>0)push(p-1);if(px<W-1)push(p+1);if(py>0)push(p-W);if(py<H-1)push(p+W)}
   // background showing through gaps the fill can't reach (curly fur, between arms): clearly key-coloured pockets go too
-  const keyMag=key[0]>key[1]&&key[2]>key[1];
   for(let p=0;p<W*H;p++){if(bg[p])continue;const i=p*4,r=d[i],g=d[i+1],b=d[i+2];
     // also background that's darker because it sits in the character's shadow (same hue, lower brightness)
     if(dist(i)<T1*.9||(keyMag?(Math.min(r,b)-g>90&&Math.abs(r-b)<60):(g-Math.max(r,b)>90&&Math.abs(r-b)<60)))bg[p]=1}
+  // drop specks and stray bits that aren't part of a character (every sizeable piece stays, so all twelve poses do)
+  {const lab=new Int32Array(W*H),sizes=[0];let n=0,big=0;
+    for(let s0=0;s0<W*H;s0++){if(bg[s0]||lab[s0])continue;n++;let h=0,t=0,sz=0;q[t++]=s0;lab[s0]=n;
+      while(h<t){const p=q[h++];sz++;const px=p%W;
+        if(px>0&&!bg[p-1]&&!lab[p-1]){lab[p-1]=n;q[t++]=p-1}
+        if(px<W-1&&!bg[p+1]&&!lab[p+1]){lab[p+1]=n;q[t++]=p+1}
+        if(p>=W&&!bg[p-W]&&!lab[p-W]){lab[p-W]=n;q[t++]=p-W}
+        if(p+W<W*H&&!bg[p+W]&&!lab[p+W]){lab[p+W]=n;q[t++]=p+W}}
+      sizes.push(sz);if(sz>big)big=sz}
+    for(let p=0;p<W*H;p++)if(lab[p]&&sizes[lab[p]]<big*.015)bg[p]=1}
   let minX=W,minY=H,maxX=0,maxY=0;
   for(let p=0;p<W*H;p++){const i=p*4;
     if(bg[p]){d[i+3]=0;continue}
