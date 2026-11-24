@@ -86,7 +86,10 @@ body.locked .gate{display:flex}
 .gate p{margin:0;color:var(--muted);font-size:15px}
 .gate .err{color:var(--bad);font-size:14px;min-height:1.4em}
 .gate a{color:var(--ink);font-size:14px}
-.gate a.buy{justify-content:center;font-weight:700;font-size:15px;padding:11px 16px}
+.gate a.buy{display:block;text-align:center;text-decoration:none;font-size:16px;color:var(--accent-ink)}
+.gate .fine{font-size:13px;margin-top:-4px}
+.gate details.have{display:flex;flex-direction:column;gap:10px}.gate details.have summary{cursor:pointer;font-size:14px;font-weight:500;color:var(--ink)}
+.gate details.have[open]{gap:10px}.gate details.have>*:not(summary){margin-top:10px}
 .keybox{display:flex;flex-direction:column;gap:8px;background:var(--bg);border:1.5px solid var(--accent);border-radius:12px;padding:12px}
 .keybox code{font:500 14px var(--font-mono);word-break:break-all}
 .credits{font-size:13px;color:var(--muted)}
@@ -112,11 +115,14 @@ details.guide ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--mut
 <div class="gate" id="gate">
   <form id="gateForm" autocomplete="off">
     <h1>Critterkit painter</h1>
-    <p>Paint your own mascot: twelve poses, ready for your app. Already bought? Enter your Critterkit key.</p>
-    <div class="field"><label for="gatePass">Critterkit key</label><input type="password" id="gatePass" required autocomplete="current-password" placeholder="ck_…"></div>
-    <button type="submit" class="primary" id="gateGo">Unlock</button>
+    <p>Describe a character, or start from a photo. Critterkit paints it in twelve poses and brings it to life in your app.</p>
+    <a class="primary buy" href="/api/checkout?plan=painted">Get a painted mascot · $19</a>
+    <p class="fine">Launch price (normally $29). Includes 6 paints so you can get it just right.</p>
     <div class="err" id="gateErr" role="alert"></div>
-    <a class="ghost buy" href="/api/checkout?plan=painted">Get a painted mascot</a>
+    <details class="have" id="haveKey"><summary>Already bought? Enter your key</summary>
+      <div class="field"><label for="gatePass">Critterkit key</label><input type="password" id="gatePass" autocomplete="current-password" placeholder="ck_…"></div>
+      <button type="submit" class="ghost" id="gateGo">Unlock</button>
+    </details>
     <a href="/landing">See what Critterkit does</a>
   </form>
 </div>
@@ -308,15 +314,15 @@ function unlock(p){$('pass').value=p;try{localStorage.setItem('pip-pass',p)}catc
 (async()=>{let sp='';try{sp=localStorage.getItem('pip-pass')||''}catch(e){}
   // Back from paying: swap the checkout for a key (the server checks with Polar first)
   const back=new URLSearchParams(location.search).get('checkout_id');
-  if(back){$('gateErr').textContent='';$('gateGo').disabled=true;$('gateGo').textContent='Confirming your payment…';
+  if(back){$('haveKey').open=true;$('gateErr').textContent='';$('gateGo').disabled=true;$('gateGo').textContent='Confirming your payment…';
     for(let a=0;a<6;a++){try{const r=await fetch('/api/checkout?redeem='+encodeURIComponent(back)),j=await r.json().catch(()=>({}));
         if(r.ok&&j.key){history.replaceState(null,'','/paint');sp=j.key;$('keyText').textContent=j.key;$('keyBox').hidden=false;break}
         if(r.status===409&&j.status==='confirmed'){await new Promise(res=>setTimeout(res,4000));continue}
         $('gateErr').textContent=j.error||'Couldn’t confirm that payment.';break}catch(e){$('gateErr').textContent='Couldn’t reach the server. Refresh to try again.';break}}
     $('gateGo').disabled=false;$('gateGo').textContent='Unlock'}
   if(await checkPass(sp)){unlock(sp);if(!$('keyBox').hidden)setStatus('Thanks for buying! Describe your character (or add a photo) and tap Paint it.','ok');return}
-  try{localStorage.removeItem('pip-pass')}catch(e){}$('gatePass').focus()})();
-$('gateForm').addEventListener('submit',async e=>{e.preventDefault();const p=$('gatePass').value.trim();if(!p)return;
+  try{localStorage.removeItem('pip-pass')}catch(e){}})();
+$('gateForm').addEventListener('submit',async e=>{e.preventDefault();const p=$('gatePass').value.trim();if(!p){$('haveKey').open=true;$('gatePass').focus();return}
   $('gateGo').disabled=true;$('gateErr').textContent='';
   if(await checkPass(p))unlock(p);else{$('gateErr').textContent='That key didn’t work. Check it and try again.';$('gatePass').select()}
   $('gateGo').disabled=false});
