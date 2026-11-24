@@ -12,18 +12,18 @@
 <meta property="og:site_name" content="Critterkit">
 <meta property="og:title" content="Critterkit demo: a mascot inside real apps">
 <meta property="og:description" content="Try Critterkit inside a sign-up form and a meditation streak. It notices what is happening and reacts by itself.">
-<meta property="og:url" content="https://pip-mascot.vercel.app/demo">
-<meta property="og:image" content="https://pip-mascot.vercel.app/og.png">
+<meta property="og:url" content="https://www.critterkit.com/demo">
+<meta property="og:image" content="https://www.critterkit.com/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="A little orange seed mascot with a green scarf, waving next to the words: Give your app a character people remember.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Critterkit demo: a mascot inside real apps">
 <meta name="twitter:description" content="Try Critterkit inside a sign-up form and a meditation streak. It notices what is happening and reacts by itself.">
-<meta name="twitter:image" content="https://pip-mascot.vercel.app/og.png">
+<meta name="twitter:image" content="https://www.critterkit.com/og.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,500..800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="preload" as="fetch" href="https://pip-mascot.vercel.app/api/mascot?id=fd89vpfu99qm" crossorigin="anonymous">
+<link rel="preload" as="fetch" href="https://www.critterkit.com/api/mascot?id=fd89vpfu99qm" crossorigin="anonymous">
 <script src="/critter.js"></script>
 <style>
 :root{--haze:#ECEBFF;--ink:#221E3F;--ink-2:#4A4570;--peach:#FF9466;--sprout:#2FAF74;--butter:#FFD35A;--white:#fff;--line:#D6D3F2;
@@ -138,7 +138,7 @@ pre .c{color:#9C97C9}pre .t{color:var(--butter)}pre .a{color:#9EE6C2}
 <body>
 <div class="wrap">
   <header class="bar">
-    <a class="mark" href="/landing" aria-label="Critterkit home"><i aria-hidden="true"></i>critterkit</a>
+    <a class="mark" href="/" aria-label="Critterkit home"><i aria-hidden="true"></i>critterkit</a>
     <span style="display:flex;gap:16px;align-items:center"><a href="/docs" style="font-weight:600;color:var(--ink-2);text-decoration:none">Docs</a><a class="join" href="/landing#join2">Join the waitlist</a></span>
   </header>
 
@@ -287,7 +287,7 @@ let pip = null, kind = 'painted', corner = 'bottom-right';
 const esc = s => s.replace(/</g, '&lt;');
 function code() {
   const attrs = (kind === 'painted' ? ` <span class="a">mascot</span>="your-mascot-id"` : '') + (corner !== 'bottom-right' ? ` <span class="a">position</span>="${corner}"` : '');
-  $('codeTaskly').innerHTML = `<span class="t">&lt;script</span> <span class="a">src</span>="https://pip-mascot.vercel.app/critter.js"<span class="t">&gt;&lt;/script&gt;</span>\n<span class="t">&lt;critter-mascot</span>${attrs} <span class="a">autopilot</span> <span class="a">greet</span><span class="t">&gt;&lt;/critter-mascot&gt;</span>`;
+  $('codeTaskly').innerHTML = `<span class="t">&lt;script</span> <span class="a">src</span>="https://www.critterkit.com/critter.js"<span class="t">&gt;&lt;/script&gt;</span>\n<span class="t">&lt;critter-mascot</span>${attrs} <span class="a">autopilot</span> <span class="a">greet</span><span class="t">&gt;&lt;/critter-mascot&gt;</span>`;
 }
 function logIt(d) {
   const ul = $('apLog'), e = ul.querySelector('.empty'); if (e) e.remove();

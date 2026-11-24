@@ -8,15 +8,15 @@ async def main():
         src=await pg.evaluate('''(painted)=>{const c={name:"Pip",shape:"bean",color:"#FFC23D",accent:"#6BCB77",eyeColor:"#5A3A1E",topper:"sprout",eyes:"round",pattern:"none",accessory:"none",tooth:false,hat:"",item:"",greeting:"Hi, I'm Pip!"};
           return `/*! critter.js · Critterkit mascot runtime
  * Usage:
- *   <script src="https://pip-mascot.vercel.app/critter.js"><\\/script>
+ *   <script src="https://www.critterkit.com/critter.js"><\\/script>
  *   <critter-mascot autopilot greet></critter-mascot>                 (drawn mascot)
- *   <critter-mascot mascot="YOUR_ID" autopilot greet></critter-mascot> (painted mascot made at pip-mascot.vercel.app/paint)
+ *   <critter-mascot mascot="YOUR_ID" autopilot greet></critter-mascot> (painted mascot made at critterkit.com/paint)
  * The old <pip-mascot> tag and pip-mascot.js still work.
  * Methods: setState(s), react(s, ms), say(text), point(element, text), tour(steps), home(), watch(input)
  */
 (function(){
 "use strict";
-var origin=(document.currentScript&&document.currentScript.src)?new URL(document.currentScript.src).origin:'https://pip-mascot.vercel.app';
+var origin=(document.currentScript&&document.currentScript.src)?new URL(document.currentScript.src).origin:'https://www.critterkit.com';
 var engine=(${PipEngine.toString()})();
 ${painted}
 var paintedEngine=PipPaintedEngine();

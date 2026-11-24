@@ -192,7 +192,7 @@ final class PipOverlay {
             return
         }
         // The base URL lets the page load painted mascots from Pip's servers.
-        web.loadHTMLString(html, baseURL: URL(string: "https://pip-mascot.vercel.app/"))
+        web.loadHTMLString(html, baseURL: URL(string: "https://www.critterkit.com/"))
     }
 
     func didLoad() {

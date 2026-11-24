@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta property="og:title" content="Critterkit docs: add a mascot to your app">
 <meta property="og:description" content="Two lines to add Critterkit. Placement, size, the JavaScript API, events and theming.">
-<meta property="og:image" content="https://pip-mascot.vercel.app/og.png">
+<meta property="og:image" content="https://www.critterkit.com/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,500..800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -68,7 +68,7 @@ ul.list{margin:0 0 8px;padding-left:20px;display:flex;flex-direction:column;gap:
 <body>
 <div class="wrap">
   <header class="bar">
-    <a class="mark" href="/landing" aria-label="Critterkit home"><i aria-hidden="true"></i>critterkit</a>
+    <a class="mark" href="/" aria-label="Critterkit home"><i aria-hidden="true"></i>critterkit</a>
     <nav aria-label="Site"><a href="/demo">Live demo</a><a class="opt" href="/landing#pricing">Pricing</a></nav>
   </header>
 
@@ -87,7 +87,7 @@ ul.list{margin:0 0 8px;padding-left:20px;display:flex;flex-direction:column;gap:
       <section id="install" aria-labelledby="h-install">
         <h2 id="h-install">Install</h2>
         <p>Paste these before the closing <code>&lt;/body&gt;</code> tag. Swap in your mascot's id from the paint page, or leave <code>mascot</code> out to use the drawn mascot.</p>
-<pre><span class="t">&lt;script</span> <span class="a">src</span>=<span class="s">"https://pip-mascot.vercel.app/critter.js"</span><span class="t">&gt;&lt;/script&gt;</span>
+<pre><span class="t">&lt;script</span> <span class="a">src</span>=<span class="s">"https://www.critterkit.com/critter.js"</span><span class="t">&gt;&lt;/script&gt;</span>
 <span class="t">&lt;critter-mascot</span> <span class="a">mascot</span>=<span class="s">"your-mascot-id"</span> <span class="a">autopilot</span> <span class="a">greet</span><span class="t">&gt;&lt;/critter-mascot&gt;</span></pre>
         <p><code>autopilot</code> lets the mascot float in a corner and react to your app. <code>greet</code> makes it say hello when the page loads.</p>
       </section>
@@ -105,7 +105,7 @@ ul.list{margin:0 0 8px;padding-left:20px;display:flex;flex-direction:column;gap:
       &lt;body&gt;
         {children}
         &lt;<span class="t">critter-mascot</span> <span class="a">mascot</span>=<span class="s">"your-mascot-id"</span> <span class="a">autopilot</span>=<span class="s">""</span> <span class="a">greet</span>=<span class="s">""</span> /&gt;
-        &lt;<span class="t">Script</span> <span class="a">src</span>=<span class="s">"https://pip-mascot.vercel.app/critter.js"</span> <span class="a">strategy</span>=<span class="s">"afterInteractive"</span> /&gt;
+        &lt;<span class="t">Script</span> <span class="a">src</span>=<span class="s">"https://www.critterkit.com/critter.js"</span> <span class="a">strategy</span>=<span class="s">"afterInteractive"</span> /&gt;
       &lt;/body&gt;
     &lt;/html&gt;
   )

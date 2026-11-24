@@ -1,14 +1,14 @@
 /*! critter.js · Critterkit mascot runtime
  * Usage:
- *   <script src="https://pip-mascot.vercel.app/critter.js"></script>
+ *   <script src="https://www.critterkit.com/critter.js"></script>
  *   <critter-mascot autopilot greet></critter-mascot>                 (drawn mascot)
- *   <critter-mascot mascot="YOUR_ID" autopilot greet></critter-mascot> (painted mascot made at pip-mascot.vercel.app/paint)
+ *   <critter-mascot mascot="YOUR_ID" autopilot greet></critter-mascot> (painted mascot made at critterkit.com/paint)
  * The old <pip-mascot> tag and pip-mascot.js still work.
  * Methods: setState(s), react(s, ms), say(text), point(element, text), tour(steps), home(), watch(input)
  */
 (function(){
 "use strict";
-var origin=(document.currentScript&&document.currentScript.src)?new URL(document.currentScript.src).origin:'https://pip-mascot.vercel.app';
+var origin=(document.currentScript&&document.currentScript.src)?new URL(document.currentScript.src).origin:'https://www.critterkit.com';
 var engine=(function PipEngine(){
 "use strict";
 const RM=(typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches)?0.3:1;
@@ -811,7 +811,7 @@ return {reachSide,matchScale,encodeAtlas,buildAtlas,framesFromAtlas,attachFrames
 var paintedEngine=PipPaintedEngine();
 (function definePipElement(engine,defaultConfig,painted,origin){
   if(typeof customElements==='undefined'||customElements.get('critter-mascot'))return;
-  origin=origin||'https://pip-mascot.vercel.app';
+  origin=origin||'https://www.critterkit.com';
   // Wrap a painted rig so it speaks the same language as the vector mascot.
   const adapt=rig=>({rig,get state(){return rig.state},get cfg(){return rig.cfg},get focusEl(){return rig.focusEl},set focusEl(v){rig.focusEl=v},
     get lean(){return rig.lean},set lean(v){rig.lean=v},setState:s=>rig.setState(s),react:(s,ms)=>rig.react(s,ms),say:(t,o)=>rig.say(t,o),

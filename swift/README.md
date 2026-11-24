@@ -54,7 +54,7 @@ Use this when your Mac can't run the Xcode version your phone needs. Xcode Cloud
 
 - **Build errors:** open the Issue navigator (⌘5), copy the red errors and send them over.
 - **Pip doesn't appear:** check the Xcode console (⌘⇧Y) for messages.
-- **Seeing inside Pip:** in Safari on your Mac, turn on Settings → Advanced → "Show features for web developers". Then use Develop → Simulator → `pip-mascot.vercel.app` to open Pip's console while the app runs.
+- **Seeing inside Pip:** in Safari on your Mac, turn on Settings → Advanced → "Show features for web developers". Then use Develop → Simulator → `critterkit.com` to open Pip's console while the app runs.
 - **Painted mascot doesn't load:** set `mascotID` to `nil` in `PipDemoSettings` to try the drawn mascot. If that works, it's a network issue.
 
 ## Using Pip in your own app
