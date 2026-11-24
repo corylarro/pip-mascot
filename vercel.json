@@ -1,7 +1,7 @@
 {
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/", "destination": "/landing.html" }
+    { "source": "/", "destination": "/landing" }
   ],
   "functions": { "api/*.js": { "maxDuration": 300 } }
 }
