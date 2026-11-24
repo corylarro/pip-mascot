@@ -75,13 +75,21 @@ p{margin:0}
 .stage::after{content:"";position:absolute;left:18%;right:18%;bottom:12%;height:22px;background:var(--ink);opacity:.12;border-radius:50%;filter:blur(2px)}
 .stage{--pip-size:min(300px,62vw)}
 .spot{position:relative;z-index:1;width:var(--pip-size);aspect-ratio:1/1.12;margin-top:6%}
-#pipPainted{transition:width .3s ease,opacity .45s ease}#pipPainted.small{--pip-size:132px}#pipPainted.loading{opacity:0;pointer-events:none}
+#pipPainted{transition:width .3s ease,opacity .45s ease}#pipPainted.small{--pip-size:132px}#pipPainted.loading,.spot ~ critter-mascot.loading{opacity:0;pointer-events:none}
 #pipPainted{animation:none}#pipPainted:not(.loading){animation:pipIn .5s cubic-bezier(.3,1.5,.6,1)}
 @keyframes pipIn{from{opacity:0;filter:blur(4px)}to{opacity:1;filter:none}}
 .spot{display:flex;align-items:flex-end;justify-content:center}#pipDrawn{--pip-size:92%}
 .play{position:absolute;z-index:2;bottom:-6px;left:50%;transform:translateX(-50%);display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:100%}
 .play button{font:600 .92rem var(--body);padding:7px 13px;border-radius:999px;border:2px solid var(--ink);background:var(--white);color:var(--ink);cursor:pointer}
 .play button:hover{background:var(--haze)}
+.art{display:flex;flex-direction:column;align-items:center;gap:26px;width:100%}
+.looks{display:flex;flex-direction:column;align-items:center;gap:10px;font:600 .95rem var(--body);color:var(--ink-2)}
+.look-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.look-row button{display:flex;flex-direction:column;align-items:center;gap:4px;font:600 .88rem var(--body);color:var(--ink);background:var(--white);border:2px solid var(--ink);border-radius:18px;padding:6px 8px 7px;cursor:pointer;transition:transform .12s}
+.look-row button:hover{transform:translateY(-2px)}
+.look-row button[aria-pressed="true"]{background:var(--butter);box-shadow:0 3px 0 var(--ink)}
+.look-row img{width:64px;height:64px;display:block}
+@media (max-width:520px){.look-row{gap:8px;flex-wrap:nowrap}.look-row button{padding:5px 6px 6px}.look-row img{width:52px;height:52px}}.look-row img.px{image-rendering:pixelated}
 .play-label{position:absolute;z-index:2;top:3%;left:0;font:600 .9rem var(--body);background:var(--white);border:2px solid var(--ink);border-radius:12px;padding:6px 10px;transform:rotate(-4deg)}
 
 /* moments */
@@ -194,6 +202,7 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
       </form>
       <p class="note" id="note1" aria-live="polite"></p>
     </div>
+    <div class="art">
     <div class="stage">
       <span class="play-label">Hi, I'm Pip. Poke me.</span>
       <div class="spot" id="pipHome"></div>
@@ -201,6 +210,16 @@ footer{padding:28px 0 48px;color:var(--ink-2);font-size:.92rem;display:flex;just
       <div class="play" role="group" aria-label="Make Pip react">
         <button data-r="wave">Wave</button><button data-r="success">Cheer</button><button data-r="dance">Dance</button><button data-r="error">Oops</button><button data-r="sleeping">Nap</button>
       </div>
+    </div>
+    <div class="looks" role="group" aria-labelledby="looksL">
+      <span id="looksL">Same Pip, four looks. Pick one:</span>
+      <div class="look-row">
+        <button data-look="xyjv3nf5en3k" aria-pressed="true"><img src="/img/looks/pip-3d.webp" alt="" width="64" height="64">3D</button>
+        <button data-look="duy8dpsfjwqs" aria-pressed="false"><img src="/img/looks/pip-plush.webp" alt="" width="64" height="64">Plush</button>
+        <button data-look="h29qwnqw4bwz" aria-pressed="false"><img src="/img/looks/pip-flat.webp" alt="" width="64" height="64">Flat</button>
+        <button data-look="pwrkwdd6i8dc" aria-pressed="false"><img class="px" src="/img/looks/pip-pixel.webp" alt="" width="64" height="64">Pixel</button>
+      </div>
+    </div>
     </div>
   </div>
   </main>
@@ -370,6 +389,20 @@ async function goHome() {
 }
 // Typing in the field sends Pip home happy
 document.querySelectorAll('.join input').forEach(i => i.addEventListener('input', () => { if (pip.classList.contains('small') && !pip._walking) { clearTimeout(homeT); homeT = setTimeout(goHome, 900); } }));
+
+// Pick a look: swap the hero Pip for the same character painted in another style
+document.querySelectorAll('[data-look]').forEach(b => b.addEventListener('click', () => {
+  if (b.getAttribute('aria-pressed') === 'true') return;
+  document.querySelectorAll('[data-look]').forEach(o => o.setAttribute('aria-pressed', String(o === b)));
+  if (pip.classList.contains('small')) goHome();
+  const old = pip, el = document.createElement('critter-mascot');
+  el.className = 'loading';
+  for (const a of ['dock', 'greeting', 'seasonal']) if (old.hasAttribute(a)) el.setAttribute(a, old.getAttribute(a));
+  el.setAttribute('mascot', b.dataset.look);
+  el.addEventListener('ready', () => requestAnimationFrame(() => { old.remove(); el.id = 'pipPainted'; el.classList.remove('loading'); pip = el; try { el.react('wave', 2200); } catch (e) {} say('New look!'); }), { once: true });
+  el.addEventListener('error', () => { el.remove(); document.querySelectorAll('[data-look]').forEach(o => o.setAttribute('aria-pressed', String(o.dataset.look === old.getAttribute('mascot')))); }, { once: true });
+  old.parentNode.insertBefore(el, old.nextSibling);
+}));
 
 // Reaction chips
 document.querySelectorAll('.play button').forEach(b => b.addEventListener('click', () => {
