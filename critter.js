@@ -551,7 +551,7 @@ class PaintRig{
       lookX:new Spring(0,120,16),lookY:new Spring(0,120,16),tilt:new Spring(0,90,12),lean:new Spring(0,90,12),zzz:new Spring(0),q:new Spring(0)};
     for(const [k,v0] of Object.entries(FBASE))this.s['f_'+k]=new Spring(v0,170,20);
     this.squash=new Spring(1,320,13);this.sink=new Spring(0,150,17);this.slump=new Spring(0,120,14);this.groove=new Spring(0,90,12);this.state='idle';this.look=[0,0];this.timer=null;this.cover=false;
-    this.stretch=new Spring(0,38,7.5);this.sway=new Spring(0,52,4.2);this.walkDir=0;this.walkT=0;this.nextIdle=performance.now()+7000;this.yawnUntil=0;this.yawned=false;this.idleLook=0;this.idleTilt=0;
+    this.stretch=new Spring(0,38,7.5);this.sway=new Spring(0,60,8);this.walkDir=0;this.walkT=0;this.nextIdle=performance.now()+7000;this.yawnUntil=0;this.yawned=false;this.idleLook=0;this.idleTilt=0;
     this.jumpY=0;this.jumpV=0;this.shake=0;this.t=0;this.nextBlink=1.2;this.blinkStart=-1;this.parts=[];this.pokes=[];this.lastAct=performance.now();this.lastPointer=0;this.nextGlance=0;
     const on=(t,ev,fn,o)=>{t.addEventListener(ev,fn,o);this._ls.push([t,ev,fn,o])};
     this._resize();on(window,'resize',()=>this._resize());
@@ -568,9 +568,9 @@ class PaintRig{
   bump(){this.squash.v-=1.4}
   // walking with weight: a little crouch to start, a bobbing, rocking gait, and a wobble when it stops
   walkStart(dir){this.walkDir=dir||1e-4;this.walkT=0;this.step=null;this.squash.v-=1.4*RM;this._act()}
-  walkStop(){if(!this.walkDir)return;this.walkDir=0;this.step=null;this.squash.v-=2.2*RM}
+  walkStop(){if(!this.walkDir)return;this.walkDir=0;this.step=null;this.squash.v-=1.5*RM}
   // hop-walk: the page moves the mascot in little hops and tells us where we are in each one
-  stepPhase(i,p){if(this.step&&i!==this.step.i)this.squash.v-=1.5*RM;this.step={i,p}}
+  stepPhase(i,p){if(this.step&&i!==this.step.i)this.squash.v-=1.1*RM;this.step={i,p}}
   // small things it does on its own when nobody's interacting, so it never looks like a loop
   _idleAction(now){const a=pick(['look','look','stretch','bounce','sway']);
     if(a==='look'){const s=Math.random()<.5?-1:1;this.look=[.95*s,.05];this.idleTilt=5*s;this.idleLook=now+2600;setTimeout(()=>{if(this.state==='idle'){this.look=[-.95*s,.05];this.idleTilt=-5*s}},900);setTimeout(()=>{this.idleTilt=0;if(this.state==='idle')this.look=[0,0]},1900)}
@@ -654,8 +654,8 @@ class PaintRig{
     let blink=0;if(this.blinkStart>=0){const p=(t-this.blinkStart)/.16;blink=p<1?(p<.5?p*2:(1-p)*2):0}
     if(this.jumpY<0||this.jumpV<0){this.jumpV+=1500*dt;this.jumpY+=this.jumpV*dt;if(this.jumpY>=0){this.jumpY=0;if(this.jumpV>120)this.squash.v-=this.jumpV*.011;this.jumpV=0}}
     this.shake*=Math.pow(.02,dt);const shx=this.shake*Math.sin(t*55)*RM;
-    const st=this.stretch.step(dt);this.sway.t=this.walkDir?-Math.sign(this.walkDir)*.14*RM:(Math.abs(this.sway.t)<.06?this.sway.t:0);const sw=this.sway.step(dt);
-    let gb=0,gr=0,gq=0;if(this.walkDir&&this.step){const a=Math.sin(this.step.p*Math.PI);gr=(this.step.i%2?1:-1)*a*6*RM;gq=-a*.07*RM}else if(this.walkDir){this.walkT+=dt;const ph=this.walkT*7.6,s1=Math.abs(Math.sin(ph));gb=-s1*9*RM;gr=Math.sin(ph)*4.5*RM;gq=Math.pow(1-s1,6)*.08*RM}
+    const st=this.stretch.step(dt);this.sway.t=this.walkDir?-Math.sign(this.walkDir)*.08*RM:(Math.abs(this.sway.t)<.06?this.sway.t:0);const sw=this.sway.step(dt);
+    let gb=0,gr=0,gq=0;if(this.walkDir&&this.step){const a=Math.sin(this.step.p*Math.PI);gr=(this.step.i%2?1:-1)*a*4*RM;gq=-a*.06*RM}else if(this.walkDir){this.walkT+=dt;const ph=this.walkT*7.6,s1=Math.abs(Math.sin(ph));gb=-s1*9*RM;gr=Math.sin(ph)*4.5*RM;gq=Math.pow(1-s1,6)*.08*RM}
     const sleeping=this.state==='sleeping',breathe=(sleeping?Math.sin(t*1.2)*.03:Math.sin(t*2.3)*.015)*RM,air=this.jumpY<0?Math.min(Math.abs(this.jumpV)/2600,.1):0;
     const sy=sq+breathe+air+st*.09-gq,sx=1+(sq+breathe+air-gq-1)*-.9-st*.05;const giggle=this.state==='giggle'?Math.sin(t*22)*2.5*RM:0;
     const wv=this.state==='wave'&&this.full&&this.full.waveA,wph=t*6.2,
@@ -1010,7 +1010,7 @@ var paintedEngine=PipPaintedEngine();
       const tok=this._walkTok=(this._walkTok||0)+1;this._docked=false;
       if(dist<3){this._setPos(x,y);return Promise.resolve()}
       ms=ms||clamp(dist/.6,380,1500);if(RM<1)ms=Math.min(ms,300);this._walking=true;m.lean=Math.sign(x-x0)*9;const gait=!!m.walkStart&&dist>30,hopper=gait&&!!m.stepPhase&&RM===1;let n=1,hh=0;if(gait){m.walkStart(x-x0||1);hops=false}
-      if(hopper){const sz=this._size?this._size()[1]:120;n=Math.max(2,Math.round(dist/Math.max(55,sz*.55)));ms=clamp(n*230,420,2000);hh=clamp(sz*.13,9,22)}
+      if(hopper){const sz=this._size?this._size()[1]:120;n=Math.max(2,Math.round(dist/Math.max(70,sz*.7)));ms=clamp(n*175,380,1300);hh=clamp(sz*.13,9,22)}
       return new Promise(res=>{const t0=performance.now();let lastHop=-1e9;
         const step=now=>{if(tok!==this._walkTok||!this._m){this._walking=false;if(gait&&m.walkStop)m.walkStop();return res()}
           const p=clamp((now-t0)/ms,0,1);let e,yo=0;

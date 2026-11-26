@@ -822,7 +822,7 @@ function definePipElement(engine,defaultConfig,painted,origin){
       const tok=this._walkTok=(this._walkTok||0)+1;this._docked=false;
       if(dist<3){this._setPos(x,y);return Promise.resolve()}
       ms=ms||clamp(dist/.6,380,1500);if(RM<1)ms=Math.min(ms,300);this._walking=true;m.lean=Math.sign(x-x0)*9;const gait=!!m.walkStart&&dist>30,hopper=gait&&!!m.stepPhase&&RM===1;let n=1,hh=0;if(gait){m.walkStart(x-x0||1);hops=false}
-      if(hopper){const sz=this._size?this._size()[1]:120;n=Math.max(2,Math.round(dist/Math.max(55,sz*.55)));ms=clamp(n*230,420,2000);hh=clamp(sz*.13,9,22)}
+      if(hopper){const sz=this._size?this._size()[1]:120;n=Math.max(2,Math.round(dist/Math.max(70,sz*.7)));ms=clamp(n*175,380,1300);hh=clamp(sz*.13,9,22)}
       return new Promise(res=>{const t0=performance.now();let lastHop=-1e9;
         const step=now=>{if(tok!==this._walkTok||!this._m){this._walking=false;if(gait&&m.walkStop)m.walkStop();return res()}
           const p=clamp((now-t0)/ms,0,1);let e,yo=0;
