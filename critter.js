@@ -570,7 +570,7 @@ class PaintRig{
   walkStart(dir){this.walkDir=dir||1e-4;this.walkT=0;this.step=null;this.squash.v-=1.4*RM;this._act()}
   walkStop(){if(!this.walkDir)return;this.walkDir=0;this.step=null;this.squash.v-=1.5*RM;this.emote('dust',5)}
   // hop-walk: the page moves the mascot in little hops and tells us where we are in each one
-  stepPhase(i,p){if(this.step&&i!==this.step.i){this.squash.v-=1.1*RM;this.emote('dust',3)}this.step={i,p}}
+  stepPhase(i,p){if(this.step&&i!==this.step.i){this.squash.v-=.6*RM;if(i%2===0)this.emote('dust',2)}this.step={i,p}}
   // small things it does on its own when nobody's interacting, so it never looks like a loop
   _idleAction(now){const a=pick(['look','look','stretch','bounce','sway']);
     if(a==='look'){const s=Math.random()<.5?-1:1;this.look=[.95*s,.05];this.idleTilt=5*s;this.idleLook=now+2600;setTimeout(()=>{if(this.state==='idle'){this.look=[-.95*s,.05];this.idleTilt=-5*s}},900);setTimeout(()=>{this.idleTilt=0;if(this.state==='idle')this.look=[0,0]},1900)}
@@ -664,7 +664,7 @@ class PaintRig{
     if(this.jumpY<0||this.jumpV<0){this.jumpV+=1500*dt;this.jumpY+=this.jumpV*dt;if(this.jumpY>=0){this.jumpY=0;if(this.jumpV>120)this.squash.v-=this.jumpV*.011;this.jumpV=0}}
     this.shake*=Math.pow(.02,dt);const shx=this.shake*Math.sin(t*55)*RM;
     const st=this.stretch.step(dt);this.sway.t=this.walkDir?-Math.sign(this.walkDir)*.08*RM:(Math.abs(this.sway.t)<.06?this.sway.t:0);const sw=this.sway.step(dt);
-    let gb=0,gr=0,gq=0;if(this.walkDir&&this.step){const a=Math.sin(this.step.p*Math.PI);gr=(this.step.i%2?1:-1)*a*4*RM;gq=-a*.06*RM}else if(this.walkDir){this.walkT+=dt;const ph=this.walkT*7.6,s1=Math.abs(Math.sin(ph));gb=-s1*9*RM;gr=Math.sin(ph)*4.5*RM;gq=Math.pow(1-s1,6)*.08*RM}
+    let gb=0,gr=0,gq=0;if(this.walkDir&&this.step){const a=Math.sin(this.step.p*Math.PI);gr=(this.step.i%2?1:-1)*a*3*RM;gq=-a*.045*RM}else if(this.walkDir){this.walkT+=dt;const ph=this.walkT*7.6,s1=Math.abs(Math.sin(ph));gb=-s1*9*RM;gr=Math.sin(ph)*4.5*RM;gq=Math.pow(1-s1,6)*.08*RM}
     const sleeping=this.state==='sleeping',breathe=(sleeping?Math.sin(t*1.2)*.03:Math.sin(t*2.3)*.015)*RM,air=this.jumpY<0?Math.min(Math.abs(this.jumpV)/2600,.1):0;
     const sy=sq+breathe+air+st*.09-gq,sx=1+(sq+breathe+air-gq-1)*-.9-st*.05;const giggle=this.state==='giggle'?Math.sin(t*22)*2.5*RM:0;
     const wv=this.state==='wave'&&this.full&&this.full.waveA,wph=t*6.2,
@@ -1030,11 +1030,11 @@ var paintedEngine=PipPaintedEngine();
       const tok=this._walkTok=(this._walkTok||0)+1;this._docked=false;
       if(dist<3){this._setPos(x,y);return Promise.resolve()}
       ms=ms||clamp(dist/.6,380,1500);if(RM<1)ms=Math.min(ms,300);this._walking=true;m.lean=Math.sign(x-x0)*9;const gait=!!m.walkStart&&dist>30,hopper=gait&&!!m.stepPhase&&RM===1;let n=1,hh=0;if(gait){m.walkStart(x-x0||1);hops=false}
-      if(hopper){const sz=this._size?this._size()[1]:120;n=Math.max(2,Math.round(dist/Math.max(70,sz*.7)));ms=clamp(n*175,380,1300);hh=clamp(sz*.13,9,22)}
+      if(hopper){const sz=this._size?this._size()[1]:120;n=Math.max(2,Math.round(dist/Math.max(70,sz*.7)));ms=clamp(n*175,380,1300);hh=clamp(sz*.1,7,17)}
       return new Promise(res=>{const t0=performance.now();let lastHop=-1e9;
         const step=now=>{if(tok!==this._walkTok||!this._m){this._walking=false;if(gait&&m.walkStop)m.walkStop();return res()}
           const p=clamp((now-t0)/ms,0,1);let e,yo=0;
-          if(hopper){const f=p*n,i=Math.min(Math.floor(f),n-1),q=f-i,qe=q<.5?2*q*q:1-Math.pow(-2*q+2,2)/2;e=(i+qe)/n;yo=-Math.sin(q*Math.PI)*hh;m.stepPhase(i,q)}
+          if(hopper){const f=p*n,i=Math.min(Math.floor(f),n-1),q=f-i;e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;e=.35*p+.65*e;yo=-Math.sin(q*Math.PI)*hh*(i===0||i===n-1?.75:1);m.stepPhase(i,q)}
           else e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
           this._setPos(x0+(x-x0)*e,y0+(y-y0)*e+yo);
           if(hops&&now-lastHop>300&&p<.85){m.hop(150);lastHop=now}

@@ -164,7 +164,7 @@ class PaintRig{
   walkStart(dir){this.walkDir=dir||1e-4;this.walkT=0;this.step=null;this.squash.v-=1.4*RM;this._act()}
   walkStop(){if(!this.walkDir)return;this.walkDir=0;this.step=null;this.squash.v-=1.5*RM;this.emote('dust',5)}
   // hop-walk: the page moves the mascot in little hops and tells us where we are in each one
-  stepPhase(i,p){if(this.step&&i!==this.step.i){this.squash.v-=1.1*RM;this.emote('dust',3)}this.step={i,p}}
+  stepPhase(i,p){if(this.step&&i!==this.step.i){this.squash.v-=.6*RM;if(i%2===0)this.emote('dust',2)}this.step={i,p}}
   // small things it does on its own when nobody's interacting, so it never looks like a loop
   _idleAction(now){const a=pick(['look','look','stretch','bounce','sway']);
     if(a==='look'){const s=Math.random()<.5?-1:1;this.look=[.95*s,.05];this.idleTilt=5*s;this.idleLook=now+2600;setTimeout(()=>{if(this.state==='idle'){this.look=[-.95*s,.05];this.idleTilt=-5*s}},900);setTimeout(()=>{this.idleTilt=0;if(this.state==='idle')this.look=[0,0]},1900)}
@@ -258,7 +258,7 @@ class PaintRig{
     if(this.jumpY<0||this.jumpV<0){this.jumpV+=1500*dt;this.jumpY+=this.jumpV*dt;if(this.jumpY>=0){this.jumpY=0;if(this.jumpV>120)this.squash.v-=this.jumpV*.011;this.jumpV=0}}
     this.shake*=Math.pow(.02,dt);const shx=this.shake*Math.sin(t*55)*RM;
     const st=this.stretch.step(dt);this.sway.t=this.walkDir?-Math.sign(this.walkDir)*.08*RM:(Math.abs(this.sway.t)<.06?this.sway.t:0);const sw=this.sway.step(dt);
-    let gb=0,gr=0,gq=0;if(this.walkDir&&this.step){const a=Math.sin(this.step.p*Math.PI);gr=(this.step.i%2?1:-1)*a*4*RM;gq=-a*.06*RM}else if(this.walkDir){this.walkT+=dt;const ph=this.walkT*7.6,s1=Math.abs(Math.sin(ph));gb=-s1*9*RM;gr=Math.sin(ph)*4.5*RM;gq=Math.pow(1-s1,6)*.08*RM}
+    let gb=0,gr=0,gq=0;if(this.walkDir&&this.step){const a=Math.sin(this.step.p*Math.PI);gr=(this.step.i%2?1:-1)*a*3*RM;gq=-a*.045*RM}else if(this.walkDir){this.walkT+=dt;const ph=this.walkT*7.6,s1=Math.abs(Math.sin(ph));gb=-s1*9*RM;gr=Math.sin(ph)*4.5*RM;gq=Math.pow(1-s1,6)*.08*RM}
     const sleeping=this.state==='sleeping',breathe=(sleeping?Math.sin(t*1.2)*.03:Math.sin(t*2.3)*.015)*RM,air=this.jumpY<0?Math.min(Math.abs(this.jumpV)/2600,.1):0;
     const sy=sq+breathe+air+st*.09-gq,sx=1+(sq+breathe+air-gq-1)*-.9-st*.05;const giggle=this.state==='giggle'?Math.sin(t*22)*2.5*RM:0;
     const wv=this.state==='wave'&&this.full&&this.full.waveA,wph=t*6.2,
