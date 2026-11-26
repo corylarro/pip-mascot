@@ -121,6 +121,16 @@ public enum Critter {
         }
     }
 
+    /// Play a choreography, for example one made in the Moment studio at critterkit.com/studio.
+    ///
+    ///     Critter.play([["do": "flip"], ["do": "react", "state": "dance", "ms": 2500], ["do": "say", "text": "Level {level}!"]],
+    ///                  values: ["level": user.level])
+    ///
+    /// `{placeholders}` in what it says are filled in from `values`.
+    public static func play(_ steps: [[String: Any]], values: [String: Any] = [:]) {
+        call("play", steps, values)
+    }
+
     /// Play a moment, optionally walking over to a SwiftUI view marked with `.critterTarget("id")` first.
     public static func moment(_ moment: Moment, say text: String? = nil, at target: String? = nil) {
         var options: [String: Any] = [:]

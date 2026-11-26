@@ -145,7 +145,7 @@ class PaintRig{
       lookX:new Spring(0,120,16),lookY:new Spring(0,120,16),tilt:new Spring(0,90,12),lean:new Spring(0,90,12),zzz:new Spring(0),q:new Spring(0)};
     for(const [k,v0] of Object.entries(FBASE))this.s['f_'+k]=new Spring(v0,170,20);
     this.squash=new Spring(1,320,13);this.sink=new Spring(0,150,17);this.slump=new Spring(0,120,14);this.groove=new Spring(0,90,12);this.state='idle';this.look=[0,0];this.timer=null;this.cover=false;
-    this.stretch=new Spring(0,38,7.5);this.sway=new Spring(0,60,8);this.walkDir=0;this.walkT=0;this.nextIdle=performance.now()+7000;this.yawnUntil=0;this.yawned=false;this.idleLook=0;this.idleTilt=0;
+    this.stretch=new Spring(0,38,7.5);this.grow=new Spring(1,46,7);this.fx=[];this.fadeV=1;this.props=[];this.sway=new Spring(0,60,8);this.walkDir=0;this.walkT=0;this.nextIdle=performance.now()+7000;this.yawnUntil=0;this.yawned=false;this.idleLook=0;this.idleTilt=0;
     this.jumpY=0;this.jumpV=0;this.shake=0;this.t=0;this.nextBlink=1.2;this.blinkStart=-1;this.parts=[];this.pokes=[];this.lastAct=performance.now();this.lastPointer=0;this.nextGlance=0;
     const on=(t,ev,fn,o)=>{t.addEventListener(ev,fn,o);this._ls.push([t,ev,fn,o])};
     this._resize();on(window,'resize',()=>this._resize());
@@ -226,10 +226,28 @@ class PaintRig{
   // cartoon shorthand: dust puffs, a sweat drop, an "!", music notes, sparkles
   emote(kind,n){if(RM<1)return;const D=this._dims||{bw:120,bh:150},R=Math.random;
     if(kind==='dust'){const k=n||6;for(let i=0;i<k;i++){const s=i%2?1:-1;this.parts.push({k:'dust',x:s*D.bw*(.15+R()*.2),y:-3,vx:s*(50+R()*90),vy:-8-R()*22,g:30,life:.55+R()*.2,l0:.7,r:3+R()*4,a:0,va:0})}}
+    if(kind==='smoke'){for(let i=0;i<(n||14);i++){const an=R()*Math.PI*2,sp=40+R()*90;this.parts.push({k:'dust',x:Math.cos(an)*D.bw*.2,y:-D.bh*.45+Math.sin(an)*D.bh*.25,vx:Math.cos(an)*sp,vy:Math.sin(an)*sp-20,g:-10,life:.6+R()*.35,l0:.9,r:7+R()*8,a:0,va:0})}}
+    if(kind==='drops'){for(let i=0;i<(n||8);i++){const s=i%2?1:-1;this.parts.push({k:'sweat',x:s*D.bw*.3,y:-D.bh*(.4+R()*.4),vx:s*(80+R()*120),vy:-60-R()*80,g:260,life:.7+R()*.3,a:s*.6,va:0})}}
     if(kind==='sweat')this.parts.push({k:'sweat',x:D.bw*.34,y:-D.bh*.86,vx:6,vy:10,g:110,life:1.2,a:0,va:0});
     if(kind==='bang')this.parts.push({k:'bang',x:-D.bw*.38,y:-D.bh*1.02,vx:0,vy:0,g:0,life:1,l0:1,a:.18,va:0});
     if(kind==='note'){const s=R()<.5?-1:1;this.parts.push({k:'note',x:s*D.bw*(.35+R()*.15),y:-D.bh*(.55+R()*.3),vx:s*14,vy:-55-R()*25,g:-8,life:1.4,l0:1.4,a:(R()-.5)*.5,va:(R()-.5)*.8,ch:R()<.5?'\u266A':'\u266B'})}
     if(kind==='spark'){for(let i=0;i<(n||7);i++){const an=R()*Math.PI*2,rr=.45+R()*.25;this.parts.push({k:'spark',x:Math.cos(an)*D.bw*rr,y:-D.bh*.5+Math.sin(an)*D.bh*rr*.7,vx:0,vy:-12,g:0,life:.5+R()*.5,l0:1,a:R()*3,va:2+R()*3,s:.6+R()*.7})}}}
+  // show-off moves: each one is timed so a sequence can wait for it to finish
+  _fxRun(kind,ms,o){this.fx=this.fx.filter(f=>f.kind!==kind);this.fx.push({kind,t0:performance.now(),ms:ms/(RM<1?2:1),...o});this.lastAct=performance.now();return ms}
+  // lift=false when the page lifts the whole mascot (so big moves aren't cut off by the canvas)
+  flip(dir=-1,lift=true){if(lift){this.hop(RM<1?200:430);setTimeout(()=>this._fxRun('flip',600,{dir}),75)}else{this.squash.v-=2*RM;setTimeout(()=>this._fxRun('flip',640,{dir}),90)}return 900}
+  spin(){return this._fxRun('spin',760)}
+  bigJump(lift=true){if(lift){this.hop(RM<1?260:470);setTimeout(()=>this.emote('dust',8),850);return 1100}this.squash.v-=3*RM;this.stretch.t=1;setTimeout(()=>{this.stretch.t=0},500);return 1100}
+  landed(){this.squash.v-=3.4*RM;this.emote('dust',8)}
+  shake(){this.emote('drops',10);return this._fxRun('shake',950)}
+  growPop(k=1.38,ms=900){this.grow.t=RM<1?1.1:k;setTimeout(()=>{this.grow.t=1},ms);return ms+300}
+  fade(on){this.fadeV=on?1:0}
+  prop(ch,ms=2600){this.props=[{ch:String(ch||'').slice(0,4),t0:performance.now(),ms}];return ms}
+  _fxNow(now){let rot=0,turn=1,dx=0;this.fx=this.fx.filter(f=>{const p=clamp((now-f.t0)/f.ms,0,1),e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+      if(f.kind==='flip')rot+=f.dir*360*e;
+      if(f.kind==='spin')turn*=Math.cos(e*Math.PI*2);
+      if(f.kind==='shake')dx+=Math.sin(p*Math.PI*22)*9*(1-p);
+      return p<1});if(Math.abs(turn)<.06)turn=turn<0?-.06:.06;return {rot,turn,dx}}
   // a big landing (used by the drop-in entrance)
   land(){this.squash.v-=4.2*RM;this.emote('dust',10);this.lastAct=performance.now()}
   burst(kind){if(RM<1)return;const cols=['#FF6B7A','#6E9BFF','#7DDC8A','#FFC23D','#B58CFF'];
@@ -269,23 +287,26 @@ class PaintRig{
     const B=this.base.bbox,ground=this.fit?H*.97:H*.9,scale=this.fit?Math.min(W/(1+2*this.pad)*this.fit/B.w,H/(1+this.padTop)*this.fit/B.h):Math.min(W*.66/B.w,H*.68/B.h),footX=B.x+B.w/2,footY=B.y+B.h;
     // shadow
     this._dims={bw:B.w*scale,bh:B.h*scale};const lift=Math.min(-this.jumpY/260,1);const sg=ctx.createRadialGradient(W/2,ground,0,W/2,ground,B.w*scale*.5);sg.addColorStop(0,'rgba(25,25,60,.28)');sg.addColorStop(1,'rgba(25,25,60,0)');
-    ctx.save();ctx.globalAlpha=1-clamp(sink,0,1)*.9;ctx.translate(W/2,ground);ctx.scale(1-lift*.4,.16);ctx.translate(-W/2,-ground);ctx.fillStyle=sg;ctx.beginPath();ctx.arc(W/2,ground,B.w*scale*.5,0,Math.PI*2);ctx.fill();ctx.restore();
+    ctx.save();ctx.globalAlpha=(1-clamp(sink,0,1)*.9)*this.fadeV;ctx.translate(W/2,ground);ctx.scale(1-lift*.4,.16);ctx.translate(-W/2,-ground);ctx.fillStyle=sg;ctx.beginPath();ctx.arc(W/2,ground,B.w*scale*.5,0,Math.PI*2);ctx.fill();ctx.restore();
     // body
     const sinkPx=sink*B.h*scale*.5;ctx.save();if(sink>.01){ctx.beginPath();ctx.rect(0,0,W,ground+1);ctx.clip()}
-    ctx.translate(W/2+shx+dbx,ground+this.jumpY+wb+dby+sinkPx+slump*3+gb);const follow=(this.state==='idle'||this.state==='talking')&&!this.walkDir&&!this.pointSide?v.lookX*4*RM:0;ctx.rotate((v.tilt+giggle+v.lean+wr+drot+gr+follow)*Math.PI/180);if(Math.abs(sw)>.001)ctx.transform(1,0,sw,1,0,0);ctx.scale(sx*(1+.035*slump)*scale,sy*(1-.06*slump)*scale);ctx.translate(-footX,-footY);
+    const FX=this._fxNow(performance.now()),gw=this.grow.step(dt);ctx.globalAlpha=this.fadeV;ctx.translate(W/2+shx+dbx+FX.dx,ground+this.jumpY+wb+dby+sinkPx+slump*3+gb);const follow=(this.state==='idle'||this.state==='talking')&&!this.walkDir&&!this.pointSide?v.lookX*4*RM:0;ctx.rotate((v.tilt+giggle+v.lean+wr+drot+gr+follow)*Math.PI/180);if(Math.abs(sw)>.001)ctx.transform(1,0,sw,1,0,0);if(FX.rot){const mid=B.h*scale*.5;ctx.translate(0,-mid);ctx.rotate(FX.rot*Math.PI/180);ctx.translate(0,mid)}ctx.scale(sx*(1+.035*slump)*scale*FX.turn*gw,sy*(1-.06*slump)*scale*gw);ctx.translate(-footX,-footY);
     const FF=this.full||{},pointing=this.pointSide&&performance.now()<this.pointUntil&&FF['point'+this.pointSide],waving=!pointing&&this.state==='wave'&&FF.waveA;
     if(pointing){const fr=FF['point'+this.pointSide];ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
     else if(waving){const fr=(FF.waveB&&Math.floor(t*3.4)%2)?FF.waveB:FF.waveA;ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
     else ctx.drawImage(this.base.canvas,0,0);
     if(this.simple)drawSimpleFace(ctx,this.simple,v,blink,t);
     if(this.face&&!waving&&!pointing){const P=this.patches,FB=this.face.box,ox=v.lookX*FB.w*.035,oy=v.lookY*FB.h*.03;
-      const draw=(ps,a)=>{if(ps&&a>.01){ctx.globalAlpha=Math.min(1,a);for(const p of ps)ctx.drawImage(p.c,p.x+ox,p.y+oy)}};
+      const draw=(ps,a)=>{if(ps&&a>.01){ctx.globalAlpha=Math.min(1,a)*this.fadeV;for(const p of ps)ctx.drawImage(p.c,p.x+ox,p.y+oy)}};
       draw(P.neutral,1);draw(P.happy,v.happy);draw(P.worried,v.worried);draw(P.surprised,v.surprised);draw(P.confused,v.confused);
       // lip-sync: snap between closed, "ah" and "oh" mouths (fall back to a fade if a shape is missing)
       const ym=yawning?(P.oMouth?'o':'a'):this.mouth;
       if(ym==='o'&&P.oMouth)draw(P.oMouth,1);else if(ym==='e'&&P.talkE)draw(P.talkE,1);else if(ym&&P.talk)draw(P.talk,1);else if(!P.talk)draw(P.talk,v.talk);
       draw(P.blink,Math.max(blink,v.blinkHold));ctx.globalAlpha=1}
-    ctx.restore();
+    ctx.restore();ctx.globalAlpha=1;
+    // a prop held up beside the mascot (any emoji), popping in and out
+    for(const pr of this.props){const a=(performance.now()-pr.t0)/pr.ms;if(a>=1)continue;const pop=a<.12?a/.12:a>.88?(1-a)/.12:1,sz=Math.max(26,B.w*scale*.3);ctx.save();ctx.globalAlpha=this.fadeV;ctx.translate(W/2+Math.min(B.w*scale*.56,W/2-sz*.62),ground+this.jumpY-B.h*scale*.42+Math.sin(t*3)*3);ctx.rotate(Math.sin(t*2.4)*.12);ctx.scale(pop,pop);ctx.font=sz+'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(pr.ch,0,0);ctx.restore()}
+    this.props=this.props.filter(pr=>performance.now()-pr.t0<pr.ms);
     // extras
     const headY=ground-B.h*scale;
     if(v.zzz>.05){ctx.fillStyle='rgba(60,50,90,.75)';for(let i=0;i<3;i++){const p=(t*.45+i/3)%1;ctx.globalAlpha=v.zzz*Math.sin(p*Math.PI);ctx.font=`600 ${12+p*12}px Fredoka, sans-serif`;ctx.fillText('z',W/2+B.w*scale*.3+p*30,headY+20-p*40)}ctx.globalAlpha=1}

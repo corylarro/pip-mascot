@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Moment studio · Critterkit</title>
+<meta name="description" content="Describe a moment in plain words. Your mascot acts it out, and you get the code to paste into your app.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#ECEBFF">
+<meta property="og:image" content="https://www.critterkit.com/og.png?v=2">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,500..800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--haze:#ECEBFF;--ink:#221E3F;--ink-2:#4A4570;--peach:#FF9466;--sprout:#2FAF74;--butter:#FFD35A;--white:#fff;
+  --display:'Bricolage Grotesque',ui-rounded,system-ui,sans-serif;--body:'Figtree',system-ui,-apple-system,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--haze);color:var(--ink);font:400 1.0625rem/1.55 var(--body);-webkit-font-smoothing:antialiased}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:6px}
+.bar{max-width:1120px;margin:0 auto;padding:20px 24px;display:flex;justify-content:space-between;align-items:center}
+.mark{font:800 1.5rem/1 var(--display);letter-spacing:-.03em;text-decoration:none;color:var(--ink);display:flex;align-items:center;gap:8px}
+.mark i{width:14px;height:18px;background:var(--peach);border-radius:50% 50% 46% 46%/60% 60% 40% 40%;position:relative;display:inline-block}
+.mark i::after{content:"";position:absolute;left:5px;top:-7px;width:9px;height:7px;background:var(--sprout);border-radius:0 100% 0 100%}
+.bar nav{display:flex;gap:18px}.bar nav a{color:var(--ink-2);text-decoration:none}
+main{max-width:1120px;margin:0 auto;padding:8px 24px 64px;display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+@media (max-width:860px){main{grid-template-columns:1fr}}
+h1{font:800 clamp(2.2rem,5vw,3.4rem)/1.02 var(--display);letter-spacing:-.02em;font-stretch:88%;margin:0 0 10px}
+.lede{color:var(--ink-2);font-size:1.15rem;margin:0 0 22px;max-width:36ch}
+.stage{position:relative;background:var(--white);border:2px solid var(--ink);border-radius:32px;aspect-ratio:1/1;max-height:560px;width:100%;overflow:visible}
+.stage critter-mascot{--pip-size:min(240px,46vw)}
+.ask{display:flex;flex-direction:column;gap:12px}
+.ask label{font-weight:600}
+.ask textarea{font:500 1.1rem/1.4 var(--body);padding:16px 18px;border-radius:18px;border:2px solid var(--ink);background:var(--white);color:var(--ink);resize:vertical;min-height:92px}
+.go{font:700 1.1rem var(--body);padding:15px 22px;border-radius:999px;border:2px solid var(--ink);background:var(--butter);color:var(--ink);cursor:pointer;box-shadow:0 4px 0 var(--ink);align-self:flex-start}
+.go:active{transform:translateY(2px);box-shadow:0 2px 0 var(--ink)}
+.go[disabled]{opacity:.6;cursor:progress}
+.ideas{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px}
+.ideas button{font:500 .92rem var(--body);padding:7px 12px;border-radius:999px;border:1.5px solid var(--ink-2);background:transparent;color:var(--ink);cursor:pointer}
+.ideas button:hover{background:var(--white)}
+.msg{min-height:1.4em;color:var(--ink-2);font-size:.95rem;margin:0}
+.code{margin-top:18px}
+.tabs{display:flex;gap:6px;margin-bottom:8px}
+.tabs button{font:600 .9rem var(--body);padding:6px 12px;border-radius:999px;border:1.5px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--ink);color:var(--white)}
+pre{margin:0;background:var(--ink);color:#F2F0FF;border-radius:18px;padding:16px 18px;font:500 .86rem/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.row{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.ghost{font:600 .95rem var(--body);padding:9px 16px;border-radius:999px;border:2px solid var(--ink);background:var(--white);color:var(--ink);cursor:pointer}
+.note{color:var(--ink-2);font-size:.9rem}
+.vals{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 10px;font-weight:600}
+.vals label{display:flex;gap:6px;align-items:center;font:500 .95rem var(--body)}
+.vals input{width:110px;font:500 1rem var(--body);padding:7px 10px;border-radius:12px;border:2px solid var(--ink);background:var(--white);color:var(--ink)}
+.note a{color:var(--ink)}
+</style>
+<script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+<header class="bar"><a class="mark" href="/"><i></i>Critterkit</a><nav><a href="/docs">Docs</a><a href="/builder">Builder</a></nav></header>
+<main>
+  <section aria-labelledby="h1">
+    <h1 id="h1">Describe a moment</h1>
+    <p class="lede">Say what should happen in plain words. Pip acts it out, and you get the code to paste into your app.</p>
+    <div class="ask">
+      <label for="text">When…</label>
+      <textarea id="text" maxlength="200" placeholder="the user levels up, jump, do a backflip, dance and say Level 5!"></textarea>
+      <div class="ideas" aria-label="Ideas to try">
+        <button type="button">the user levels up, backflip, dance and say you reached level {level}</button>
+        <button type="button">the order ships, celebrate with a pizza</button>
+        <button type="button">the payment fails, look worried and shake it off</button>
+        <button type="button">it's Friday, poof to the middle and dance</button>
+        <button type="button">a 100-day streak, go wild</button>
+      </div>
+      <button class="go" id="go" type="button">Make it happen</button>
+      <p class="msg" id="msg" role="status" aria-live="polite"></p>
+    </div>
+    <div class="code" id="codeBox" hidden>
+      <div class="tabs" role="group" aria-label="Code for"><button type="button" data-k="web" aria-pressed="true">Website</button><button type="button" data-k="ios" aria-pressed="false">iPhone app (Swift)</button></div>
+      <div class="vals" id="vals" hidden><span>Try it with</span></div>
+      <pre id="code"></pre>
+      <div class="row"><button class="ghost" id="copy" type="button">Copy code</button><button class="ghost" id="again" type="button">Play it again</button>
+        <span class="note">Call it whenever that moment happens in your app. <a href="/docs#play">How it works</a></span></div>
+    </div>
+  </section>
+  <div class="stage" id="stage">
+    <critter-mascot id="pip" mascot="xyjv3nf5en3k" dock="#stage" greeting="Tell me what to do!"></critter-mascot>
+  </div>
+</main>
+<script src="/critter.js"></script>
+<script>
+const $=id=>document.getElementById(id),pip=$('pip');
+let steps=null,kind='web',values={};
+const jsVal=v=>typeof v==='number'?String(v):"'"+String(v).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+"'";
+const js=s=>'pip.play([\n'+s.map(o=>'  '+jsObj(o)).join(',\n')+'\n]'+(hasVals()?', '+jsObj(values)+')  // use your real values':')');
+const swiftVal=v=>typeof v==='number'?String(v):'"'+String(v).replace(/"/g,'\\"')+'"';
+const hasVals=()=>Object.keys(values).length>0;
+const jsObj=o=>'{ '+Object.entries(o).map(([k,v])=>k+': '+jsVal(v)).join(', ')+' }';
+const swiftDict=o=>'['+Object.entries(o).map(([k,v])=>'"'+k+'": '+swiftVal(v)).join(', ')+']';
+const swift=s=>'Critter.play([\n'+s.map(o=>'  '+swiftDict(o)).join(',\n')+'\n]'+(hasVals()?', values: '+swiftDict(values)+')  // use your real values':')');
+function renderVals(){const box=$('vals');box.querySelectorAll('label').forEach(l=>l.remove());box.hidden=!hasVals();
+  for(const k of Object.keys(values)){const l=document.createElement('label'),i=document.createElement('input');l.textContent=k;i.value=values[k];i.setAttribute('aria-label',k);
+    i.addEventListener('input',()=>{const n=Number(i.value);values[k]=i.value!==''&&!isNaN(n)?n:i.value;show()});i.addEventListener('change',()=>steps&&pip.play(steps,values));l.appendChild(i);box.appendChild(l)}}
+function show(){if(!steps)return;$('code').textContent=kind==='ios'?swift(steps):'const pip = document.querySelector(\'critter-mascot\')\n'+js(steps);$('codeBox').hidden=false}
+document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{kind=b.dataset.k;document.querySelectorAll('.tabs button').forEach(o=>o.setAttribute('aria-pressed',String(o===b)));show()}));
+document.querySelectorAll('.ideas button').forEach(b=>b.addEventListener('click',()=>{$('text').value=b.textContent;make()}));
+$('go').addEventListener('click',make);
+$('text').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();make()}});
+$('again').addEventListener('click',()=>steps&&pip.play(steps,values));
+$('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('code').textContent);$('copy').textContent='Copied!';setTimeout(()=>$('copy').textContent='Copy code',1400)}catch(e){}});
+async function make(){const text=$('text').value.trim();if(text.length<3){$('msg').textContent='Describe what Pip should do first.';$('text').focus();return}
+  $('go').disabled=true;$('msg').textContent='Choreographing…';pip.react&&pip.setState('thinking');
+  try{const r=await fetch('/api/choreo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const j=await r.json().catch(()=>({}));
+    pip.setState('idle');if(!r.ok||!j.steps){$('msg').textContent=j.error||'Something went wrong. Try again?';return}
+    steps=j.steps;values=j.values||{};$('msg').textContent='';renderVals();show();pip.play(steps,values)}
+  catch(e){pip.setState('idle');$('msg').textContent='Couldn’t reach the studio. Check your connection and try again.'}
+  finally{$('go').disabled=false}}
+</script>
+</body>
+</html>

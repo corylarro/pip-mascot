@@ -6,13 +6,13 @@ import crypto from 'node:crypto';
 const KEY = /^ck_[A-Za-z0-9_-]{20,40}$/;
 export const newKey = () => 'ck_' + crypto.randomBytes(18).toString('base64url');
 
-async function readJson(path) {
+export async function readJson(path) {
   const { blobs } = await list({ prefix: path, limit: 1 });
   if (!blobs.length || blobs[0].pathname !== path) return null;
   const r = await fetch(`${blobs[0].url}?t=${Date.now()}`, { cache: 'no-store' });   // skip the CDN copy: credits change
   return r.ok ? r.json() : null;
 }
-const writeJson = (path, data) => put(path, JSON.stringify(data), { access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 });
+export const writeJson = (path, data) => put(path, JSON.stringify(data), { access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 });
 
 export const readKey = k => (KEY.test(k || '') ? readJson(`keys/${k}.json`) : Promise.resolve(null));
 export const writeKey = (k, rec) => writeJson(`keys/${k}.json`, rec);
@@ -24,7 +24,7 @@ export const saveCheckout = (id, data) => writeJson(`checkouts/${id}.json`, data
 // Too many wrong guesses from one connection: 10 per hour, then it's locked out until the hour is up
 // (even a right guess is refused while locked, so guessing gets nowhere).
 const MAX_FAILS = 10, WINDOW = 60 * 60 * 1000;
-const ipTag = req => crypto.createHash('sha256').update('critterkit:' + (String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown')).digest('hex').slice(0, 32);
+export const ipTag = req => crypto.createHash('sha256').update('critterkit:' + (String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown')).digest('hex').slice(0, 32);
 
 export async function whoIs(req) {
   const pass = process.env.PAINT_PASSCODE, v = String(req.headers['x-pip-pass'] || '').trim();
