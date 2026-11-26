@@ -81,6 +81,7 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
 .checker img{display:block;width:100%;aspect-ratio:1;object-fit:contain}
 .pp-side{display:flex;flex-direction:column;gap:10px}.pp-side label{display:flex;flex-direction:column;gap:4px;font-weight:600}
 .pp-side input[type=text],.pp-side input:not([type]){font:500 1rem var(--body);padding:9px 12px;border-radius:12px;border:2px solid var(--ink)}
+.warn{color:#8A4B00;background:#FFF4DC;border-radius:10px;padding:8px 12px}
 .busy{opacity:.6;pointer-events:none}
 @media (max-width:560px){.posepreview{grid-template-columns:1fr}}
 .notice{background:var(--white);border:2px solid var(--sprout);border-radius:16px;padding:12px 16px;margin-bottom:16px;font-weight:600}
@@ -172,6 +173,7 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
           <form class="poseform" id="poseForm">
             <label for="poseDesc">Describe the pose</label>
             <input id="poseDesc" maxlength="160" placeholder="riding a skateboard and cheering" required>
+            <p class="hint warn" id="poseWarn" hidden style="margin:0">That sounds like it changes who your mascot is. Poses work best when you describe what it’s doing, holding or wearing, like “wearing a dinosaur costume” instead of “as a dinosaur”.</p>
             <div class="row"><button class="btn" type="submit" id="posePaint">Paint it · 1 credit</button></div>
             <p class="hint" style="margin-top:0">Painting takes about a minute. If it can’t be painted, you keep your credit.</p>
           </form>
@@ -472,6 +474,8 @@ function renderPose() {
   $('poseImg').src = poseCanvas.toDataURL('image/png');
 }
 function showPose() { const rig = pip && pip._m && pip._m.rig; if (rig && poseCanvas) { const L = rig.base.canvas.width, c = document.createElement('canvas'); c.width = c.height = L; c.getContext('2d').drawImage(poseCanvas, 0, 0, L, L); rig.addPose('__preview', c); pip.pose('__preview', 3500); } toStage(); }
+const CHANGES = /\b(turn(s|ed|ing)? (it |him |her )?into|transform(s|ed|ing)?|becom(e|es|ing)|as an? (?!big|small|little|happy|sad)\w+$|as an? (robot|dinosaur|dragon|human|person|cat|dog|monster|alien|zombie|vampire|ghost|unicorn)|replace(d)? (it|him|her)|different (character|animal|colou?r))\b/i;
+$('poseDesc').addEventListener('input', () => { $('poseWarn').hidden = !CHANGES.test($('poseDesc').value.trim()); });
 $('poseForm').addEventListener('submit', e => { e.preventDefault(); paintPose(); });
 $('poseAgain').addEventListener('click', paintPose);
 $('poseSize').addEventListener('input', renderPose);

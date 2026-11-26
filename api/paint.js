@@ -51,7 +51,29 @@ import { list } from '@vercel/blob';
 const POSE_PROMPT = (desc, transparent) => `The image shows a cartoon mascot character. Paint this SAME character again: identical design, colours, proportions, materials, face and art style, so it is clearly the same character.
 New pose: ${desc}.
 Show the whole body from head to feet, facing the viewer, centred, about the same size as in the reference, with generous empty space around it. Include any object the pose needs (held, ridden or worn) in the same art style.
+Never change who the character is: an outfit, hat or costume may go on top, but its face, colours and body must stay recognisable.
 ${transparent ? 'Transparent background.' : 'Plain flat light grey background, the same colour everywhere.'} One character only. No text, no letters, no logos, no border, no ground shadow.`;
+// Look-alike check: is the new painting clearly the same character? Off-model results are painted again or not charged.
+const LIKENESS_PROMPT = `Image 1 is a mascot character. Image 2 is supposed to show the SAME character in a new pose.
+Is image 2 clearly the same character? Compare species and body shape, colours, face and eye style, outfit and accessories, and art style.
+A different pose, held objects, props or an added hat or costume piece are fine. A different character, a big colour change, or a different art style is not.
+Reply with ONLY this JSON: {"same":true,"score":8,"why":"few words"} where score is 0 (different character) to 10 (unmistakably the same).`;
+async function looksSame(key, refPng, outB64) {
+  for (const model of VISION_MODELS()) {
+    try {
+      const r = await call(`${API}/responses`, { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, ...(/^gpt-5/.test(model) ? { reasoning: { effort: 'minimal' } } : {}), input: [{ role: 'user', content: [
+          { type: 'input_text', text: LIKENESS_PROMPT },
+          { type: 'input_image', image_url: `data:image/png;base64,${refPng.toString('base64')}`, detail: 'low' },
+          { type: 'input_image', image_url: `data:image/png;base64,${outB64}`, detail: 'low' }] }] }) });
+      if (!r.ok) { if (tryNext(r.status, r.msg)) continue; return { ok: true, skipped: true }; }
+      const j = parseJson(extractText(r.json));
+      if (!j) return { ok: true, skipped: true };
+      return { ok: j.same !== false && Number(j.score) >= 6, score: Number(j.score), why: String(j.why || '').slice(0, 80) };
+    } catch (e) { return { ok: true, skipped: true }; }
+  }
+  return { ok: true, skipped: true };   // if the check can't run, don't block the painting
+}
 async function poseReference(id) {
   const { blobs } = await list({ prefix: `mascots/${id}/` });
   const data = blobs.find(x => x.pathname.endsWith('/data.json'));
@@ -90,24 +112,37 @@ export default async function handler(req, res) {
       const ref = await poseReference(id);
       if (!ref) { res.status(404).json({ error: 'Mascot not found.' }); return; }
       if (!ref.png) { res.status(409).json({ error: 'Open this mascot on the paint page and save it again first, so its poses are prepared.' }); return; }
-      let last = null;
-      outer: for (const model of IMAGE_MODELS()) {
-        for (const transparent of [true, false]) for (const hiFi of [true, false]) {
-          const fd = new FormData();
-          fd.append('model', model); fd.append('prompt', POSE_PROMPT(desc, transparent));
-          fd.append('image', new Blob([ref.png], { type: 'image/png' }), 'mascot.png');
-          fd.append('size', '1024x1024'); fd.append('quality', 'medium'); fd.append('output_format', 'png'); fd.append('n', '1');
-          if (transparent) fd.append('background', 'transparent');
-          if (hiFi) fd.append('input_fidelity', 'high');
-          const r = await call(`${API}/images/edits`, { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: fd });
-          if (r.ok && r.json && r.json.data && r.json.data[0]) { const credits = await spend(who, 1).catch(() => null); res.json({ image: r.json.data[0].b64_json, mime: 'image/png', model, credits }); return; }
-          last = r;
-          if (/fidelity/i.test(r.msg || '') && hiFi) continue;
-          if (/background|transparen/i.test(r.msg || '') && transparent) break;
-          if (!tryNext(r.status, r.msg)) break outer;
-          continue outer;
+      let last = null, miss = null;
+      const paintOnce = async () => {
+        for (const model of IMAGE_MODELS()) {
+          let noTransparent = false, noHiFi = false;
+          for (const [transparent, hiFi] of [[true, true], [true, false], [false, true], [false, false]]) {
+            if ((transparent && noTransparent) || (hiFi && noHiFi)) continue;
+            const fd = new FormData();
+            fd.append('model', model); fd.append('prompt', POSE_PROMPT(desc, transparent));
+            fd.append('image', new Blob([ref.png], { type: 'image/png' }), 'mascot.png');
+            fd.append('size', '1024x1024'); fd.append('quality', 'medium'); fd.append('output_format', 'png'); fd.append('n', '1');
+            if (transparent) fd.append('background', 'transparent');
+            if (hiFi) fd.append('input_fidelity', 'high');
+            const r = await call(`${API}/images/edits`, { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: fd });
+            if (r.ok && r.json && r.json.data && r.json.data[0]) return { image: r.json.data[0].b64_json, model };
+            last = r;
+            if (/fidelity/i.test(r.msg || '')) { noHiFi = true; continue; }        // this model doesn't take that setting
+            if (/background|transparen/i.test(r.msg || '')) { noTransparent = true; continue; }
+            if (tryNext(r.status, r.msg)) break;                                     // next model
+            return null;                                                             // a real failure
+          }
         }
+        return null;
+      };
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const out = await paintOnce();
+        if (!out) break;
+        const same = await looksSame(key, ref.png, out.image);
+        if (same.ok) { const credits = await spend(who, 1).catch(() => null); res.json({ image: out.image, mime: 'image/png', model: out.model, credits, likeness: same.score ?? null }); return; }
+        miss = same; console.log('pose off-model', attempt, same.score, same.why);
       }
+      if (miss) { res.status(422).json({ error: 'It didn’t come out looking like your mascot, so we didn’t keep it and your credit wasn’t used. Try describing the pose a different way.', offModel: true }); return; }
       res.status((last && last.status) || 500).json({ error: (last && last.msg) || 'Painting failed.' }); return;
     } catch (e) { res.status(500).json({ error: String((e && e.message) || e) }); return; }
   }
