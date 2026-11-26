@@ -76,7 +76,7 @@ ul.list{margin:0 0 8px;padding-left:20px;display:flex;flex-direction:column;gap:
 
   <div class="layout">
     <nav class="toc" aria-label="On this page">
-      <a href="#install">Install</a><a href="#frameworks">React and Next.js</a><a href="#placement">Placement and size</a><a href="#autopilot">Autopilot</a>
+      <a href="#install">Install</a><a href="#frameworks">React and Next.js</a><a href="#ios">iOS (Swift)</a><a href="#placement">Placement and size</a><a href="#autopilot">Autopilot</a>
       <a href="#api">Make the mascot react</a><a href="#events">Events</a><a href="#hiding">Hiding</a><a href="#theming">Theming</a><a href="#reference">All options</a>
     </nav>
 
@@ -118,6 +118,41 @@ ul.list{margin:0 0 8px;padding-left:20px;display:flex;flex-direction:column;gap:
 <pre><span class="t">declare</span> <span class="t">namespace</span> JSX {
   <span class="t">interface</span> IntrinsicElements { <span class="s">'critter-mascot'</span>: <span class="t">any</span> }
 }</pre>
+      </section>
+
+      <section id="ios" aria-labelledby="h-ios">
+        <h2 id="h-ios">iOS (Swift)</h2>
+        <p>The same mascot runs in native iPhone apps, on top of SwiftUI or UIKit. It needs iOS 15 or later.</p>
+        <h3>Add the package</h3>
+        <p>In Xcode: <strong>File → Add Package Dependencies…</strong>, paste this address, and add <code>CritterKit</code> to your app target.</p>
+<pre>https://github.com/corylarro/CritterKit</pre>
+        <h3>SwiftUI</h3>
+<pre><span class="t">import</span> CritterKit
+
+<span class="c">// on your root view</span>
+ContentView()
+  .critterMascot(.init(mascotID: <span class="s">"your-mascot-id"</span>))</pre>
+        <h3>UIKit</h3>
+<pre><span class="c">// once your window is showing</span>
+Critter.start(.init(mascotID: <span class="s">"your-mascot-id"</span>))</pre>
+        <h3>Point, cheer and react</h3>
+        <p>Name views so the mascot can walk to them, then point or celebrate:</p>
+<pre>TextField(<span class="s">"Email"</span>, text: $email).critterTarget(<span class="s">"email"</span>)
+
+Critter.point(at: <span class="s">"email"</span>, say: <span class="s">"That email looks off."</span>)
+Critter.celebrate(at: <span class="s">"streak"</span>, say: <span class="s">"7 days in a row!"</span>)
+Critter.react(.love)
+Critter.say(<span class="s">"Hi!"</span>)
+
+<span class="c">// reacts to a network call: thinks, then cheers or looks worried</span>
+<span class="t">try await</span> Critter.watch(success: <span class="s">"Saved!"</span>) {
+  <span class="t">try await</span> api.save(note)
+}
+
+<span class="c">// walk people through a screen</span>
+Critter.tour([(<span class="s">"feelings"</span>, <span class="s">"Tap how you feel today."</span>),
+              (<span class="s">"session"</span>, <span class="s">"Then start tonight's session."</span>)])</pre>
+        <p>On iOS the mascot sits above the keyboard while people type, covers its eyes on password fields, and says welcome back when someone returns to the app. Options for <code>Critter.Configuration</code>: <code>mascotID</code>, <code>corner</code>, <code>offset</code>, <code>size</code>, <code>greets</code>, <code>greeting</code>, <code>autopilot</code>, <code>hideable</code>, <code>sleepAfter</code>, <code>seasonal</code>.</p>
       </section>
 
       <section id="placement" aria-labelledby="h-place">
