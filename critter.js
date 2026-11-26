@@ -621,7 +621,7 @@ class PaintRig{
     if(n==='love')this.burst('hearts');if(n==='wave')this.hop(140);if(n==='dance')this.hop(220);if(n==='sad')this.squash.v+=1.5}
   lookAt(x,y){const r=this.cv.getBoundingClientRect();if(!r.width)return;this.look=[clamp((x-(r.left+r.width/2))/(r.width*.7),-1,1),clamp((y-(r.top+r.height*.45))/(r.height*.8),-1,1)]}
   hop(v){if(this.jumpY>-1&&this.jumpV>=0&&!this._hopT){if(RM<1){this.jumpV=-v*Math.sqrt(RM);return}this.squash.v-=v*.0075;this._hopT=setTimeout(()=>{this._hopT=null;this.jumpV=-v},75)}}
-  poke(){if(!this.base)return;const now=performance.now();this.pokes=this.pokes.filter(p=>now-p<4000);this.pokes.push(now);this.squash.v-=4;
+  poke(){if(!this.base)return;const now=performance.now();this.pokes=this.pokes.filter(p=>now-p<4000);this.pokes.push(now);this.squash.v-=5.5*RM;this.sway.v+=(this.pokes.length%2?1:-1)*1.6*RM;
     if(this.pokes.length>=5){this.pokes=[];this.react('confused',2400);this.say("Okay, okay! I'm awake!");return}
     const n=this.pokes.length;if(n===3){this.react('love',1800);this.say('Aww, thanks!');return}
     this.react(n===1?'surprised':'giggle',n===1?900:1400);this.say(n===1?'Boop!':pick(['Hee hee, that tickles!','Hey there!','Again? Okay!']))}
@@ -633,7 +633,7 @@ class PaintRig{
   emote(kind,n){if(RM<1)return;const D=this._dims||{bw:120,bh:150},R=Math.random;
     if(kind==='dust'){const k=n||6;for(let i=0;i<k;i++){const s=i%2?1:-1;this.parts.push({k:'dust',x:s*D.bw*(.15+R()*.2),y:-3,vx:s*(50+R()*90),vy:-8-R()*22,g:30,life:.55+R()*.2,l0:.7,r:3+R()*4,a:0,va:0})}}
     if(kind==='sweat')this.parts.push({k:'sweat',x:D.bw*.34,y:-D.bh*.86,vx:6,vy:10,g:110,life:1.2,a:0,va:0});
-    if(kind==='bang')this.parts.push({k:'bang',x:D.bw*.36,y:-D.bh*1.02,vx:0,vy:0,g:0,life:1,l0:1,a:.18,va:0});
+    if(kind==='bang')this.parts.push({k:'bang',x:-D.bw*.38,y:-D.bh*1.02,vx:0,vy:0,g:0,life:1,l0:1,a:.18,va:0});
     if(kind==='note'){const s=R()<.5?-1:1;this.parts.push({k:'note',x:s*D.bw*(.35+R()*.15),y:-D.bh*(.55+R()*.3),vx:s*14,vy:-55-R()*25,g:-8,life:1.4,l0:1.4,a:(R()-.5)*.5,va:(R()-.5)*.8,ch:R()<.5?'\u266A':'\u266B'})}
     if(kind==='spark'){for(let i=0;i<(n||7);i++){const an=R()*Math.PI*2,rr=.45+R()*.25;this.parts.push({k:'spark',x:Math.cos(an)*D.bw*rr,y:-D.bh*.5+Math.sin(an)*D.bh*rr*.7,vx:0,vy:-12,g:0,life:.5+R()*.5,l0:1,a:R()*3,va:2+R()*3,s:.6+R()*.7})}}}
   // a big landing (used by the drop-in entrance)
@@ -678,7 +678,7 @@ class PaintRig{
     ctx.save();ctx.globalAlpha=1-clamp(sink,0,1)*.9;ctx.translate(W/2,ground);ctx.scale(1-lift*.4,.16);ctx.translate(-W/2,-ground);ctx.fillStyle=sg;ctx.beginPath();ctx.arc(W/2,ground,B.w*scale*.5,0,Math.PI*2);ctx.fill();ctx.restore();
     // body
     const sinkPx=sink*B.h*scale*.5;ctx.save();if(sink>.01){ctx.beginPath();ctx.rect(0,0,W,ground+1);ctx.clip()}
-    ctx.translate(W/2+shx+dbx,ground+this.jumpY+wb+dby+sinkPx+slump*3+gb);ctx.rotate((v.tilt+giggle+v.lean+wr+drot+gr)*Math.PI/180);if(Math.abs(sw)>.001)ctx.transform(1,0,sw,1,0,0);ctx.scale(sx*(1+.035*slump)*scale,sy*(1-.06*slump)*scale);ctx.translate(-footX,-footY);
+    ctx.translate(W/2+shx+dbx,ground+this.jumpY+wb+dby+sinkPx+slump*3+gb);const follow=(this.state==='idle'||this.state==='talking')&&!this.walkDir&&!this.pointSide?v.lookX*4*RM:0;ctx.rotate((v.tilt+giggle+v.lean+wr+drot+gr+follow)*Math.PI/180);if(Math.abs(sw)>.001)ctx.transform(1,0,sw,1,0,0);ctx.scale(sx*(1+.035*slump)*scale,sy*(1-.06*slump)*scale);ctx.translate(-footX,-footY);
     const FF=this.full||{},pointing=this.pointSide&&performance.now()<this.pointUntil&&FF['point'+this.pointSide],waving=!pointing&&this.state==='wave'&&FF.waveA;
     if(pointing){const fr=FF['point'+this.pointSide];ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
     else if(waving){const fr=(FF.waveB&&Math.floor(t*3.4)%2)?FF.waveB:FF.waveA;ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
