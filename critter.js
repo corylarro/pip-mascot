@@ -551,6 +551,7 @@ class PaintRig{
       lookX:new Spring(0,120,16),lookY:new Spring(0,120,16),tilt:new Spring(0,90,12),lean:new Spring(0,90,12),zzz:new Spring(0),q:new Spring(0)};
     for(const [k,v0] of Object.entries(FBASE))this.s['f_'+k]=new Spring(v0,170,20);
     this.squash=new Spring(1,320,13);this.sink=new Spring(0,150,17);this.slump=new Spring(0,120,14);this.groove=new Spring(0,90,12);this.state='idle';this.look=[0,0];this.timer=null;this.cover=false;
+    this.stretch=new Spring(0,38,7.5);this.sway=new Spring(0,52,4.2);this.walkDir=0;this.walkT=0;this.nextIdle=performance.now()+7000;this.yawnUntil=0;this.yawned=false;this.idleLook=0;this.idleTilt=0;
     this.jumpY=0;this.jumpV=0;this.shake=0;this.t=0;this.nextBlink=1.2;this.blinkStart=-1;this.parts=[];this.pokes=[];this.lastAct=performance.now();this.lastPointer=0;this.nextGlance=0;
     const on=(t,ev,fn,o)=>{t.addEventListener(ev,fn,o);this._ls.push([t,ev,fn,o])};
     this._resize();on(window,'resize',()=>this._resize());
@@ -565,13 +566,23 @@ class PaintRig{
   destroy(){this._dead=true;cancelAnimationFrame(this._raf);clearInterval(this._iv);clearTimeout(this.timer);clearTimeout(this._hopT);if(this._ro)this._ro.disconnect();this._ls.forEach(([t,ev,fn,o])=>t.removeEventListener(ev,fn,o))}
   get lean(){return this.s.lean.t}set lean(v){this.s.lean.t=v}
   bump(){this.squash.v-=1.4}
+  // walking with weight: a little crouch to start, a bobbing, rocking gait, and a wobble when it stops
+  walkStart(dir){this.walkDir=dir||1e-4;this.walkT=0;this.squash.v-=1.1*RM;this._act()}
+  walkStop(){if(!this.walkDir)return;this.walkDir=0;this.squash.v-=1.7*RM}
+  // small things it does on its own when nobody's interacting, so it never looks like a loop
+  _idleAction(now){const a=pick(['look','look','stretch','bounce','sway']);
+    if(a==='look'){const s=Math.random()<.5?-1:1;this.look=[.95*s,.05];this.idleTilt=5*s;this.idleLook=now+2600;setTimeout(()=>{if(this.state==='idle'){this.look=[-.95*s,.05];this.idleTilt=-5*s}},900);setTimeout(()=>{this.idleTilt=0;if(this.state==='idle')this.look=[0,0]},1900)}
+    if(a==='stretch'){this.stretch.t=1;setTimeout(()=>{this.stretch.t=0;this.squash.v-=.8},850)}
+    if(a==='bounce'){this.hop(120);setTimeout(()=>this.hop(150),330)}
+    if(a==='sway'){const s=Math.random()<.5?-1:1;this.sway.t=.05*s;setTimeout(()=>{this.sway.t=-.05*s},420);setTimeout(()=>{this.sway.t=0},840)}}
+  _yawn(){this.yawned=true;this.yawnUntil=performance.now()+1700;this.stretch.t=1;setTimeout(()=>{this.stretch.t=0},1100)}
   point(x,y){const r=this.cv.getBoundingClientRect(),side=x<r.left+r.width/2?'L':'R';this.lookAt(x,y);this.focusLook=performance.now()+2600;
     if(this.full&&this.full['point'+side]){this.pointSide=side;this.pointUntil=performance.now()+3400;this.squash.v-=1.6;this.s.lean.t=0}
     else{this.s.lean.t=(side==='L'?-1:1)*6;clearTimeout(this._pt);this._pt=setTimeout(()=>{this.s.lean.t=0},1400)}}
   unpoint(){this.s.lean.t=0;this.pointSide=null}
   lookAtCaret(inp){const r=inp.getBoundingClientRect(),cs=getComputedStyle(inp);const m=PaintRig._m||(PaintRig._m=document.createElement('canvas').getContext('2d'));m.font=cs.font;
     const txt=inp.type==='password'?'•'.repeat(inp.value.length):inp.value;this.lookAt(r.left+parseFloat(cs.paddingLeft||0)+Math.min(m.measureText(txt).width,r.width-24),r.top+r.height/2)}
-  _act(){this.lastAct=performance.now();if(this.state==='sleeping')this.setState('idle'),this.hop(160)}
+  _act(){this.lastAct=performance.now();this.yawned=false;if(this.state==='sleeping')this.setState('idle'),this.hop(160)}
   setBase(k){this.base=k;this.patches={};this.full={};this.hop(220)}
   addFull(name,k){if(!this.base)return;const off=this.face?alignFrames(this.base,k,this.face.box):{dx:0,dy:0};this.full[name]={canvas:k.canvas,off}}
   // face: {box, eyes:[box], mouth:box} in 1024px image coordinates
@@ -620,16 +631,20 @@ class PaintRig{
     for(let i=0;i<(kind==='hearts'?7:34);i++)this.parts.push(kind==='hearts'?{h:1,x:(Math.random()-.5)*80,y:-150,vx:(Math.random()-.5)*30,vy:-50-Math.random()*50,life:1.8,g:-15,c:'#FF4D6D',a:0,va:0}:
       {x:0,y:-120,vx:(Math.random()-.5)*480,vy:-260-Math.random()*320,life:1.7,g:900,c:cols[i%5],a:Math.random()*6,va:(Math.random()-.5)*14})}
   _tick(){const now=performance.now();
-    if(this.state==='idle'&&!this.focusEl&&now-this.lastPointer>3500&&now>this.nextGlance){this.look=[(Math.random()-.5)*1.4,(Math.random()-.5)*.8];this.nextGlance=now+1800+Math.random()*2500}
+    const calm=this.base&&this.state==='idle'&&!this.cover&&!this.focusEl&&!this.walkDir&&!(this.bubble&&this.bubble.classList.contains('show'));
+    if(calm&&RM===1&&now-this.lastAct>4000&&now>this.nextIdle&&!(this.sleepAfter&&now-this.lastAct>this.sleepAfter-3500)){this._idleAction(now);this.nextIdle=now+5500+Math.random()*6500}
+    if(calm&&this.sleepAfter&&!this.yawned&&now-this.lastAct>this.sleepAfter-1900)this._yawn();
+    if(this.state==='idle'&&!this.focusEl&&now>this.idleLook&&now-this.lastPointer>3500&&now>this.nextGlance){this.look=[(Math.random()-.5)*1.4,(Math.random()-.5)*.8];this.nextGlance=now+1800+Math.random()*2500}
     if(this.base&&this.sleepAfter&&this.state==='idle'&&!this.cover&&!this.focusEl&&!(this.bubble&&this.bubble.classList.contains('show'))&&now-this.lastAct>this.sleepAfter)this._enter('sleeping')}
   _frame(now){
     const dt=Math.min((now-this._last)/1000,.05);this._last=now;this.t+=dt;const t=this.t,S=STATES[this.state]||{};
     const P0=this.patches||{};for(const k of ['happy','worried','surprised','confused'])this.s[k].t=S[k]||0;
     if(this.state==='confused'&&!P0.confused)this.s.worried.t=.5;
-    this.s.blinkHold.t=(S.blink||(this.cover?1:0));this.s.tilt.t=S.tilt||0;this.s.zzz.t=S.zzz||0;this.s.q.t=S.q||0;
+    this.s.blinkHold.t=(S.blink||(this.cover?1:0));this.s.tilt.t=(S.tilt||0)+(this.state==='idle'?this.idleTilt||0:0);this.s.zzz.t=S.zzz||0;this.s.q.t=S.q||0;
     const lk=S.look||this.look;this.s.lookX.t=lk[0];this.s.lookY.t=lk[1];
     const FS=FSTATES[this.state]||FSTATES[{sad:'error',dance:'success',peek:'idle'}[this.state]]||{};for(const k in FBASE)this.s['f_'+k].t=(FS[k]!==undefined?FS[k]:FBASE[k]);
     if(this.cover&&this.state!=='sleeping'){this.s.f_open.t=.03;this.s.f_curve.t=.6}
+    const yawning=performance.now()<this.yawnUntil;if(yawning){this.s.blinkHold.t=.75;this.s.f_open.t=.25;this.s.f_mouthOpen.t=1;this.s.f_mouthW.t=.7}
     const v={};for(const k in this.s)v[k]=this.s[k].step(dt);const sq=this.squash.step(dt);
     this.sink.t=this.state==='peek'?1:0;this.slump.t=this.state==='sad'?1:0;this.groove.t=this.state==='dance'?1:0;
     const sink=this.sink.step(dt),slump=this.slump.step(dt),grv=this.groove.step(dt),beat=t*8.4,dbx=Math.sin(t*4.2)*9*grv*RM,drot=Math.sin(beat)*7*grv*RM,dby=-Math.abs(Math.sin(beat))*9*grv*RM;
@@ -637,8 +652,10 @@ class PaintRig{
     let blink=0;if(this.blinkStart>=0){const p=(t-this.blinkStart)/.16;blink=p<1?(p<.5?p*2:(1-p)*2):0}
     if(this.jumpY<0||this.jumpV<0){this.jumpV+=1500*dt;this.jumpY+=this.jumpV*dt;if(this.jumpY>=0){this.jumpY=0;if(this.jumpV>120)this.squash.v-=this.jumpV*.011;this.jumpV=0}}
     this.shake*=Math.pow(.02,dt);const shx=this.shake*Math.sin(t*55)*RM;
+    const st=this.stretch.step(dt);this.sway.t=this.walkDir?-Math.sign(this.walkDir)*.14*RM:(Math.abs(this.sway.t)<.06?this.sway.t:0);const sw=this.sway.step(dt);
+    let gb=0,gr=0,gq=0;if(this.walkDir){this.walkT+=dt;const ph=this.walkT*7.6,s1=Math.abs(Math.sin(ph));gb=-s1*9*RM;gr=Math.sin(ph)*4.5*RM;gq=Math.pow(1-s1,6)*.08*RM}
     const sleeping=this.state==='sleeping',breathe=(sleeping?Math.sin(t*1.2)*.03:Math.sin(t*2.3)*.015)*RM,air=this.jumpY<0?Math.min(Math.abs(this.jumpV)/2600,.1):0;
-    const sy=sq+breathe+air,sx=1+(1-sy)*.9;const giggle=this.state==='giggle'?Math.sin(t*22)*2.5*RM:0;
+    const sy=sq+breathe+air+st*.09-gq,sx=1+(sq+breathe+air-gq-1)*-.9-st*.05;const giggle=this.state==='giggle'?Math.sin(t*22)*2.5*RM:0;
     const wv=this.state==='wave'&&this.full&&this.full.waveA,wph=t*6.2,
       wr=wv&&!this.full.waveB?Math.sin(wph)*2.4*RM:0,wb=wv?-Math.abs(Math.sin(wph))*(this.full.waveB?3:6)*RM:0;
     const ctx=this.ctx,W=this.W,H=this.H;ctx.setTransform(this.dpr,0,0,this.dpr,0,0);ctx.clearRect(0,0,W,H);
@@ -650,7 +667,7 @@ class PaintRig{
     ctx.save();ctx.globalAlpha=1-clamp(sink,0,1)*.9;ctx.translate(W/2,ground);ctx.scale(1-lift*.4,.16);ctx.translate(-W/2,-ground);ctx.fillStyle=sg;ctx.beginPath();ctx.arc(W/2,ground,B.w*scale*.5,0,Math.PI*2);ctx.fill();ctx.restore();
     // body
     const sinkPx=sink*B.h*scale*.5;ctx.save();if(sink>.01){ctx.beginPath();ctx.rect(0,0,W,ground+1);ctx.clip()}
-    ctx.translate(W/2+shx+dbx,ground+this.jumpY+wb+dby+sinkPx+slump*3);ctx.rotate((v.tilt+giggle+v.lean+wr+drot)*Math.PI/180);ctx.scale(sx*(1+.035*slump)*scale,sy*(1-.06*slump)*scale);ctx.translate(-footX,-footY);
+    ctx.translate(W/2+shx+dbx,ground+this.jumpY+wb+dby+sinkPx+slump*3+gb);ctx.rotate((v.tilt+giggle+v.lean+wr+drot+gr)*Math.PI/180);if(Math.abs(sw)>.001)ctx.transform(1,0,sw,1,0,0);ctx.scale(sx*(1+.035*slump)*scale,sy*(1-.06*slump)*scale);ctx.translate(-footX,-footY);
     const FF=this.full||{},pointing=this.pointSide&&performance.now()<this.pointUntil&&FF['point'+this.pointSide],waving=!pointing&&this.state==='wave'&&FF.waveA;
     if(pointing){const fr=FF['point'+this.pointSide];ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
     else if(waving){const fr=(FF.waveB&&Math.floor(t*3.4)%2)?FF.waveB:FF.waveA;ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
@@ -660,7 +677,8 @@ class PaintRig{
       const draw=(ps,a)=>{if(ps&&a>.01){ctx.globalAlpha=Math.min(1,a);for(const p of ps)ctx.drawImage(p.c,p.x+ox,p.y+oy)}};
       draw(P.neutral,1);draw(P.happy,v.happy);draw(P.worried,v.worried);draw(P.surprised,v.surprised);draw(P.confused,v.confused);
       // lip-sync: snap between closed, "ah" and "oh" mouths (fall back to a fade if a shape is missing)
-      if(this.mouth==='o'&&P.oMouth)draw(P.oMouth,1);else if(this.mouth==='e'&&P.talkE)draw(P.talkE,1);else if(this.mouth&&P.talk)draw(P.talk,1);else if(!P.talk)draw(P.talk,v.talk);
+      const ym=yawning?(P.oMouth?'o':'a'):this.mouth;
+      if(ym==='o'&&P.oMouth)draw(P.oMouth,1);else if(ym==='e'&&P.talkE)draw(P.talkE,1);else if(ym&&P.talk)draw(P.talk,1);else if(!P.talk)draw(P.talk,v.talk);
       draw(P.blink,Math.max(blink,v.blinkHold));ctx.globalAlpha=1}
     ctx.restore();
     // extras
@@ -988,12 +1006,12 @@ var paintedEngine=PipPaintedEngine();
       if(!this._float||!this._m||this._hiddenByUser)return Promise.resolve();const m=this._m,[x0,y0]=this._pos,dist=Math.hypot(x-x0,y-y0);
       const tok=this._walkTok=(this._walkTok||0)+1;this._docked=false;
       if(dist<3){this._setPos(x,y);return Promise.resolve()}
-      ms=ms||clamp(dist/.6,380,1500);if(RM<1)ms=Math.min(ms,300);this._walking=true;m.lean=Math.sign(x-x0)*9;
+      ms=ms||clamp(dist/.6,380,1500);if(RM<1)ms=Math.min(ms,300);this._walking=true;m.lean=Math.sign(x-x0)*9;const gait=!!m.walkStart&&dist>30;if(gait){m.walkStart(x-x0||1);hops=false}
       return new Promise(res=>{const t0=performance.now();let lastHop=-1e9;
-        const step=now=>{if(tok!==this._walkTok||!this._m){this._walking=false;return res()}
+        const step=now=>{if(tok!==this._walkTok||!this._m){this._walking=false;if(gait&&m.walkStop)m.walkStop();return res()}
           const p=clamp((now-t0)/ms,0,1),e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;this._setPos(x0+(x-x0)*e,y0+(y-y0)*e);
           if(hops&&now-lastHop>300&&p<.85){m.hop(150);lastHop=now}
-          if(p<1)requestAnimationFrame(step);else{m.lean=0;this._walking=false;res()}};
+          if(p<1)requestAnimationFrame(step);else{m.lean=0;if(gait)m.walkStop();this._walking=false;res()}};
         requestAnimationFrame(step)})}
     async goTo(el,{mode='point',text,state,stay}={}){if(this._hiddenByUser)return;
       if(!this._float||!el||!this._m)return;clearTimeout(this._homeT);this._goAt=Date.now();this._m.unpoint();

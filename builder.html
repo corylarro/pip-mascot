@@ -820,12 +820,12 @@ function definePipElement(engine,defaultConfig,painted,origin){
       if(!this._float||!this._m||this._hiddenByUser)return Promise.resolve();const m=this._m,[x0,y0]=this._pos,dist=Math.hypot(x-x0,y-y0);
       const tok=this._walkTok=(this._walkTok||0)+1;this._docked=false;
       if(dist<3){this._setPos(x,y);return Promise.resolve()}
-      ms=ms||clamp(dist/.6,380,1500);if(RM<1)ms=Math.min(ms,300);this._walking=true;m.lean=Math.sign(x-x0)*9;
+      ms=ms||clamp(dist/.6,380,1500);if(RM<1)ms=Math.min(ms,300);this._walking=true;m.lean=Math.sign(x-x0)*9;const gait=!!m.walkStart&&dist>30;if(gait){m.walkStart(x-x0||1);hops=false}
       return new Promise(res=>{const t0=performance.now();let lastHop=-1e9;
-        const step=now=>{if(tok!==this._walkTok||!this._m){this._walking=false;return res()}
+        const step=now=>{if(tok!==this._walkTok||!this._m){this._walking=false;if(gait&&m.walkStop)m.walkStop();return res()}
           const p=clamp((now-t0)/ms,0,1),e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;this._setPos(x0+(x-x0)*e,y0+(y-y0)*e);
           if(hops&&now-lastHop>300&&p<.85){m.hop(150);lastHop=now}
-          if(p<1)requestAnimationFrame(step);else{m.lean=0;this._walking=false;res()}};
+          if(p<1)requestAnimationFrame(step);else{m.lean=0;if(gait)m.walkStop();this._walking=false;res()}};
         requestAnimationFrame(step)})}
     async goTo(el,{mode='point',text,state,stay}={}){if(this._hiddenByUser)return;
       if(!this._float||!el||!this._m)return;clearTimeout(this._homeT);this._goAt=Date.now();this._m.unpoint();
