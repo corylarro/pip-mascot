@@ -270,6 +270,8 @@ async function load() {
   if (want && /^[a-z0-9]{6,24}$/.test(want) && !list.some(m => m.id === want)) list.unshift({ id: want, name: '', local: true });
   mascots = list;
   if (!info && !list.length) { $('gate').hidden = false; return; }
+  // not signed in, but looking at a mascot: offer the sign-in above it, so poses and moments can be changed
+  if (!info) { $('gate').hidden = false; $('gh').textContent = 'Sign in to make changes'; $('gate').style.margin = '0 auto 24px'; }
   if (!list.length) { $('empty').hidden = false; return; }
   $('page').hidden = false;
   showCredits(info);
