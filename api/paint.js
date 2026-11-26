@@ -43,7 +43,43 @@ For panels 1, 8, 9, 10 and 11, count the character's ARMS: the upper limbs, incl
 Also say whether the character in panel 1 is an animal with paws, and for panels 8 to 11 whether a hand with separate human-style fingers appears.
 Reply with ONLY this JSON (no prose): {"arms":{"1":2,"8":2,"9":2,"10":2,"11":2},"pawAnimal":false,"fingers":{"8":false,"9":false,"10":false,"11":false}}`;
 
-import { whoIs, spend, refuse, MASCOT_COST } from './_keys.js';
+import { whoIs, spend, refuse, MASCOT_COST, readJson, writeJson } from './_keys.js';
+import { createHash } from 'node:crypto';
+
+// Spending guards, so nobody can run up the OpenAI bill:
+//  - each key can paint at most POSE_HOURLY poses an hour and POSE_DAILY a day (every painting counts, free repaints too)
+//  - and at most IMAGE_KEY_DAILY other paintings a day (new mascots and their touch-ups)
+//  - the whole site stops painting for the day after IMAGE_DAILY_CAP paintings (mascots and poses together)
+// The owner passcode skips the per-key limits but still counts toward the site-wide cap.
+const LIMITS = () => ({ hourly: Number(process.env.POSE_HOURLY) || 15, daily: Number(process.env.POSE_DAILY) || 40, images: Number(process.env.IMAGE_KEY_DAILY) || 40, site: Number(process.env.IMAGE_DAILY_CAP) || 500 });
+const today = () => new Date().toISOString().slice(0, 10);
+const keyTag = k => createHash('sha256').update('critterkit-pose:' + k).digest('hex').slice(0, 24);
+async function guard(who, kind) {
+  const L = LIMITS(), day = today(), hour = new Date().getUTCHours();
+  const site = (await readJson(`usage/site-${day}.json`).catch(() => null)) || { n: 0 };
+  if (site.n >= L.site) return 'Painting is taking a breather for today. Try again tomorrow, and your credits are safe.';
+  if (kind === 'pose' && who.key) {
+    const u = (await readJson(`usage/pose-${keyTag(who.key)}-${day}.json`).catch(() => null)) || { n: 0, hours: {} };
+    if (u.n >= L.daily) return `That’s ${L.daily} poses today, the daily limit. Try again tomorrow.`;
+    if ((u.hours[hour] || 0) >= L.hourly) return `That’s ${L.hourly} poses this hour. Take a short break and try again.`;
+  }
+  if (kind === 'image' && who.key) {
+    const u = (await readJson(`usage/img-${keyTag(who.key)}-${day}.json`).catch(() => null)) || { n: 0 };
+    if (u.n >= L.images) return 'That’s a lot of painting for one day. Try again tomorrow, and your credits are safe.';
+  }
+  return null;
+}
+// count one painting (call after each image the model returns, kept or not)
+async function counted(who, kind) {
+  const day = today(), hour = new Date().getUTCHours();
+  try { const site = (await readJson(`usage/site-${day}.json`)) || { n: 0 }; site.n++; await writeJson(`usage/site-${day}.json`, site); } catch (e) {}
+  if (kind === 'pose' && who.key) {
+    try { const p = `usage/pose-${keyTag(who.key)}-${day}.json`, u = (await readJson(p)) || { n: 0, hours: {} }; u.n++; u.hours[hour] = (u.hours[hour] || 0) + 1; await writeJson(p, u); } catch (e) {}
+  }
+  if (kind === 'image' && who.key) {
+    try { const p = `usage/img-${keyTag(who.key)}-${day}.json`, u = (await readJson(p)) || { n: 0 }; u.n++; await writeJson(p, u); } catch (e) {}
+  }
+}
 import { moderate } from './_moderate.js';
 import { list } from '@vercel/blob';
 
@@ -109,6 +145,8 @@ export default async function handler(req, res) {
     try {
       const block = await moderate({ key, desc, photo: null, visionModels: VISION_MODELS() });
       if (block) { res.status(422).json({ error: block.message, blocked: block.reason }); return; }
+      const stop = await guard(who, 'pose');
+      if (stop) { res.status(429).json({ error: stop }); return; }
       const ref = await poseReference(id);
       if (!ref) { res.status(404).json({ error: 'Mascot not found.' }); return; }
       if (!ref.png) { res.status(409).json({ error: 'Open this mascot on the paint page and save it again first, so its poses are prepared.' }); return; }
@@ -125,7 +163,7 @@ export default async function handler(req, res) {
             if (transparent) fd.append('background', 'transparent');
             if (hiFi) fd.append('input_fidelity', 'high');
             const r = await call(`${API}/images/edits`, { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: fd });
-            if (r.ok && r.json && r.json.data && r.json.data[0]) return { image: r.json.data[0].b64_json, model };
+            if (r.ok && r.json && r.json.data && r.json.data[0]) { await counted(who, 'pose'); return { image: r.json.data[0].b64_json, model }; }
             last = r;
             if (/fidelity/i.test(r.msg || '')) { noHiFi = true; continue; }        // this model doesn't take that setting
             if (/background|transparen/i.test(r.msg || '')) { noTransparent = true; continue; }
@@ -136,6 +174,7 @@ export default async function handler(req, res) {
         return null;
       };
       for (let attempt = 0; attempt < 2; attempt++) {
+        if (attempt && await guard(who, 'pose')) break;   // no free repaint past the limits
         const out = await paintOnce();
         if (!out) break;
         const same = await looksSame(key, ref.png, out.image);
@@ -151,6 +190,10 @@ export default async function handler(req, res) {
 
   try {
     // Screen what the person typed (and any photo) before painting, so a blocked request never uses a paint.
+    if (b.step === 'base' || b.step === 'reference' || b.step === 'edit') {
+      const stop = await guard(who, 'image');
+      if (stop) { res.status(429).json({ error: stop }); return; }
+    }
     if (b.step === 'base' || b.step === 'reference') {
       const block = await moderate({ key, desc: b.desc, photo: b.step === 'reference' ? b.photo : null, photoMime: b.photoMime, visionModels: VISION_MODELS() });
       if (block) { console.log('paint blocked:', block.reason); res.status(422).json({ error: block.message, blocked: block.reason }); return; }
@@ -165,7 +208,7 @@ export default async function handler(req, res) {
             method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },
             body: JSON.stringify({ model, prompt, size, quality, output_format: 'webp', n: 1 })
           });
-          if (r.ok && r.json && r.json.data && r.json.data[0]) { const credits = await spend(who, MASCOT_COST).catch(() => null); res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model, size, credits }); return; }
+          if (r.ok && r.json && r.json.data && r.json.data[0]) { await counted(who, 'image'); const credits = await spend(who, MASCOT_COST).catch(() => null); res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model, size, credits }); return; }
           last = r;
           if (/size|resolution|dimension/i.test(r.msg || '') && r.status === 400) continue;   // try the next size
           if (!tryNext(r.status, r.msg)) break outer;
@@ -191,7 +234,7 @@ export default async function handler(req, res) {
             fd.append('size', size); fd.append('quality', quality); fd.append('output_format', 'webp'); fd.append('n', '1');
             if (hiFi) fd.append('input_fidelity', 'high');
             const r = await call(`${API}/images/edits`, { method: 'POST', headers: auth, body: fd });
-            if (r.ok && r.json && r.json.data && r.json.data[0]) { const credits = await spend(who, MASCOT_COST).catch(() => null); res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model, size, credits }); return; }
+            if (r.ok && r.json && r.json.data && r.json.data[0]) { await counted(who, 'image'); const credits = await spend(who, MASCOT_COST).catch(() => null); res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model, size, credits }); return; }
             last = r;
             if (hiFi && /input_fidelity|fidelity/i.test(r.msg || '')) continue;   // same model and size, without the optional setting
             break;
@@ -219,7 +262,7 @@ export default async function handler(req, res) {
           fd.append('size', '1024x1024'); fd.append('quality', quality); fd.append('output_format', 'webp'); fd.append('n', '1');
           if (hiFi) fd.append('input_fidelity', 'high');
           const r = await call(`${API}/images/edits`, { method: 'POST', headers: auth, body: fd });
-          if (r.ok && r.json && r.json.data && r.json.data[0]) { res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model, masked: useMask, hiFi }); return; }
+          if (r.ok && r.json && r.json.data && r.json.data[0]) { await counted(who, 'image'); res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model, masked: useMask, hiFi }); return; }
           last = r;
           if (/input_fidelity|fidelity/i.test(r.msg || '') || (useMask && /mask/i.test(r.msg || ''))) continue;   // retry this model without the optional parameter
           break;
