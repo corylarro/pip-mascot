@@ -23,6 +23,7 @@ body{margin:0;background:var(--haze);color:var(--ink);font:400 1.0625rem/1.55 va
 .bar nav{display:flex;gap:18px}.bar nav a{color:var(--ink-2);text-decoration:none}
 main{max-width:1120px;margin:0 auto;padding:8px 24px 64px;display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
 @media (max-width:860px){main{grid-template-columns:1fr}}
+.back{display:inline-block;margin-bottom:10px;color:var(--ink-2);font-weight:600;text-decoration:none}
 h1{font:800 clamp(2.2rem,5vw,3.4rem)/1.02 var(--display);letter-spacing:-.02em;font-stretch:88%;margin:0 0 10px}
 .lede{color:var(--ink-2);font-size:1.15rem;margin:0 0 22px;max-width:36ch}
 .stage{position:relative;background:var(--white);border:2px solid var(--ink);border-radius:32px;aspect-ratio:1/1;max-height:560px;width:100%;overflow:visible}
@@ -83,6 +84,14 @@ pre{margin:0;background:var(--ink);color:#F2F0FF;border-radius:18px;padding:16px
   <div class="stage" id="stage">
     <critter-mascot id="pip" mascot="xyjv3nf5en3k" dock="#stage" seasonal="off" greeting="Tell me what to do!"></critter-mascot>
   </div>
+  <script>
+  // /studio?mascot=ID runs the studio with your own mascot (before the tag comes to life)
+  (function(){var id=new URLSearchParams(location.search).get('mascot');if(!id||!/^[a-z0-9]{6,24}$/.test(id))return;
+    var el=document.getElementById('pip');el.setAttribute('mascot',id);el.setAttribute('no-ping','');
+    fetch('/api/mascot?id='+id).then(function(r){return r.ok?r.json():null}).then(function(d){if(!d||!d.name)return;
+      document.querySelector('.lede').textContent='Say what should happen in plain words. '+d.name+' acts it out, and you get the code to paste into your app.';
+      var b=document.createElement('a');b.href='/mascots?id='+id;b.textContent='← Back to '+d.name;b.className='back';document.querySelector('#h1').before(b)})})();
+  </script>
 </main>
 <script src="/critter.js"></script>
 <script>

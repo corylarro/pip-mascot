@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>My mascots · Critterkit</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,500..800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--haze:#ECEBFF;--ink:#221E3F;--ink-2:#4A4570;--peach:#FF9466;--sprout:#2FAF74;--butter:#FFD35A;--white:#fff;--line:#C9C6EC;
+  --display:'Bricolage Grotesque',ui-rounded,system-ui,sans-serif;--body:'Figtree',system-ui,-apple-system,sans-serif}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--haze);color:var(--ink);font:400 1.0625rem/1.55 var(--body);-webkit-font-smoothing:antialiased}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:6px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 22px}
+.bar{display:flex;justify-content:space-between;align-items:center;padding:22px 0}
+.mark{font:800 1.5rem/1 var(--display);letter-spacing:-.03em;text-decoration:none;color:var(--ink);display:flex;align-items:center;gap:8px}
+.mark i{width:14px;height:18px;background:var(--peach);border-radius:50% 50% 46% 46%/60% 60% 40% 40%;position:relative;display:inline-block}
+.mark i::after{content:"";position:absolute;left:5px;top:-7px;width:9px;height:7px;background:var(--sprout);border-radius:0 100% 0 100%}
+.bar nav{display:flex;gap:18px}.bar nav a{color:var(--ink-2);text-decoration:none;font-weight:500}
+h1{font:800 clamp(2.3rem,5.4vw,3.6rem)/1 var(--display);letter-spacing:-.02em;font-stretch:88%;margin:0}
+h2{font:750 1.35rem/1.15 var(--display);letter-spacing:-.01em;margin:0 0 6px}
+p{margin:0}
+.sub{color:var(--ink-2)}
+.pick{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}
+.pick a{font:600 .92rem var(--body);padding:7px 14px;border-radius:999px;border:2px solid var(--ink);color:var(--ink);text-decoration:none;background:var(--white)}
+.pick a[aria-current]{background:var(--ink);color:var(--white)}
+.layout{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:34px;align-items:start;padding-bottom:70px}
+.left{position:sticky;top:18px}
+.stage{position:relative;background:var(--butter);border:2px solid var(--ink);border-radius:32px;aspect-ratio:1/1;max-height:520px;width:100%}
+.stage critter-mascot{--pip-size:min(250px,52vw)}
+.try{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;justify-content:center}
+.try button{font:600 .9rem var(--body);padding:7px 13px;border-radius:999px;border:2px solid var(--ink);background:var(--white);color:var(--ink);cursor:pointer}
+.try button:hover{background:var(--haze)}
+.head{display:flex;flex-direction:column;gap:12px;margin-bottom:22px}
+.live{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;font:600 .95rem var(--body);padding:7px 14px;border-radius:999px;background:var(--white);border:2px solid var(--line);color:var(--ink-2)}
+.live i{width:10px;height:10px;border-radius:50%;background:#B9B5DA;flex:none}
+.live.on{border-color:var(--sprout);color:var(--ink)}.live.on i{background:var(--sprout);box-shadow:0 0 0 4px rgba(47,175,116,.2)}
+.live.wait i{animation:blink 1.6s ease-in-out infinite}
+@keyframes blink{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.live.wait i{animation:none}}
+.step{background:var(--white);border:2px solid var(--ink);border-radius:24px;padding:22px;margin-bottom:16px}
+.step h2 b{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--ink);color:var(--white);font:700 .95rem var(--body);margin-right:10px;vertical-align:2px}
+.step .sub{margin-bottom:14px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.tabs button{font:600 .9rem var(--body);padding:6px 12px;border-radius:999px;border:1.5px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--ink);color:var(--white)}
+pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;padding:16px 18px;font:500 .84rem/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:auto;white-space:pre-wrap;word-break:break-word;max-height:300px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;font:700 1rem var(--body);padding:12px 20px;border-radius:999px;border:2px solid var(--ink);background:var(--peach);color:var(--ink);cursor:pointer;text-decoration:none;box-shadow:0 4px 0 var(--ink)}
+.btn:active{transform:translateY(2px);box-shadow:0 2px 0 var(--ink)}
+.ghost{display:inline-flex;align-items:center;font:600 .95rem var(--body);padding:9px 16px;border-radius:999px;border:2px solid var(--ink);background:var(--white);color:var(--ink);cursor:pointer;text-decoration:none}
+.hint{color:var(--ink-2);font-size:.92rem;margin-top:10px}
+.keyline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.keyline code{font:500 .9rem ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--haze);padding:8px 12px;border-radius:10px;word-break:break-all;flex:1 1 220px}
+.gate{max-width:520px;margin:40px auto 90px;background:var(--white);border:2px solid var(--ink);border-radius:28px;padding:28px;display:flex;flex-direction:column;gap:14px}
+.gate input{font:500 1.05rem var(--body);padding:13px 16px;border-radius:14px;border:2px solid var(--ink);width:100%}
+.err{color:#B4243A;font-weight:600;min-height:1.3em}
+@media (max-width:860px){
+  .layout{grid-template-columns:1fr;gap:22px}.left{position:static}
+  .stage{max-width:340px;margin:0 auto}
+  .bar nav a.hide-m{display:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar"><a class="mark" href="/"><i></i>critterkit</a><nav aria-label="Site"><a href="/studio" class="hide-m">Studio</a><a href="/docs" class="hide-m">Docs</a><a href="/paint">Paint</a></nav></div>
+
+  <section class="gate" id="gate" hidden aria-labelledby="gh">
+    <h1 id="gh" style="font-size:2.2rem">My mascots</h1>
+    <p class="sub">Enter the Critterkit key you got after buying to see your mascots on this device.</p>
+    <form id="gateForm" class="row" style="flex-direction:column;align-items:stretch">
+      <label for="gateKey" style="font-weight:600">Critterkit key</label>
+      <input id="gateKey" type="password" autocomplete="current-password" placeholder="ck_…" required>
+      <button class="btn" type="submit">Show my mascots</button>
+    </form>
+    <p class="err" id="gateErr" aria-live="polite"></p>
+    <p class="hint">Don’t have one yet? <a href="/api/checkout?plan=painted">Create your mascot · $19</a>. Lost your key? Email hello@zerotobuild.dev from the address you paid with.</p>
+  </section>
+
+  <section class="gate" id="empty" hidden aria-labelledby="eh">
+    <h1 id="eh" style="font-size:2.2rem">No mascots yet</h1>
+    <p class="sub">Paint one and save it. It shows up here, ready to drop into your app.</p>
+    <a class="btn" href="/paint">Paint your mascot</a>
+  </section>
+
+  <main id="page" hidden>
+    <nav class="pick" id="pick" aria-label="Your mascots" hidden></nav>
+    <div class="layout">
+      <div class="left">
+        <div class="stage" id="stage"></div>
+        <div class="try" role="group" aria-label="Try a moment">
+          <button data-m="welcome">Welcome</button><button data-m="first-purchase">Purchase</button><button data-m="streak">7-day streak</button><button data-m="level-up">Level up</button><button data-m="oops">Oops</button><button data-p="flip">Backflip</button>
+        </div>
+      </div>
+      <div>
+        <div class="head">
+          <h1 id="name">Your mascot</h1>
+          <p class="live wait" id="live"><i aria-hidden="true"></i><span>Checking if it’s live…</span></p>
+        </div>
+
+        <section class="step" aria-labelledby="s1">
+          <h2 id="s1"><b>1</b>Put it in your app</h2>
+          <p class="sub">Using Cursor, Lovable, Bolt or Claude? Copy the prompt and paste it in. Otherwise grab the code.</p>
+          <div class="tabs" role="group" aria-label="How you build"><button data-k="ai" aria-pressed="true">AI builder</button><button data-k="web" aria-pressed="false">Website</button><button data-k="ios" aria-pressed="false">iPhone app</button></div>
+          <pre id="code"></pre>
+          <div class="row"><button class="btn" id="copy" type="button">Copy prompt</button><a class="ghost" id="plain" target="_blank" rel="noopener" href="/embed-test">Try it on a plain page</a></div>
+          <p class="hint" id="codeHint"></p>
+        </section>
+
+        <section class="step" aria-labelledby="s2">
+          <h2 id="s2"><b>2</b>Make it do things</h2>
+          <p class="sub">It already reacts to forms, saves and errors on its own. For your app’s big moments, describe what should happen and get the code.</p>
+          <div class="row"><a class="btn" id="studio" href="/studio">Open the studio with your mascot</a><a class="ghost" href="/docs#moments">Moments in the docs</a></div>
+        </section>
+
+        <section class="step" aria-labelledby="s3">
+          <h2 id="s3"><b>3</b>Check it’s live</h2>
+          <p class="sub" id="liveText">Open a page of your app with the mascot on it. Within a minute, this page shows the site it’s running on.</p>
+          <div class="row" style="margin-top:12px"><button class="ghost" id="recheck" type="button">Check again</button></div>
+        </section>
+
+        <section class="step" aria-labelledby="s4">
+          <h2 id="s4">Your key and paints</h2>
+          <p class="sub" id="credits"></p>
+          <div class="keyline" id="keyline" hidden><code id="keyText">ck_••••••••••••</code><button class="ghost" id="showKey" type="button">Show</button><button class="ghost" id="copyKey" type="button">Copy</button></div>
+          <p class="hint">Keep your key in a password manager or notes. It’s how you get back in on another device.</p>
+          <div class="row" style="margin-top:14px"><a class="ghost" href="/paint">Paint another mascot</a><a class="ghost" id="buyMore" href="/api/checkout?plan=credits" hidden>Buy more paints</a><button class="ghost" id="signOut" type="button">Sign out on this device</button></div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/critter.js"></script>
+<script src="/snippets.js"></script>
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const get = k => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } };
+const set = (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch (e) {} };
+const params = new URLSearchParams(location.search);
+let key = get('pip-pass'), mascots = [], cur = null, kind = 'ai', pip = null, liveT = 0;
+
+async function me(k) {
+  const r = await fetch('/api/me', { headers: { 'x-pip-pass': k } });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(j.error || 'That key didn’t work.'), { status: r.status });
+  return j;
+}
+
+async function load() {
+  let info = null;
+  if (key) { try { info = await me(key); } catch (e) { if (e.status === 401) { set('pip-pass', ''); key = ''; } } }
+  // mascots saved with this key, plus the last one saved in this browser (older saves weren't linked to keys)
+  const list = info ? info.mascots.slice() : [], lastId = get('pip-painted-id');
+  if (lastId && !list.some(m => m.id === lastId)) list.push({ id: lastId, name: get('pip-painted-name'), local: true });
+  const want = params.get('id');
+  if (want && /^[a-z0-9]{6,24}$/.test(want) && !list.some(m => m.id === want)) list.unshift({ id: want, name: '', local: true });
+  mascots = list;
+  if (!info && !list.length) { $('gate').hidden = false; return; }
+  if (!list.length) { $('empty').hidden = false; return; }
+  $('page').hidden = false;
+  showCredits(info);
+  show(list.find(m => m.id === want) || list[0]);
+}
+
+function showCredits(info) {
+  if (!info) { $('credits').textContent = 'Enter your key on the paint page to see your paints here.'; return; }
+  if (info.owner) { $('credits').textContent = 'Signed in with the owner passcode.'; return; }
+  const n = info.credits;
+  $('credits').textContent = n > 0 ? `${n} paint${n === 1 ? '' : 's'} left. Each new painting uses one.` : 'You’re out of paints. Buy more to paint another mascot or try a new look.';
+  $('buyMore').hidden = n > 0; $('keyline').hidden = false;
+}
+
+function show(m) {
+  cur = m;
+  const name = m.name || 'Your mascot';
+  $('name').textContent = name; document.title = `${name} · Critterkit`;
+  history.replaceState(null, '', '/mascots?id=' + m.id);
+  const pk = $('pick'); pk.hidden = mascots.length < 2;
+  pk.innerHTML = mascots.map(x => `<a href="/mascots?id=${x.id}" data-id="${x.id}"${x.id === m.id ? ' aria-current="page"' : ''}>${esc(x.name || 'Untitled')}</a>`).join('');
+  pk.querySelectorAll('a').forEach(a => a.addEventListener('click', e => { e.preventDefault(); show(mascots.find(x => x.id === a.dataset.id)); }));
+  $('studio').href = '/studio?mascot=' + m.id; $('studio').textContent = `Open the studio with ${m.name || 'your mascot'}`;
+  $('plain').href = '/embed-test?mascot=' + m.id;
+  // the live mascot on the stage
+  if (pip) pip.remove();
+  pip = document.createElement('critter-mascot');
+  pip.setAttribute('mascot', m.id); pip.setAttribute('dock', '#stage'); pip.setAttribute('seasonal', 'off'); pip.setAttribute('no-ping', '');
+  pip.setAttribute('greet', ''); pip.setAttribute('greeting', m.name ? `Hi! I'm ${m.name}.` : 'Hi there!');
+  document.body.appendChild(pip);
+  renderCode(); checkLive(true);
+}
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const HINT = { ai: 'It includes your mascot, install steps and which moments to use where.', web: 'Paste before the closing </body> tag. Works in React, Next.js, Vue and plain HTML.', ios: 'In Xcode: File → Add Package Dependencies…, paste the link from the first line, then add this to your root view.' };
+function renderCode() {
+  if (!cur) return;
+  $('code').textContent = kind === 'ai' ? CK.aiPrompt(cur.id, 'web', cur.name) : CK.snipCode(cur.id, kind);
+  $('copy').textContent = kind === 'ai' ? 'Copy prompt' : 'Copy code';
+  $('codeHint').textContent = HINT[kind];
+}
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
+  kind = b.dataset.k; document.querySelectorAll('.tabs button').forEach(o => o.setAttribute('aria-pressed', String(o === b))); renderCode();
+}));
+$('copy').addEventListener('click', async () => {
+  const b = $('copy'), was = b.textContent;
+  try { await navigator.clipboard.writeText($('code').textContent); b.textContent = 'Copied'; }
+  catch (e) { const r = document.createRange(); r.selectNodeContents($('code')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+  setTimeout(() => { b.textContent = was; }, 1600);
+});
+
+// "Is it live?"
+function setLive(state, text) {
+  const l = $('live'); l.className = 'live ' + state; l.querySelector('span').textContent = text;
+}
+const ago = iso => { const d = (Date.now() - Date.parse(iso)) / 60000; return d < 2 ? 'just now' : d < 60 ? `${Math.round(d)} min ago` : d < 1440 ? `${Math.round(d / 60)} h ago` : `${Math.round(d / 1440)} days ago`; };
+async function checkLive(first) {
+  clearTimeout(liveT);
+  if (!cur) return;
+  if (!key) { setLive('', 'Sign in to check where it’s live'); $('liveText').textContent = 'Enter your key on the paint page to see which sites your mascot is running on.'; return; }
+  if (first) setLive('wait', 'Checking if it’s live…');
+  try {
+    const r = await fetch('/api/seen?id=' + cur.id, { headers: { 'x-pip-pass': key }, cache: 'no-store' });
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 403) { setLive('', 'Live check needs the key it was saved with'); $('liveText').textContent = 'This mascot was saved before live checks, or with a different key. Save it again from the paint page to turn this on.'; return; }
+    if (!r.ok) throw new Error();
+    if (j.sites && j.sites.length) {
+      const s = j.sites[0], more = j.sites.length - 1;
+      setLive('on', `Live on ${s.site}${more ? ` and ${more} more` : ''}`);
+      $('liveText').textContent = `Last seen on ${j.sites.map(x => `${x.site} (${ago(x.last)})`).join(', ')}. You’re all set.`;
+      if (first && pip) pip.addEventListener('ready', () => setTimeout(() => pip.moment && pip.moment('goal', { say: 'I’m live!' }), 1600), { once: true });
+    } else {
+      setLive('wait', 'Not live yet');
+      $('liveText').textContent = 'Open a page of your app with the mascot on it. Within a minute, this page shows the site it’s running on.';
+      liveT = setTimeout(() => { if (!document.hidden) checkLive(false); else liveT = setTimeout(checkLive, 20000); }, 20000);
+    }
+  } catch (e) { setLive('', 'Couldn’t check right now'); }
+}
+$('recheck').addEventListener('click', () => checkLive(true));
+
+// try moments on the stage
+document.querySelectorAll('.try button').forEach(b => b.addEventListener('click', () => {
+  if (!pip || !pip.moment) return;
+  const m = b.dataset.m;
+  if (b.dataset.p) pip.play([{ do: 'flip' }, { do: 'say', text: 'Ta-da!' }]);
+  else pip.moment(m, m === 'streak' ? { count: 7 } : m === 'level-up' ? { count: 5 } : {});
+}));
+
+// key
+$('showKey').addEventListener('click', () => { const sh = $('showKey').textContent === 'Show'; $('keyText').textContent = sh ? key : 'ck_••••••••••••'; $('showKey').textContent = sh ? 'Hide' : 'Show'; });
+$('copyKey').addEventListener('click', async () => { try { await navigator.clipboard.writeText(key); $('copyKey').textContent = 'Copied'; setTimeout(() => { $('copyKey').textContent = 'Copy'; }, 1600); } catch (e) {} });
+$('signOut').addEventListener('click', () => { set('pip-pass', ''); set('pip-painted-id', ''); set('pip-painted-name', ''); location.href = '/mascots'; });
+$('gateForm').addEventListener('submit', async e => {
+  e.preventDefault(); const k = $('gateKey').value.trim(); $('gateErr').textContent = '';
+  try { await me(k); set('pip-pass', k); location.reload(); } catch (err) { $('gateErr').textContent = err.status === 401 ? 'That key didn’t work. Check it and try again.' : err.message; }
+});
+load();
+})();
+</script>
+</body>
+</html>

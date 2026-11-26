@@ -60,6 +60,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 [hidden]{display:none!important}
 .kind{display:flex;gap:6px;margin:4px 0 8px}.kind button{font:inherit;font-size:13px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}.kind button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 pre.snippet{margin:0;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;overflow-x:auto;font-family:var(--font-mono);font-size:12.5px;color:var(--ink);white-space:pre}
+a.primary.next{display:block;text-align:center;text-decoration:none;border-radius:12px;margin:4px 0 2px}
 a.ghost{display:inline-flex;align-items:center;text-decoration:none;border-radius:10px}
 .tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;margin-top:10px}
 .tabs a,.tabs .cur{display:flex;align-items:center;justify-content:center;gap:5px;font-weight:700;font-size:15px;padding:9px 6px;border-radius:9px;text-decoration:none;color:var(--muted)}
@@ -134,7 +135,7 @@ details.guide ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--mut
   <header>
     <h1>Critterkit <span>painted mascots · beta</span></h1>
     <p>An image model paints your mascot and its expressions, then Critterkit rigs the painting so it moves and reacts.</p>
-    <nav class="tabs" aria-label="Views"><a href="/builder">Build</a><a href="/builder#live" id="liveLink">See it live</a><span class="cur" aria-current="page">Paint <span class="beta">beta</span></span></nav>
+    <nav class="tabs" aria-label="Views"><a href="/builder">Build</a><a href="/builder#live" id="liveLink">See it live</a><span class="cur" aria-current="page">Paint <span class="beta">beta</span></span><a href="/mascots">My mascots</a></nav>
   </header>
 
   <section class="stage" aria-label="Painted mascot stage">
@@ -226,6 +227,7 @@ details.guide ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--mut
     <button type="button" class="primary" id="save">Save and get the code</button>
     <p class="hint" id="saveMsg"></p>
     <div class="kind" id="snipKind" role="group" aria-label="Where it goes" hidden><button type="button" data-kind="web" aria-pressed="true">Website</button><button type="button" data-kind="ios" aria-pressed="false">iPhone app (Swift)</button></div>
+    <a class="primary next" id="openPage" href="/mascots" hidden>Open your mascot’s page</a>
     <pre class="snippet" id="snippet" hidden></pre>
     <div class="row" id="useActions" hidden><button type="button" class="ghost" id="copySnip">Copy code</button><button type="button" class="ghost" id="copyAI">Copy prompt for your AI builder</button><a class="ghost" href="/builder#live" id="tryLive">See it in the Taskly demo</a><a class="ghost" href="/embed-test" id="tryPlain" target="_blank" rel="noopener">Try it on a plain page</a></div>
   </section>
@@ -240,6 +242,7 @@ details.guide ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--mut
   <p class="mono" id="meta"></p>
 </main>
 
+<script src="/snippets.js"></script>
 <script src="/painted.js"></script>
 <script>
 (function(){
@@ -482,22 +485,15 @@ async function reencode(b64,mime){const im=await loadImg(b64ToDataUrl(b64,mime))
 let snipKind='web',snipId=null;
 const SNIP_HINT={web:'Saved. Paste this into your site, before the closing </body> tag.',
   ios:'Saved. In Xcode: File → Add Package Dependencies…, paste the link from the first line, then add this to your root view. More in the docs: critterkit.com/docs#ios'};
-function snipCode(id,kind){return kind==='ios'
-  ?`// Xcode: File → Add Package Dependencies… → https://github.com/corylarro/CritterKit\nimport CritterKit\n\nContentView()\n  .critterMascot(.init(mascotID: "${id}"))`
-  :`<script src="${location.origin}/critter.js"><\/script>\n<critter-mascot mascot="${id}" autopilot greet></critter-mascot>`}
 document.querySelectorAll('#snipKind button').forEach(b=>b.addEventListener('click',()=>{snipKind=b.dataset.kind;
   document.querySelectorAll('#snipKind button').forEach(o=>o.setAttribute('aria-pressed',String(o===b)));
   if(snipId){$('snippet').textContent=snipCode(snipId,snipKind);$('saveMsg').textContent=SNIP_HINT[snipKind]}}));
-function aiPrompt(id,kind){const name=($('mname').value||'').trim()||'our mascot',o=location.origin;
-  const common=`\n\nAdd it to the places that matter in this app, using moments (pick whichever fit):\n- After a first purchase or upgrade: first-purchase\n- Daily streaks: streak with the day count\n- Finishing a goal or hitting a milestone: goal / milestone with a short line\n- Levelling up: level-up with the level\n- First visit: welcome. Returning after a while: welcome-back\n- Empty lists: empty. Failed saves or requests: oops\n\nFor something custom, chain moves with play, e.g. a flip, a dance and a line with {placeholders} filled from real values.\nKeep the lines short, friendly and in the app's voice. Don't add the mascot to every button, only real moments.\nFull API reference: ${o}/llms.txt`;
-  return kind==='ios'
-  ?`Add ${name}, our animated mascot from Critterkit, to this SwiftUI app.\n\n1. Add the Swift package https://github.com/corylarro/CritterKit (File → Add Package Dependencies…).\n2. import CritterKit, and on the root view add: .critterMascot(.init(mascotID: "${id}"))\n3. Tag views the mascot can walk to with .critterTarget("name").\n4. Call it from app code: Critter.moment(.firstPurchase), Critter.moment(.streak(days: n)), Critter.moment(.levelUp(level)), Critter.moment(.milestone, say: "…", at: "target"), Critter.point(at: "email", say: "…"), try await Critter.watch(success: "Saved!") { … } around saves, Critter.play([["do": "flip"], ["do": "say", "text": "Level {level}!"]], values: ["level": level]).`+common
-  :`Add ${name}, our animated mascot from Critterkit, to this web app.\n\n1. Load the script once on every page: <script src="${o}/critter.js"><\/script>\n   (Next.js: next/script with strategy="afterInteractive" in the root layout.)\n2. Render once, near the end of <body>: <critter-mascot mascot="${id}" autopilot greet></critter-mascot>\n   In React/JSX write autopilot="" greet="" and declare 'critter-mascot' in JSX.IntrinsicElements if using TypeScript.\n3. Autopilot already reacts to typing, invalid forms, slow/failed/successful requests and errors. Don't rebuild that.\n4. Call it from app code with const pip = document.querySelector('critter-mascot'):\n   pip.moment('first-purchase'), pip.moment('streak', { count: n }), pip.moment('level-up', { count: level }), pip.moment('milestone', { say: '…', at: '#selector' }), pip.point(el, 'text'), pip.say('text'), pip.react('love', 2000),\n   pip.play([{ do: 'flip' }, { do: 'react', state: 'dance', ms: 2500 }, { do: 'say', text: 'Level {level}!' }], { level }).`+common}
+const snipCode=(id,kind)=>CK.snipCode(id,kind),aiPrompt=(id,kind)=>CK.aiPrompt(id,kind,$('mname').value);
 function showSnippet(id){snipId=id;const code=snipCode(id,snipKind);$('snipKind').hidden=false;
-  $('snippet').textContent=code;$('snippet').hidden=false;$('tryPlain').href='/embed-test?mascot='+encodeURIComponent(id);$('useActions').hidden=false;$('save').textContent='Save again as a new copy';
+  $('snippet').textContent=code;$('snippet').hidden=false;const op=$('openPage');op.href='/mascots?id='+encodeURIComponent(id);op.textContent=`Open ${($('mname').value||'').trim()||'your mascot'}’s page: test it, make moments, check it’s live`;op.hidden=false;$('tryPlain').href='/embed-test?mascot='+encodeURIComponent(id);$('useActions').hidden=false;$('save').textContent='Save again as a new copy';
   try{localStorage.setItem('pip-painted-id',id);localStorage.setItem('pip-painted-name',$('mname').value.trim()||'Painted mascot')}catch(e){}}
 function showUse(){$('useCard').hidden=false;if(current.savedId){$('mname').value=current.name||'';showSnippet(current.savedId);$('saveMsg').textContent=SNIP_HINT[snipKind]}
-  else{$('snippet').hidden=true;$('snipKind').hidden=true;$('useActions').hidden=true;$('save').textContent='Save and get the code';$('saveMsg').textContent=''}}
+  else{$('openPage').hidden=true;$('snippet').hidden=true;$('snipKind').hidden=true;$('useActions').hidden=true;$('save').textContent='Save and get the code';$('saveMsg').textContent=''}}
 $('save').addEventListener('click',async()=>{if(!current||!(current.sheet||current.base)||!current.face)return;const btn=$('save');btn.disabled=true;btn.textContent='Saving…';$('saveMsg').textContent='';
   try{const name=$('mname').value.trim();const raw=current.mode==='sheet'?current.sheet:current.base;
     const {data:image,mime:imgMime}=await reencode(raw,current.mime);

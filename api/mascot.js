@@ -3,7 +3,7 @@
 //   GET  /api/mascot?id=ID           -> mascot JSON (with an image URL that has CORS enabled)
 //   GET  /api/mascot?id=ID&img=1     -> the painting itself
 import { put, list } from '@vercel/blob';
-import { whoIs, refuse } from './_keys.js';
+import { whoIs, refuse, readKey, writeKey } from './_keys.js';
 
 export const config = { maxDuration: 60 };
 
@@ -36,7 +36,8 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'POST') {
-      if (refuse(res, await whoIs(req), 'Saving')) return;
+      const who = await whoIs(req);
+      if (refuse(res, who, 'Saving')) return;
       const b = (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body) || {};
       if (!b.image || !b.face) { res.status(400).json({ error: 'Missing image or face data.' }); return; }
       const mode = b.mode === 'simple' ? 'simple' : 'sheet';
@@ -51,6 +52,11 @@ export default async function handler(req, res) {
       };
       if (b.atlas) Object.assign(meta, await saveAtlas(id, b));
       await put(`mascots/${id}/data.json`, JSON.stringify(meta), { access: 'public', contentType: 'application/json', addRandomSuffix: false });
+      // remember it on the buyer's key, so "My mascots" can list it on any device
+      if (who && who.key) {
+        try { const rec = (await readKey(who.key)) || who.rec; rec.mascots = [{ id, name: meta.name, created: meta.created }, ...(rec.mascots || [])].slice(0, 50); await writeKey(who.key, rec); }
+        catch (e) {}
+      }
       res.json({ id }); return;
     }
 

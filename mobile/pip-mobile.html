@@ -970,7 +970,7 @@ var paintedEngine=PipPaintedEngine();
       const sleepAfter=sa===null?20000:Number(sa)*1000;let m;
       if(isPainted){const rig=new painted.PaintRig(root.querySelector('canvas[role=img]'),{bubble:root.querySelector('.bubble'),fit:.94,pad:.4,padTop:.45,hit:this,sleepAfter,onState});m=this._m=adapt(rig);
         this._ready=fetch(`${this.getAttribute('api')||origin}/api/mascot?id=${encodeURIComponent(mid)}`).then(r=>{if(!r.ok)throw new Error('Mascot not found');return r.json()})
-          .then(d=>painted.mountMascot(rig,d)).then(()=>this.dispatchEvent(new CustomEvent('ready'))).catch(e=>{console.warn('critter-mascot:',e);this.dispatchEvent(new CustomEvent('error',{detail:String(e)}))})}
+          .then(d=>painted.mountMascot(rig,d)).then(()=>{this.dispatchEvent(new CustomEvent('ready'));this._seen(mid)}).catch(e=>{console.warn('critter-mascot:',e);this.dispatchEvent(new CustomEvent('error',{detail:String(e)}))})}
       else{m=this._m=new engine.Mascot(root.querySelector('svg'),cfg,{bubble:root.querySelector('.bubble'),sleepAfter,onState});this._ready=Promise.resolve()}
       const say=m.say.bind(m);m.say=(t,o)=>{this._placeBubble();return say(t,o)};
       const st=this.getAttribute('state');if(st)m.setState(st);
@@ -1046,6 +1046,10 @@ var paintedEngine=PipPaintedEngine();
     _placeBubble(){const b=this.shadowRoot&&this.shadowRoot.querySelector('.bubble');if(!b)return;const r=this.getBoundingClientRect(),c=r.left+r.width/2;
       b.classList.toggle('below',r.top<90);b.classList.toggle('r',c>innerWidth*.6);b.classList.toggle('l',c<innerWidth*.4)}
     // entrance: falls in from above the screen and lands with a squash and a puff of dust
+    // Tells the mascot's owner it's live on their site (their "My mascot" page shows "Seen on yoursite.com"). Once a day per browser; sends only the mascot id.
+    _seen(mid){try{const h=location.hostname;if(!/^https?:$/.test(location.protocol)||/(^|\.)critterkit\.com$|\.vercel\.app$|^localhost$|^127\./.test(h)||this.hasAttribute('no-ping'))return;
+      const k='ck-seen:'+mid,d=new Date().toISOString().slice(0,10);if(localStorage.getItem(k)===d)return;localStorage.setItem(k,d);
+      fetch(`${this.getAttribute('api')||origin}/api/seen?id=${encodeURIComponent(mid)}`,{method:'POST',mode:'no-cors',keepalive:true}).catch(()=>{})}catch(e){}}
     _drop(x,y){const m=this._m,y0=-this._size()[1]-30,ms=RM<1?260:560,tok=this._walkTok=(this._walkTok||0)+1;this._setPos(x,y0);
       if(!m||!m.land){return this.walkTo(x,y,{ms:700,hops:false})}
       return new Promise(res=>{const t0=performance.now();const step=now=>{if(tok!==this._walkTok||!this._m)return res();const p=clamp((now-t0)/ms,0,1);
