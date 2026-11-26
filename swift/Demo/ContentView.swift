@@ -687,13 +687,13 @@ struct DemoMenu: View {
 
     var body: some View {
         Toggle("Simulate a server outage", isOn: $demo.serverDown)
-        Menu("Move Critter") {
+        Menu("Move mascot") {
             Button("Bottom right") { move(.bottomRight) }
             Button("Bottom left") { move(.bottomLeft) }
             Button("Top right") { move(.topRight) }
             Button("Top left") { move(.topLeft) }
         }
-        Menu("Make Critter react") {
+        Menu("Make mascot react") {
             Button("Wave") { Critter.react(.wave); Critter.say("Hello there!") }
             Button("Cheer") { Critter.react(.success); Critter.say("We did it!") }
             Button("Love") { Critter.react(.love) }
@@ -722,8 +722,8 @@ struct DemoMenu: View {
                          done: "That's it. Enjoy!")
             }
         }
-        Button("Hide Critter") { Critter.hide() }
-        Button("Show Critter") { Critter.show() }
+        Button("Hide mascot") { Critter.hide() }
+        Button("Show mascot") { Critter.show() }
         Button("Restart the demo", role: .destructive) {
             withAnimation(.easeInOut(duration: 0.4)) { demo.reset() }
             Critter.home()
@@ -742,7 +742,7 @@ enum CritterDemoSettings {
     /// Swap in your own mascot id from the paint page. Set it to nil to try the drawn mascot.
     static let configuration = Critter.Configuration(
         mascotID: "fd89vpfu99qm",
-        greeting: "Hi! I'm Critter. I'll keep you company."
+        greeting: "Hi! I'm Pip. I'll keep you company."
     )
 }
 
