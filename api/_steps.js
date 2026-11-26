@@ -18,6 +18,7 @@ export function sanitize(steps) {
     else if (d === 'emote' && EMOTES.includes(st.kind)) out.push({ do: 'emote', kind: st.kind });
     else if (d === 'prop' && clean(st.emoji)) out.push({ do: 'prop', emoji: [...clean(st.emoji)].slice(0, 2).join(''), ms: clampN(st.ms, 2000, 5000, 3000) });
     else if (d === 'poof') out.push({ do: 'poof', to: POOF.includes(st.to) ? st.to : 'random' });
+    else if (d === 'pose' && /^[a-z0-9-]{1,24}$/.test(String(st.name || ''))) out.push({ do: 'pose', name: String(st.name), ms: clampN(st.ms, 600, 8000, 2600) });
     else if (d === 'wait') out.push({ do: 'wait', ms: clampN(st.ms, 200, 3000, 600) });
   }
   // anything that poofed away comes back

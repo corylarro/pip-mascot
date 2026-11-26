@@ -242,6 +242,10 @@ class PaintRig{
   shake(){this.emote('drops',10);return this._fxRun('shake',950)}
   growPop(k=1.38,ms=900){this.grow.t=RM<1?1.1:k;setTimeout(()=>{this.grow.t=1},ms);return ms+300}
   fade(on){this.fadeV=on?1:0}
+  // Custom poses: extra full-body paintings shown in place of the body for a moment (made on the mascot's page).
+  addPose(name,canvas){(this.poses||(this.poses={}))[name]=canvas}
+  pose(name,ms=2600){if(!this.poses||!this.poses[name])return 0;this.poseNow={name,until:performance.now()+ms};this.squash.v-=2.2*RM;this.lastAct=performance.now();this.emote('spark',4);
+    clearTimeout(this._poseT);this._poseT=setTimeout(()=>{this.squash.v-=1.6*RM},ms);return ms}
   prop(ch,ms=2600){this.props=[{ch:String(ch||'').slice(0,4),t0:performance.now(),ms}];return ms}
   _fxNow(now){let rot=0,turn=1,dx=0;this.fx=this.fx.filter(f=>{const p=clamp((now-f.t0)/f.ms,0,1),e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
       if(f.kind==='flip')rot+=f.dir*360*e;
@@ -291,12 +295,14 @@ class PaintRig{
     // body
     const sinkPx=sink*B.h*scale*.5;ctx.save();if(sink>.01){ctx.beginPath();ctx.rect(0,0,W,ground+1);ctx.clip()}
     const FX=this._fxNow(performance.now()),gw=this.grow.step(dt);ctx.globalAlpha=this.fadeV;ctx.translate(W/2+shx+dbx+FX.dx,ground+this.jumpY+wb+dby+sinkPx+slump*3+gb);const follow=(this.state==='idle'||this.state==='talking')&&!this.walkDir&&!this.pointSide?v.lookX*4*RM:0;ctx.rotate((v.tilt+giggle+v.lean+wr+drot+gr+follow)*Math.PI/180);if(Math.abs(sw)>.001)ctx.transform(1,0,sw,1,0,0);if(FX.rot){const mid=B.h*scale*.5;ctx.translate(0,-mid);ctx.rotate(FX.rot*Math.PI/180);ctx.translate(0,mid)}ctx.scale(sx*(1+.035*slump)*scale*FX.turn*gw,sy*(1-.06*slump)*scale*gw);ctx.translate(-footX,-footY);
-    const FF=this.full||{},pointing=this.pointSide&&performance.now()<this.pointUntil&&FF['point'+this.pointSide],waving=!pointing&&this.state==='wave'&&FF.waveA;
-    if(pointing){const fr=FF['point'+this.pointSide];ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
+    const posed=this.poseNow&&performance.now()<this.poseNow.until&&this.poses&&this.poses[this.poseNow.name];
+    const FF=this.full||{},pointing=!posed&&this.pointSide&&performance.now()<this.pointUntil&&FF['point'+this.pointSide],waving=!posed&&!pointing&&this.state==='wave'&&FF.waveA;
+    if(posed){const L=this.base.canvas.width;ctx.drawImage(posed,0,0,L,L)}
+    else if(pointing){const fr=FF['point'+this.pointSide];ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
     else if(waving){const fr=(FF.waveB&&Math.floor(t*3.4)%2)?FF.waveB:FF.waveA;ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
     else ctx.drawImage(this.base.canvas,0,0);
-    if(this.simple)drawSimpleFace(ctx,this.simple,v,blink,t);
-    if(this.face&&!waving&&!pointing){const P=this.patches,FB=this.face.box,ox=v.lookX*FB.w*.035,oy=v.lookY*FB.h*.03;
+    if(this.simple&&!posed)drawSimpleFace(ctx,this.simple,v,blink,t);
+    if(this.face&&!waving&&!pointing&&!posed){const P=this.patches,FB=this.face.box,ox=v.lookX*FB.w*.035,oy=v.lookY*FB.h*.03;
       const draw=(ps,a)=>{if(ps&&a>.01){ctx.globalAlpha=Math.min(1,a)*this.fadeV;for(const p of ps)ctx.drawImage(p.c,p.x+ox,p.y+oy)}};
       draw(P.neutral,1);draw(P.happy,v.happy);draw(P.worried,v.worried);draw(P.surprised,v.surprised);draw(P.confused,v.confused);
       // lip-sync: snap between closed, "ah" and "oh" mouths (fall back to a fade if a shape is missing)
@@ -430,10 +436,13 @@ function refineFace(frames,face,names){
 // Some environments (like the iOS simulator) can't decode WebP; the mobile core sets PIP_IMAGE_FORMAT='png' there
 function blankFrame(fr){const b=fr.bbox,c=fr.canvas.getContext('2d',{willReadFrequently:true}),y=Math.round(b.y+b.h*.5),d=c.getImageData(Math.round(b.x),y,Math.max(1,Math.round(b.w)),1).data;for(let i=3;i<d.length;i+=4)if(d[i]>10)return false;return true}
 function imgURL(u){const f=typeof window!=='undefined'&&window.PIP_IMAGE_FORMAT;return f&&/\/api\/mascot\?/.test(u)?u+'&fmt='+f:u}
-async function mountMascot(rig,data){
+function loadPoses(rig,data){if(!Array.isArray(data.poses)||!data.poses.length||!rig.base)return;
+  for(const p of data.poses.slice(0,40))if(p&&p.name&&p.image)loadImg(imgURL(p.image)).then(img=>{const L=rig.base.canvas.width,c=canvasOf(L,L);c.getContext('2d').drawImage(img,0,0,L,L);rig.addPose(p.name,c)}).catch(()=>{})}
+async function mountMascot(rig,data){const r=await mountMascot0(rig,data);loadPoses(rig,data);return r}
+async function mountMascot0(rig,data){
   if(data.atlas&&data.atlasMeta&&data.atlasFace&&data.mode!=='simple'){
     try{const img=await loadImg(imgURL(data.atlas)),frames=framesFromAtlas(img,data.atlasMeta);
-      if(typeof window!=='undefined'&&!window.PIP_IMAGE_FORMAT&&blankFrame(frames[0])){window.PIP_IMAGE_FORMAT='png';return mountMascot(rig,data)}
+      if(typeof window!=='undefined'&&!window.PIP_IMAGE_FORMAT&&blankFrame(frames[0])){window.PIP_IMAGE_FORMAT='png';return mountMascot0(rig,data)}
       rig.cfg={name:data.name||'',greeting:data.greeting||`Hi${data.name?", I'm "+data.name:''}!`};
       rig.simple=null;rig.setBase(frames[0]);rig.setFace(data.atlasFace);data.face=data.atlasFace;attachFrames(rig,frames,data.atlasFace);return rig}
     catch(e){/* fall back to preparing the original painting */}}
@@ -473,5 +482,10 @@ function attachFrames(rig,frames,face){
     const byside={};if(sl)byside[sl]=pl;if(sr&&!byside[sr])byside[sr]=pr;
     if(byside.L&&!byside.R)byside.R=mirrorFrame(byside.L);if(byside.R&&!byside.L)byside.L=mirrorFrame(byside.R);
     if(byside.L)rig.addFull('pointL',byside.L);if(byside.R)rig.addFull('pointR',byside.R)}}
-return {reachSide,matchScale,encodeAtlas,buildAtlas,framesFromAtlas,attachFrames,refineFace,mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
+// Line up a freshly painted pose with the mascot: same frame size, standing on the same spot, about the same height.
+function poseFrame(k,size,box0,scale=1){const b=k.bbox,c=canvasOf(size,size),x=c.getContext('2d');x.imageSmoothingQuality='high';
+  let s=Math.min(box0.h/b.h,(box0.w*1.9)/b.w,size*.98/b.h,size*.98/b.w)*scale;s=Math.min(s,size*.98/b.h,size*.98/b.w);
+  const w=b.w*s,h=b.h*s,cx=box0.x+box0.w/2,foot=box0.y+box0.h;let dx=cx-w/2;dx=Math.max(1,Math.min(size-w-1,dx));const dy=Math.max(1,foot-h);
+  x.drawImage(k.canvas,b.x,b.y,b.w,b.h,dx,dy,w,h);return c}
+return {poseFrame,loadPoses,reachSide,matchScale,encodeAtlas,buildAtlas,framesFromAtlas,attachFrames,refineFace,mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
 }

@@ -666,7 +666,7 @@ function definePipElement(engine,defaultConfig,painted,origin){
     get lean(){return rig.lean},set lean(v){rig.lean=v},setState:s=>rig.setState(s),react:(s,ms)=>rig.react(s,ms),say:(t,o)=>rig.say(t,o),
     cover:on=>{rig.cover=!!on},lookAt:(x,y)=>rig.lookAt(x,y),lookAtCaret:i=>rig.lookAtCaret(i),bump:()=>rig.bump(),hop:v=>rig.hop(v),
     point:(x,y)=>rig.point(x,y),unpoint:()=>rig.unpoint(),destroy:()=>rig.destroy(),land:()=>rig.land(),emote:(k,n)=>rig.emote(k,n),flip:(d,l)=>rig.flip(d,l),spin:()=>rig.spin(),bigJump:l=>rig.bigJump(l),landed:()=>rig.landed(),shake:()=>rig.shake(),growPop:(k,ms)=>rig.growPop(k,ms),fade:on=>rig.fade(on),prop:(c,ms)=>rig.prop(c,ms),burst:k=>rig.burst(k),
-    walkStart:d=>rig.walkStart(d),walkStop:()=>rig.walkStop(),stepPhase:(i,p)=>rig.stepPhase(i,p),
+    pose:(n,ms)=>rig.pose(n,ms),walkStart:d=>rig.walkStart(d),walkStop:()=>rig.walkStop(),stepPhase:(i,p)=>rig.stepPhase(i,p),
     watch(inp){const secret=inp.type==='password';inp.addEventListener('focus',()=>{rig.focusEl=inp;if(secret)rig.cover=true;rig.lookAtCaret(inp)});
       inp.addEventListener('input',()=>{rig.lookAtCaret(inp);rig.bump()});inp.addEventListener('blur',()=>{rig.focusEl=null;if(secret)rig.cover=false})}});
   const RM=engine.RM,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),wait=ms=>new Promise(r=>setTimeout(r,ms)),pick=a=>a[Math.floor(Math.random()*a.length)];
@@ -848,6 +848,8 @@ function definePipElement(engine,defaultConfig,painted,origin){
       const mo=textRules.length&&typeof MutationObserver!=='undefined'?new MutationObserver(()=>{if(!q)q=setTimeout(scan,600)}):null;
       if(mo&&document.body)mo.observe(document.body,{childList:true,subtree:true,characterData:true});
       this._rulesStop=()=>{clearInterval(iv);clearTimeout(q);document.removeEventListener('click',click,true);mo&&mo.disconnect()}}
+    // Show one of the mascot's custom poses (painted on its page) for ms milliseconds. Returns 0 if it doesn't have that pose.
+    pose(name,ms=2600){return this._m&&this._m.pose?this._m.pose(String(name),ms)||0:0}
     _drop(x,y){const m=this._m,y0=-this._size()[1]-30,ms=RM<1?260:560,tok=this._walkTok=(this._walkTok||0)+1;this._setPos(x,y0);
       if(!m||!m.land){return this.walkTo(x,y,{ms:700,hops:false})}
       return new Promise(res=>{const t0=performance.now();const step=now=>{if(tok!==this._walkTok||!this._m)return res();const p=clamp((now-t0)/ms,0,1);
@@ -928,6 +930,7 @@ function definePipElement(engine,defaultConfig,painted,origin){
           else if(d==='say'){const tx=fill(st.text).slice(0,90);M.say(tx,{hold:clamp(Number(st.ms)||tx.length*60+900,900,6000)})}
           else if(d==='emote'){const k=st.kind;if(k==='confetti'||k==='hearts')M.burst&&M.burst(k);else M.emote&&M.emote(k,st.count)}
           else if(d==='prop'){M.prop?M.prop(st.emoji,clamp(Number(st.ms)||2600,800,8000)):0}
+          else if(d==='pose'){M.pose?M.pose(String(st.name||''),clamp(Number(st.ms)||2600,600,8000)):0}
           else if(d==='jump'){M.hop&&M.hop(420);await W(650)}
           else if(d==='bigjump'){if(M.bigJump&&this._float){M.bigJump(false);await W(90);await this._arc(820,this._size()[1]*1.25);M.landed&&M.landed();await W(250)}else await W(M.bigJump?M.bigJump():(M.hop(600),1100))}
           else if(d==='flip'||d==='backflip'){if(M.flip&&this._float){M.flip(st.dir==='forward'?1:-1,false);await W(90);await this._arc(700,this._size()[1]*.85);M.landed&&M.landed();await W(200)}else await W(M.flip?M.flip(st.dir==='forward'?1:-1):(M.hop(600),900))}

@@ -29,7 +29,7 @@ p{margin:0}
 .pick a{font:600 .92rem var(--body);padding:7px 14px;border-radius:999px;border:2px solid var(--ink);color:var(--ink);text-decoration:none;background:var(--white)}
 .pick a[aria-current]{background:var(--ink);color:var(--white)}
 .layout{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:34px;align-items:start;padding-bottom:70px}
-.left{position:sticky;top:18px}
+.left{position:static}
 .stage{position:relative;background:var(--butter);border:2px solid var(--ink);border-radius:32px;aspect-ratio:1/1;max-height:520px;width:100%}
 .stage critter-mascot{--pip-size:min(250px,52vw)}
 .try{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;justify-content:center}
@@ -68,6 +68,21 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
 .pack{display:flex;flex-direction:column;gap:2px;text-decoration:none;color:var(--ink);border:2px solid var(--ink);border-radius:16px;padding:12px;background:var(--white)}
 .pack span{color:var(--ink-2);font-size:.9rem}.pack.pop{background:var(--butter)}
 .pack:hover{transform:translateY(-1px)}
+.tag{font:700 .78rem var(--body);background:var(--butter);border:1.5px solid var(--ink);border-radius:999px;padding:2px 9px;vertical-align:4px;margin-left:6px}
+.poses{list-style:none;margin:0 0 14px;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.poses li{border:2px solid var(--line);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:6px;background:var(--white)}
+.poses img{width:100%;aspect-ratio:1;object-fit:contain;background:var(--haze);border-radius:10px}
+.poses b{font-size:.95rem}.poses .row{gap:6px}
+.poses button{font:600 .82rem var(--body);padding:4px 10px;border-radius:999px;border:1.5px solid var(--ink);background:var(--white);color:var(--ink);cursor:pointer}
+.poseform{display:flex;flex-direction:column;gap:8px}.poseform label{font-weight:600}
+.poseform input{font:500 1rem var(--body);padding:11px 14px;border-radius:12px;border:2px solid var(--ink);background:var(--white);color:var(--ink)}
+.posepreview{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin-top:14px;align-items:start}
+.checker{border:2px solid var(--ink);border-radius:16px;overflow:hidden;background:repeating-conic-gradient(#EEEDFB 0 25%,#fff 0 50%) 0 0/20px 20px}
+.checker img{display:block;width:100%;aspect-ratio:1;object-fit:contain}
+.pp-side{display:flex;flex-direction:column;gap:10px}.pp-side label{display:flex;flex-direction:column;gap:4px;font-weight:600}
+.pp-side input[type=text],.pp-side input:not([type]){font:500 1rem var(--body);padding:9px 12px;border-radius:12px;border:2px solid var(--ink)}
+.busy{opacity:.6;pointer-events:none}
+@media (max-width:560px){.posepreview{grid-template-columns:1fr}}
 .notice{background:var(--white);border:2px solid var(--sprout);border-radius:16px;padding:12px 16px;margin-bottom:16px;font-weight:600}
 @media (max-width:520px){.packs{grid-template-columns:1fr}}.hint a{color:var(--ink);font-weight:600}
 .auto{margin:4px 0 0;padding:0;list-style:none;display:grid;gap:8px}
@@ -150,6 +165,29 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
           <p class="hint">Need something these don’t cover? <a href="/studio" id="studio">Build a custom moment</a> from moves, moods, effects and words.</p>
         </section>
 
+        <section class="step" id="poses-step" aria-labelledby="sp">
+          <h2 id="sp">Custom poses <span class="tag">1 credit each</span></h2>
+          <p class="sub" id="poseIntro">Paint your mascot doing anything: riding a skateboard, holding a trophy, wearing a graduation cap. Keep the ones you like and use them in custom moments.</p>
+          <ul class="poses" id="poseList"></ul>
+          <form class="poseform" id="poseForm">
+            <label for="poseDesc">Describe the pose</label>
+            <input id="poseDesc" maxlength="160" placeholder="riding a skateboard and cheering" required>
+            <div class="row"><button class="btn" type="submit" id="posePaint">Paint it · 1 credit</button></div>
+            <p class="hint" style="margin-top:0">Painting takes about a minute. If it can’t be painted, you keep your credit.</p>
+          </form>
+          <div class="posepreview" id="posePrev" hidden>
+            <div class="checker"><img id="poseImg" alt="The new pose"></div>
+            <div class="pp-side">
+              <label for="poseSize">Size <input type="range" id="poseSize" min="70" max="140" value="100"></label>
+              <label for="poseName">Name <input id="poseName" maxlength="24" pattern="[a-z0-9-]{1,24}"></label>
+              <p class="hint" style="margin:0">Used in code, like <code>{ do: 'pose', name: '…' }</code></p>
+              <div class="row"><button class="btn" type="button" id="poseKeep">Keep it</button><button class="ghost" type="button" id="poseShow">Show me</button></div>
+              <div class="row"><button class="ghost" type="button" id="poseAgain">Try again · 1 credit</button><button class="ghost" type="button" id="poseDrop">Discard</button></div>
+            </div>
+          </div>
+          <p class="err" id="poseErr" aria-live="polite"></p>
+        </section>
+
         <section class="step" id="rules-step" aria-labelledby="s4r">
           <h2 id="s4r"><b>4</b>Moments without code</h2>
           <p class="sub">For websites. Tell your mascot when to celebrate and it just does it, with no changes to your code. Changes reach your site within a minute.</p>
@@ -189,6 +227,7 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
 </div>
 
 <script src="/critter.js"></script>
+<script src="/painted.js"></script>
 <script src="/snippets.js"></script>
 <script>
 (() => {
@@ -260,9 +299,11 @@ function show(m) {
   pip.setAttribute('mascot', m.id); pip.setAttribute('dock', '#stage'); pip.setAttribute('seasonal', 'off'); pip.setAttribute('no-ping', ''); pip.setAttribute('no-rules', '');
   pip.setAttribute('greet', ''); pip.setAttribute('greeting', m.name ? `Hi! I'm ${m.name}.` : 'Hi there!');
   document.body.appendChild(pip);
-  renderCode(); renderPlat(); checkLive(true); loadRules();
+  renderCode(); renderPlat(); checkLive(true); loadRules(); loadPoses();
 }
 
+// the mascot lives in the stage, so bring it into view before it acts
+const toStage = () => { const r = document.getElementById('stage').getBoundingClientRect(); if (r.top < -r.height * .4 || r.bottom > innerHeight + r.height * .4) document.getElementById('stage').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const HINT = { ai: 'Made for websites and web apps. Building an iPhone app in Xcode? Use the iPhone app code tab.', web: 'Paste before the closing </body> tag. Works in React, Next.js, Vue and plain HTML.', ios: 'In Xcode: File → Add Package Dependencies…, paste the link from the first line, then add this to your root view.' };
 function renderCode() {
@@ -275,13 +316,13 @@ document.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', (
   kind = b.dataset.k; document.querySelectorAll('[data-k]').forEach(o => o.setAttribute('aria-pressed', String(o === b))); renderCode();
   if (kind !== 'ai') setPlat(kind);
 }));
-function setPlat(p) { plat = p; document.querySelectorAll('[data-p]').forEach(o => o.setAttribute('aria-pressed', String(o.dataset.p === p))); renderPlat(); }
+function setPlat(p) { plat = p; document.querySelectorAll('[data-p]').forEach(o => o.setAttribute('aria-pressed', String(o.dataset.p === p))); renderPlat(); if (cur) loadPoses(); }
 document.querySelectorAll('[data-p]').forEach(b => b.addEventListener('click', () => setPlat(b.dataset.p)));
 function renderPlat() {
   $('auto').innerHTML = CK.AUTO[plat].map(t => `<li>${esc(t)}</li>`).join('');
   $('autoHint').textContent = plat === 'ios' ? 'Saves, errors and pointing at fields take one line each on iPhone, like Critter.watch(success: "Saved!") { … } and Critter.point(at: "email", say: "…").' : '';
   $('moments').innerHTML = CK.MOMENTS.map((x, i) => `<li><b>${esc(x.name)}</b><span>${esc(x.desc)}</span><button type="button" data-i="${i}">Preview</button><code>${esc(x[plat])}</code></li>`).join('');
-  $('moments').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { const x = CK.MOMENTS[b.dataset.i]; if (pip && pip.moment) pip.moment(x.m, x.o || {}); if (innerWidth < 860) document.getElementById('stage').scrollIntoView({ behavior: 'smooth', block: 'center' }); }));
+  $('moments').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { const x = CK.MOMENTS[b.dataset.i]; if (pip && pip.moment) pip.moment(x.m, x.o || {}); toStage(); }));
 }
 $('copy').addEventListener('click', async () => {
   const b = $('copy'), was = b.textContent;
@@ -336,12 +377,15 @@ function runThen(t) {
   else if (t.type === 'say') pip.say(t.text, { hold: 2600 });
   else if (t.type === 'point') pip.say(`${t.text || 'Over here!'} (points at “${t.target}” on your site)`, { hold: 3000 });
   else if (t.type === 'play') pip.play(t.steps);
-  if (innerWidth < 860) $('stage').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  toStage();
 }
+let data = null;
+async function fresh() { try { const r = await fetch(`/api/mascot?id=${cur.id}&fresh=${Date.now()}`); data = r.ok ? await r.json() : null; } catch (e) { data = null; } return data; }
+let freshP = null;
 async function loadRules() {
   rules = []; canEdit = !!key; renderRules(); $('ruleForm').hidden = !canEdit;
   $('rulesHint').textContent = canEdit ? '' : 'Sign in with your key to add moments here.';
-  try { const r = await fetch(`/api/mascot?id=${cur.id}&fresh=${Date.now()}`); const d = await r.json(); rules = d.rules || []; renderRules(); } catch (e) {}
+  const d = await (freshP = fresh()); if (d) { rules = d.rules || []; renderRules(); }
 }
 async function saveRules(list) {
   $('rErr').textContent = '';
@@ -382,6 +426,75 @@ syncForm();
 if (location.hash === '#rules') setTimeout(() => $('rules-step').scrollIntoView({ behavior: 'smooth' }), 800);
 if (location.hash === '#credits') setTimeout(() => $('credits-step').scrollIntoView({ behavior: 'smooth' }), 800);
 if (params.get('rule') === 'custom') setTimeout(() => { $('rThen').value = 'play'; syncForm(); $('rules-step').scrollIntoView({ behavior: 'smooth' }); }, 800);
+
+// Custom poses
+const PE = typeof PipPaintedEngine === 'function' ? PipPaintedEngine() : null;
+let posePainting = null, poseCanvas = null;
+const slug = t => String(t || '').toLowerCase().replace(/\b(a|an|the|and|with|on|in|of|while|his|her|its|their)\b/g, ' ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').split('-').slice(0, 3).join('-').slice(0, 24) || 'pose';
+const poseCode = n => plat === 'ios' ? `["do": "pose", "name": "${n}"]` : `{ do: 'pose', name: '${n}' }`;
+async function loadPoses() {
+  const d = await freshP; const list = (d && d.poses) || [];
+  $('poseForm').hidden = !canEdit; $('posePrev').hidden = true; $('poseErr').textContent = '';
+  if (!canEdit) $('poseErr').textContent = '';
+  $('poseIntro').textContent = `Paint ${cur.name || 'your mascot'} doing anything: riding a skateboard, holding a trophy, wearing a graduation cap. Keep the ones you like and use them in custom moments.`;
+  $('poseList').innerHTML = list.map(p => `<li><img src="${esc(p.image)}" alt="${esc(p.desc || p.name)}" loading="lazy"><b>${esc(p.name)}</b><code style="font-size:.75rem;word-break:break-all">${esc(poseCode(p.name))}</code><div class="row"><button type="button" data-play="${esc(p.name)}">Play</button>${canEdit ? `<button type="button" data-rm="${esc(p.name)}">Remove</button>` : ''}</div></li>`).join('');
+  $('poseList').querySelectorAll('[data-play]').forEach(b => b.addEventListener('click', () => { pip && pip.pose && pip.pose(b.dataset.play, 3000); toStage(); }));
+  $('poseList').querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirmRemove(b)) return;
+    const r = await fetch(`/api/mascot?id=${cur.id}&pose=1`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-pip-pass': key }, body: JSON.stringify({ name: b.dataset.rm, remove: true }) });
+    if (r.ok) { freshP = fresh(); loadPoses(); } else $('poseErr').textContent = 'Couldn’t remove it. Try again.';
+  }));
+}
+// a second tap confirms, instead of a browser dialog
+function confirmRemove(b) { if (b.dataset.sure) return true; b.dataset.sure = '1'; b.textContent = 'Tap again to remove'; setTimeout(() => { delete b.dataset.sure; b.textContent = 'Remove'; }, 3000); return false; }
+async function paintPose() {
+  const desc = $('poseDesc').value.trim(); $('poseErr').textContent = '';
+  if (desc.length < 3) { $('poseErr').textContent = 'Describe the pose first.'; return; }
+  const d = data || await freshP;
+  if (!d || !d.atlasMeta) { $('poseErr').textContent = 'Open this mascot on the paint page and save it again first, so its poses are prepared.'; return; }
+  const btns = [$('posePaint'), $('poseAgain')]; btns.forEach(b => { b.disabled = true; }); $('poseForm').classList.add('busy');
+  const was = $('posePaint').textContent; $('posePaint').textContent = 'Painting… about a minute';
+  if (pip && pip.setState) pip.setState('thinking');
+  try {
+    const r = await fetch('/api/paint', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-pip-pass': key }, body: JSON.stringify({ step: 'pose', id: cur.id, desc }) });
+    const j = await r.json().catch(() => ({}));
+    if (typeof j.credits === 'number') $('credits').textContent = `${j.credits} credit${j.credits === 1 ? '' : 's'}. A custom pose uses 1, a new mascot uses 5.`;
+    if (!r.ok || !j.image) throw new Error(j.error || 'The painting didn’t come through. Your credit wasn’t used.');
+    posePainting = PE.keyOut(await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = `data:${j.mime || 'image/png'};base64,${j.image}`; }));
+    $('poseName').value = slug(desc); $('poseSize').value = 100; renderPose(); $('posePrev').hidden = false;
+    if (pip) { pip.setState('idle'); showPose(); }
+  } catch (e) { $('poseErr').textContent = e.message; if (pip && pip.setState) pip.setState('idle'); }
+  finally { btns.forEach(b => { b.disabled = false; }); $('poseForm').classList.remove('busy'); $('posePaint').textContent = was; }
+}
+function renderPose() {
+  if (!posePainting || !data) return;
+  const m = data.atlasMeta; poseCanvas = PE.poseFrame(posePainting, m.size, m.boxes[0], Number($('poseSize').value) / 100);
+  $('poseImg').src = poseCanvas.toDataURL('image/png');
+}
+function showPose() { const rig = pip && pip._m && pip._m.rig; if (rig && poseCanvas) { const L = rig.base.canvas.width, c = document.createElement('canvas'); c.width = c.height = L; c.getContext('2d').drawImage(poseCanvas, 0, 0, L, L); rig.addPose('__preview', c); pip.pose('__preview', 3500); } toStage(); }
+$('poseForm').addEventListener('submit', e => { e.preventDefault(); paintPose(); });
+$('poseAgain').addEventListener('click', paintPose);
+$('poseSize').addEventListener('input', renderPose);
+$('poseSize').addEventListener('change', showPose);
+$('poseShow').addEventListener('click', showPose);
+$('poseDrop').addEventListener('click', () => { posePainting = poseCanvas = null; $('posePrev').hidden = true; });
+$('poseKeep').addEventListener('click', async () => {
+  const name = $('poseName').value.trim().toLowerCase();
+  if (!/^[a-z0-9-]{1,24}$/.test(name)) { $('poseErr').textContent = 'Name it with lowercase letters, numbers and dashes, like skateboard.'; return; }
+  if (!poseCanvas) return;
+  $('poseKeep').disabled = true; $('poseErr').textContent = '';
+  try {
+    let blob = await new Promise(r => poseCanvas.toBlob(r, 'image/webp', .9)); if (!blob || blob.type !== 'image/webp') blob = await new Promise(r => poseCanvas.toBlob(r, 'image/png'));
+    const image = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(',')[1]); fr.readAsDataURL(blob); });
+    const r = await fetch(`/api/mascot?id=${cur.id}&pose=1`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-pip-pass': key }, body: JSON.stringify({ name, image, mime: blob.type, desc: $('poseDesc').value.trim() }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'Couldn’t save the pose. Try again.');
+    const rig = pip && pip._m && pip._m.rig; if (rig && rig.poses && rig.poses.__preview) rig.addPose(name, rig.poses.__preview);
+    posePainting = poseCanvas = null; $('posePrev').hidden = true; $('poseDesc').value = '';
+    freshP = fresh(); await loadPoses(); pip && pip.pose && pip.pose(name, 3000);
+  } catch (e) { $('poseErr').textContent = e.message; }
+  finally { $('poseKeep').disabled = false; }
+});
 
 // key
 $('showKey').addEventListener('click', () => { const sh = $('showKey').textContent === 'Show'; $('keyText').textContent = sh ? key : 'ck_••••••••••••'; $('showKey').textContent = sh ? 'Hide' : 'Show'; });

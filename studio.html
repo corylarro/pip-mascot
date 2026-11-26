@@ -88,6 +88,7 @@ pre{margin:0;background:var(--ink);color:#F2F0FF;border-radius:18px;padding:16px
       <div class="row"><button class="go" id="play" type="button" disabled>Play it</button><button class="ghost" id="clear" type="button" hidden>Start over</button></div>
     </div>
     <div class="pal" aria-label="Things to add">
+      <div id="posesGroup" hidden><h2>Your poses</h2><div class="chips" id="pPoses"></div></div>
       <h2>Moves</h2><div class="chips" id="pMoves"></div>
       <h2>Moods</h2><div class="chips" id="pMoods"></div>
       <h2>Effects</h2><div class="chips" id="pFx"></div>
@@ -130,7 +131,7 @@ pre{margin:0;background:var(--ink);color:#F2F0FF;border-radius:18px;padding:16px
     var el=document.getElementById('pip');el.setAttribute('mascot',id);el.setAttribute('no-ping','');
     fetch('/api/mascot?id='+id).then(function(r){return r.ok?r.json():null}).then(function(d){if(!d||!d.name)return;
       document.querySelector('.lede').textContent='For the moments the built-in ones don’t cover. Tap moves, moods, effects and words, watch '+d.name+' play it, then copy one line.';
-      var b=document.createElement('a');b.href='/mascots?id='+id;b.textContent='← Back to '+d.name;b.className='back';document.querySelector('#h1').before(b)})})();
+      if(d.poses&&d.poses.length){if(window.ckAddPoses)window.ckAddPoses(d.poses);else window.ckMascotPoses=d.poses}var b=document.createElement('a');b.href='/mascots?id='+id;b.textContent='← Back to '+d.name;b.className='back';document.querySelector('#h1').before(b)})})();
   </script>
 </main>
 <script src="/critter.js"></script>
@@ -165,8 +166,9 @@ const TIME=[['Short pause',{do:'wait',ms:500}],['Long pause',{do:'wait',ms:1200}
 const NAMES={jump:'Hop',bigjump:'Big jump',flip:'Backflip',spin:'Spin',shake:'Shake it off',grow:'Grow'};
 const label=st=>st.do==='react'?(MOODS.find(m=>m[1].state===st.state)||[st.state])[0]:st.do==='emote'?(FX.find(f=>f[1].kind===st.kind)||[st.kind])[0]
   :st.do==='prop'?'Hold '+st.emoji:st.do==='say'?'“'+st.text+'”':st.do==='wait'?(st.ms>=1000?'Long pause':'Short pause'):st.do==='poof'?(st.to==='home'?'Vanish home':'Vanish to the '+(st.to==='center'?'middle':st.to))
-  :st.do==='moment'?'Moment: '+st.name:NAMES[st.do]||st.do;
+  :st.do==='pose'?'Pose: '+st.name:st.do==='moment'?'Moment: '+st.name:NAMES[st.do]||st.do;
 function chips(id,list){const box=$(id);list.forEach(([l,st])=>{const b=document.createElement('button');b.type='button';b.textContent=l;b.addEventListener('click',()=>add({...st}));box.appendChild(b)})}
+window.ckAddPoses=ps=>{chips('pPoses',ps.map(p=>[p.name,{do:'pose',name:p.name,ms:2600}]));$('posesGroup').hidden=false};if(window.ckMascotPoses)ckAddPoses(window.ckMascotPoses);
 chips('pMoves',MOVES);chips('pMoods',MOODS);chips('pFx',FX);chips('pProps',PROPS);chips('pTime',TIME);
 $('sayForm').addEventListener('submit',e=>{e.preventDefault();const t=$('sayText').value.trim();if(!t)return;add({do:'say',text:t});$('sayText').value=''});
 function syncVals(){const used=new Set((steps||[]).flatMap(s=>[...String(s.text||'').matchAll(/\{(\w{1,20})\}/g)].map(m=>m[1])));

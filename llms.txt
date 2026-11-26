@@ -55,7 +55,7 @@ Moments: first-purchase, purchase, streak, milestone, level-up, goal, welcome, w
 
 States and reactions: idle, thinking, success, error, surprised, confused, love, wave, talking, sleeping, dance, sad, peek.
 
-play steps (each waits until done): jump, bigjump, flip, spin, shake, grow, poof (with `to`: home, center, left, right, random or a selector), goto (with `target`), moment (with `name`), react (with `state`, `ms`), say (with `text`), emote (with `kind`: spark, note, dust, bang, sweat, smoke, drops, confetti, hearts), prop (with `emoji`, `ms`), wait (with `ms`). `{placeholders}` in text are filled from the second argument.
+play steps (each waits until done): jump, bigjump, flip, spin, shake, grow, poof (with `to`: home, center, left, right, random or a selector), goto (with `target`), moment (with `name`), react (with `state`, `ms`), say (with `text`), emote (with `kind`: spark, note, dust, bang, sweat, smoke, drops, confetti, hearts), prop (with `emoji`, `ms`), pose (with `name`, `ms`: one of the mascot's custom poses, painted on its page), wait (with `ms`). `{placeholders}` in text are filled from the second argument.
 
 Events: `ready`, `error` (painted mascot failed to load), `statechange` (detail.state), `pip:autopilot` (detail.action, detail.signal), `pip:hide`, `pip:show`.
 

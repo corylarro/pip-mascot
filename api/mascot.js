@@ -79,6 +79,31 @@ export default async function handler(req, res) {
       res.json({ id }); return;
     }
 
+    if (req.method === 'PUT' && req.query.pose) {
+      // Keep (or remove) a custom pose. Only the key that saved the mascot, or the owner passcode.
+      const who = await whoIs(req);
+      if (refuse(res, who, 'Saving poses')) return;
+      const id = String(req.query.id || '');
+      if (!ID.test(id)) { res.status(400).json({ error: 'Unknown mascot id.' }); return; }
+      if (!who.owner && !(who.rec.mascots || []).some(m => m.id === id)) { res.status(403).json({ error: 'This mascot was saved with a different key.' }); return; }
+      const meta = await findData(id);
+      if (!meta) { res.status(404).json({ error: 'Mascot not found.' }); return; }
+      const b = (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body) || {};
+      const name = String(b.name || '').toLowerCase();
+      if (!/^[a-z0-9-]{1,24}$/.test(name)) { res.status(400).json({ error: 'Pose names use lowercase letters, numbers and dashes.' }); return; }
+      let poses = (meta.poses || []).filter(p => p.name !== name);
+      if (!b.remove) {
+        if (!b.image) { res.status(400).json({ error: 'Missing pose image.' }); return; }
+        if (poses.length >= 40) { res.status(400).json({ error: 'That’s 40 poses, the most a mascot can have. Remove one first.' }); return; }
+        const mime = /^image\/(webp|png)$/.test(b.mime) ? b.mime : 'image/png';
+        const blob = await put(`mascots/${id}/poses/${name}.${mime.split('/')[1]}`, Buffer.from(b.image, 'base64'), { access: 'public', contentType: mime, addRandomSuffix: false, allowOverwrite: true });
+        poses = [...poses, { name, url: blob.url, mime, desc: String(b.desc || '').slice(0, 200), v: Date.now().toString(36), created: new Date().toISOString() }];
+      }
+      meta.poses = poses;
+      await put(`mascots/${id}/data.json`, JSON.stringify(meta), { access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 });
+      res.json({ poses: poses.map(p => ({ name: p.name, desc: p.desc })) }); return;
+    }
+
     if (req.method === 'PUT') {
       // Add prepared poses to a mascot saved before they existed.
       if (refuse(res, await whoIs(req), 'Updating')) return;
@@ -113,6 +138,15 @@ export default async function handler(req, res) {
       if (!ID.test(id)) { res.status(400).json({ error: 'Unknown mascot id.' }); return; }
       const meta = await findData(id);
       if (!meta) { res.status(404).json({ error: 'Mascot not found.' }); return; }
+      if (req.query.img === 'pose') {
+        const p = (meta.poses || []).find(x => x.name === String(req.query.name || ''));
+        if (!p) { res.status(404).json({ error: 'No pose with that name.' }); return; }
+        const r = await fetch(`${p.url}?v=${p.v}`, { cache: 'no-store' });
+        if (!r.ok) { res.status(502).json({ error: 'Could not load the pose.' }); return; }
+        let bytes = Buffer.from(await r.arrayBuffer()), type = p.mime || 'image/png';
+        if (req.query.fmt === 'png' && type !== 'image/png') { try { const sharp = (await import('sharp')).default; bytes = await sharp(bytes).png().toBuffer(); type = 'image/png'; } catch (e) {} }
+        res.setHeader('Content-Type', type); res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); res.send(bytes); return;
+      }
       if (req.query.img) {
         const atlas = req.query.img === 'atlas' && meta.atlasUrl;
         const r = await fetch(atlas ? `${meta.atlasUrl}?v=${meta.atlasV || ''}` : meta.imageUrl, { cache: 'no-store' });
@@ -132,6 +166,7 @@ export default async function handler(req, res) {
       const host = req.headers['x-forwarded-host'] || req.headers.host;
       res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=60, stale-while-revalidate=600');
       const out = { id, mode: meta.mode, grid: meta.grid, face: meta.face, name: meta.name, greeting: meta.greeting, rules: meta.rules || [],
+        poses: (meta.poses || []).map(p => ({ name: p.name, desc: p.desc, image: `https://${host}/api/mascot?id=${id}&img=pose&name=${p.name}&v=${p.v}` })),
         image: `https://${host}/api/mascot?id=${id}&img=1` };
       if (meta.atlasUrl) Object.assign(out, { atlas: `https://${host}/api/mascot?id=${id}&img=atlas&v=${meta.atlasV}`, atlasMeta: meta.atlasMeta, atlasFace: meta.atlasFace });
       res.json(out);

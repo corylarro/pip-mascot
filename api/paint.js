@@ -45,6 +45,24 @@ Reply with ONLY this JSON (no prose): {"arms":{"1":2,"8":2,"9":2,"10":2,"11":2},
 
 import { whoIs, spend, refuse, MASCOT_COST } from './_keys.js';
 import { moderate } from './_moderate.js';
+import { list } from '@vercel/blob';
+
+// Custom pose: the same character, painted in a new pose. The reference is the mascot's own neutral frame.
+const POSE_PROMPT = (desc, transparent) => `The image shows a cartoon mascot character. Paint this SAME character again: identical design, colours, proportions, materials, face and art style, so it is clearly the same character.
+New pose: ${desc}.
+Show the whole body from head to feet, facing the viewer, centred, about the same size as in the reference, with generous empty space around it. Include any object the pose needs (held, ridden or worn) in the same art style.
+${transparent ? 'Transparent background.' : 'Plain flat light grey background, the same colour everywhere.'} One character only. No text, no letters, no logos, no border, no ground shadow.`;
+async function poseReference(id) {
+  const { blobs } = await list({ prefix: `mascots/${id}/` });
+  const data = blobs.find(x => x.pathname.endsWith('/data.json'));
+  if (!data) return null;
+  const meta = await (await fetch(`${data.url}?t=${Date.now()}`, { cache: 'no-store' })).json();
+  if (!meta.atlasUrl || !meta.atlasMeta) return { meta };
+  const atlas = Buffer.from(await (await fetch(`${meta.atlasUrl}?v=${meta.atlasV || ''}`)).arrayBuffer());
+  const sharp = (await import('sharp')).default, n = meta.atlasMeta.size;
+  const png = await sharp(atlas).extract({ left: 0, top: 0, width: n, height: n }).resize(1024, 1024).png().toBuffer();
+  return { meta, png };
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST.' }); return; }
@@ -60,6 +78,40 @@ export default async function handler(req, res) {
   const quality = ['low', 'medium', 'high'].includes(b.quality) ? b.quality : 'medium';
 
   // A paint uses one credit for buyers; checks and touch-ups are free. Credits are only used when the paint succeeds.
+  if (b.step === 'pose') {
+    if (who.rec && !(who.rec.credits >= 1)) { res.status(402).json({ error: 'A custom pose uses 1 credit and you’re out.', credits: 0 }); return; }
+    const id = String(b.id || ''), desc = String(b.desc || '').trim().slice(0, 200);
+    if (!/^[a-z0-9]{6,24}$/.test(id)) { res.status(400).json({ error: 'Unknown mascot.' }); return; }
+    if (desc.length < 3) { res.status(400).json({ error: 'Describe the pose first.' }); return; }
+    if (!who.owner && !(who.rec.mascots || []).some(m => m.id === id)) { res.status(403).json({ error: 'This mascot was saved with a different key.' }); return; }
+    try {
+      const block = await moderate({ key, desc, photo: null, visionModels: VISION_MODELS() });
+      if (block) { res.status(422).json({ error: block.message, blocked: block.reason }); return; }
+      const ref = await poseReference(id);
+      if (!ref) { res.status(404).json({ error: 'Mascot not found.' }); return; }
+      if (!ref.png) { res.status(409).json({ error: 'Open this mascot on the paint page and save it again first, so its poses are prepared.' }); return; }
+      let last = null;
+      outer: for (const model of IMAGE_MODELS()) {
+        for (const transparent of [true, false]) for (const hiFi of [true, false]) {
+          const fd = new FormData();
+          fd.append('model', model); fd.append('prompt', POSE_PROMPT(desc, transparent));
+          fd.append('image', new Blob([ref.png], { type: 'image/png' }), 'mascot.png');
+          fd.append('size', '1024x1024'); fd.append('quality', 'medium'); fd.append('output_format', 'png'); fd.append('n', '1');
+          if (transparent) fd.append('background', 'transparent');
+          if (hiFi) fd.append('input_fidelity', 'high');
+          const r = await call(`${API}/images/edits`, { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: fd });
+          if (r.ok && r.json && r.json.data && r.json.data[0]) { const credits = await spend(who, 1).catch(() => null); res.json({ image: r.json.data[0].b64_json, mime: 'image/png', model, credits }); return; }
+          last = r;
+          if (/fidelity/i.test(r.msg || '') && hiFi) continue;
+          if (/background|transparen/i.test(r.msg || '') && transparent) break;
+          if (!tryNext(r.status, r.msg)) break outer;
+          continue outer;
+        }
+      }
+      res.status((last && last.status) || 500).json({ error: (last && last.msg) || 'Painting failed.' }); return;
+    } catch (e) { res.status(500).json({ error: String((e && e.message) || e) }); return; }
+  }
+
   if ((b.step === 'base' || b.step === 'reference') && who.rec && !(who.rec.credits >= MASCOT_COST)) { res.status(402).json({ error: `A new mascot uses ${MASCOT_COST} credits and you have ${who.rec.credits || 0}.`, credits: who.rec.credits || 0 }); return; }
 
   try {
