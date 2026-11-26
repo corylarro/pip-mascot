@@ -2,8 +2,12 @@
 //   GET /api/checkout?plan=painted          -> sends the buyer to Stripe's payment page
 //   GET /api/checkout?plan=credits&key=ck_… -> buys more paints for an existing key
 //   GET /api/checkout?redeem=<session id>   -> after paying: checks with Stripe that it's paid, then hands out the key (once)
-// Env: STRIPE_SECRET_KEY (required). Optional: STRIPE_TAX=1 to turn on Stripe Tax, STRIPE_INVOICES=0 to stop
-// creating an invoice for each purchase, PRICE_PAINTED / PRICE_CREDITS in cents to change prices.
+// Env: STRIPE_SECRET_KEY (required). Optional: PRICE_PAINTED / PRICE_CREDITS in cents to change prices.
+// Managed Payments is on by default: Stripe sells as merchant of record, so it calculates, collects and files sales
+// tax/VAT and sends receipts and invoices. STRIPE_MANAGED=0 turns it off (then STRIPE_TAX=1 / STRIPE_INVOICES=0 apply).
+const MANAGED = process.env.STRIPE_MANAGED !== '0';
+// Product tax code Stripe uses for tax. Default: AI as a Service, cloud based, business use (eligible for Managed Payments).
+const TAX_CODE = process.env.STRIPE_TAX_CODE || 'txcd_10105002';
 import { readKey } from './_keys.js';
 import { stripe, fulfil } from './_stripe.js';
 
@@ -43,17 +47,20 @@ export default async function handler(req, res) {
       'line_items[0][price_data][unit_amount]': p.cents,
       'line_items[0][price_data][product_data][name]': p.name,
       'line_items[0][price_data][product_data][description]': p.desc,
+      'line_items[0][price_data][product_data][tax_code]': TAX_CODE,
       success_url: `${origin}/paint?checkout_id={CHECKOUT_SESSION_ID}`,
       cancel_url: plan === 'credits' ? `${origin}/paint` : `${origin}/`,
       allow_promotion_codes: 'true',
       'metadata[plan]': plan,
       'payment_intent_data[metadata][plan]': plan,
-      'custom_text[submit][message]': 'All sales are final. By paying you agree to the Terms at critterkit.com/terms.',
       ...(topup ? { 'metadata[topup]': topup } : {}),
-      // an invoice (with a PDF) for every purchase, emailed by Stripe once email receipts are on in the dashboard
-      ...(process.env.STRIPE_INVOICES !== '0' ? { 'invoice_creation[enabled]': 'true',
-        'invoice_creation[invoice_data][footer]': 'Critterkit is a product of Zero to Build LLC. All sales are final.' } : {}),
-      ...(process.env.STRIPE_TAX === '1' ? { 'automatic_tax[enabled]': 'true', 'billing_address_collection': 'required' } : {})
+      ...(MANAGED ? { 'managed_payments[enabled]': 'true' } : {
+        // without Managed Payments: our own note on the pay button, our own invoice, optional Stripe Tax
+        'custom_text[submit][message]': 'All sales are final. By paying you agree to the Terms at critterkit.com/terms.',
+        ...(process.env.STRIPE_INVOICES !== '0' ? { 'invoice_creation[enabled]': 'true',
+          'invoice_creation[invoice_data][footer]': 'Critterkit is a product of Zero to Build LLC. All sales are final.' } : {}),
+        ...(process.env.STRIPE_TAX === '1' ? { 'automatic_tax[enabled]': 'true', 'billing_address_collection': 'required' } : {})
+      })
     };
     const r = await stripe('POST', '/checkout/sessions', form);
     if (!r.ok || !r.json.url) {
