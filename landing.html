@@ -77,7 +77,7 @@ p{margin:0}
 .stage{--pip-size:min(300px,62vw)}
 .spot{position:relative;z-index:1;width:var(--pip-size);aspect-ratio:1/1.12;margin-top:6%}
 #pipPainted{transition:width .3s ease,opacity .45s ease}#pipPainted.small{--pip-size:132px}#pipPainted.loading,.spot ~ critter-mascot.loading{opacity:0;pointer-events:none}
-#pipPainted{animation:none}#pipPainted:not(.loading){animation:pipIn .5s cubic-bezier(.3,1.5,.6,1)}
+#pipPainted{animation:none}#pipPainted:not(.loading):not(.entering){animation:pipIn .5s cubic-bezier(.3,1.5,.6,1)}#pipPainted.entering{transition:none}
 @keyframes pipIn{from{opacity:0;filter:blur(4px)}to{opacity:1;filter:none}}
 .spot{display:flex;align-items:flex-end;justify-content:center}#pipDrawn{--pip-size:92%}
 .play{position:absolute;z-index:2;bottom:-6px;left:50%;transform:translateX(-50%);display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:100%}
@@ -104,6 +104,8 @@ section{padding:80px 0}
 .moment span{color:#C9C5EA;grid-column:1/-1}
 .moment button{grid-row:1;grid-column:2;align-self:start;font:600 .88rem var(--body);background:transparent;color:var(--butter);border:1.5px solid var(--butter);border-radius:999px;padding:5px 12px;cursor:pointer}
 .moment button:hover{background:var(--butter);color:var(--ink)}
+.moment .seasons{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.moment .seasons button{grid-row:auto;grid-column:auto}
+.moment .seasons button[aria-pressed=true]{background:var(--butter);color:var(--ink)}
 
 /* wins */
 .demo-link{margin-top:36px;background:var(--butter)}
@@ -206,9 +208,9 @@ pre .t{color:var(--butter)}pre .a{color:#9EE6C2}
     <div class="stage">
       <span class="play-label">Hi, I'm Pip. Poke me.</span>
       <div class="spot" id="pipHome"></div>
-      <critter-mascot id="pipPainted" class="loading" mascot="xyjv3nf5en3k" dock="#pipHome" seasonal="off" greet greeting="Hi! I'm Pip."></critter-mascot>
+      <critter-mascot id="pipPainted" class="loading" mascot="xyjv3nf5en3k" dock="#pipHome" seasonal="off" greeting="Hi! I'm Pip."></critter-mascot>
       <div class="play" role="group" aria-label="Make Pip react">
-        <button data-r="wave">Wave</button><button data-r="success">Cheer</button><button data-r="dance">Dance</button><button data-r="error">Oops</button><button data-r="sleeping">Nap</button>
+        <button data-r="wave">Wave</button><button data-r="point">Point</button><button data-r="dance">Dance</button><button data-r="error">Oops</button><button data-r="sleeping">Nap</button>
       </div>
     </div>
     <div class="looks" role="group" aria-labelledby="looksL">
@@ -249,7 +251,7 @@ pip.play(levelUp, { level })</pre>
       <div class="moment"><b>They're typing a password</b><button data-m="pass">Show me</button><span>Your mascot covers its eyes. Nobody asked for this, and everybody loves it.</span></div>
       <div class="moment"><b>They tap the button six times</b><button data-m="rage">Show me</button><span>Your mascot notices the frustration and calms things down.</span></div>
       <div class="moment"><b>They hit a big milestone</b><button data-m="dance">Show me</button><span>A hundred days, a first sale, level ten. Your mascot breaks into a little dance.</span></div>
-      <div class="moment"><b>The seasons change</b><button data-m="season">Show me</button><span>Falling leaves in the fall, snow in December, confetti at New Year's. It happens by date, all on its own, and never changes how your mascot looks.</span></div>
+      <div class="moment"><b>The seasons change</b><span>Falling leaves in the fall, snow in December, confetti at New Year's. It happens by date, all on its own, and never changes how your mascot looks.</span><div class="seasons" role="group" aria-label="Try a season"><button data-season="leaves">Leaves</button><button data-season="snow">Snow</button><button data-season="confetti">Confetti</button><button data-season="hearts">Hearts</button><button data-season="bats">Bats</button></div></div>
     </div>
     <a class="btn demo-link" href="/demo">See it in a real app</a>
   </div>
@@ -326,7 +328,17 @@ pip.play(levelUp, { level })</pre>
 const painted = document.getElementById('pipPainted');
 const PIP_ID = painted.getAttribute('mascot');
 let pip = painted;
-painted.addEventListener('ready', () => requestAnimationFrame(() => painted.classList.remove('loading')));
+// Entrance: Pip falls in from above the screen, lands with a puff of dust, flips, then says hi
+painted.addEventListener('ready', () => requestAnimationFrame(async () => {
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches, d = painted._dock && painted._dock();
+  painted.classList.add('entering'); painted.classList.remove('loading');
+  if (!calm && d && painted._drop && painted.getBoundingClientRect().top < innerHeight) {
+    await painted._drop(d[0], d[1]); painted._docked = true;
+    await wait(380); await painted.play([{ do: 'flip' }]);
+  } else await wait(400);
+  painted.classList.remove('entering');
+  painted.react('wave', 2400); say("Hi! I'm Pip.", 2800);
+}), { once: true });
 // If the painting can't load, the drawn seed takes its place.
 painted.addEventListener('error', () => {
   painted.remove(); const d = document.createElement('critter-mascot'); d.id = 'pipDrawn'; d.setAttribute('greet', ''); d.setAttribute('seasonal', 'off'); d.setAttribute('greeting', "Hi! I'm Pip.");
@@ -415,6 +427,7 @@ document.querySelectorAll('[data-look]').forEach(b => b.addEventListener('click'
 document.querySelectorAll('.play button').forEach(b => b.addEventListener('click', () => {
   const r = b.dataset.r, lines = { wave: 'Hello there!', success: 'We did it!', dance: 'Party time!', error: 'Uh oh.', love: 'I like you.', sleeping: '' };
   if (r === 'sleeping') { pip.setState('sleeping'); return; }
+  if (r === 'point') { pip.setState('idle'); pip.point(document.querySelector('.hero .ctas .btn'), 'Make yours here!'); return; }
   pip.setState('idle'); pip.react(r, r === 'dance' ? 3200 : 2400); if (lines[r]) say(lines[r]);
 }));
 
@@ -430,8 +443,14 @@ const moments = {
   pass: async () => { await toHero(); pip.cover(true); say("I'm not looking!", 2000); await wait(2400); pip.cover(false); },
   rage: async () => { await toHero(); pip.react('surprised', 1600); say('Easy there. I think it heard you.', 2600); },
   dance: async () => { await toHero(); pip.setState('idle'); pip.react('dance', 3400); say('100 days in a row!', 3000); },
-  season: async () => { await toHero(); clearTimeout(seasonT); pip.setAttribute('seasonal', 'snow'); say('Holiday mode, on its own.', 2600); seasonT = setTimeout(() => pip.setAttribute('seasonal', 'off'), 8000); },
 };
+const SEASON_LINES = { leaves: 'Hello, fall!', snow: 'Snow day!', confetti: 'Happy New Year!', hearts: 'Love is in the air.', bats: 'Spooky season!' };
+document.querySelectorAll('[data-season]').forEach(b => b.addEventListener('click', async () => {
+  const all = document.querySelectorAll('[data-season]'), k = b.dataset.season;
+  all.forEach(o => o.setAttribute('aria-pressed', String(o === b)));
+  await toHero(); clearTimeout(seasonT); pip.setAttribute('seasonal', k); pip.react('love', 1600); say(SEASON_LINES[k], 2400);
+  seasonT = setTimeout(() => { pip.setAttribute('seasonal', 'off'); all.forEach(o => o.setAttribute('aria-pressed', 'false')); }, 9000);
+}));
 document.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', () => moments[b.dataset.m]()));
 
 // Pretend meditation app: finish today's session and Pip celebrates the streak
