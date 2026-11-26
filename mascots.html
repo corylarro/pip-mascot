@@ -92,6 +92,7 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
 .moments{margin:0;padding:0;list-style:none}
 .moments li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:12px 0;border-top:1px solid var(--line)}
 .moments li:first-child{border-top:0;padding-top:4px}
+.moments.mine{margin-bottom:8px;border-bottom:2px solid var(--ink);padding-bottom:8px}.moments.mine b::after{content:'Your pose';font:700 .7rem var(--body);background:var(--butter);border:1.5px solid var(--ink);border-radius:999px;padding:1px 7px;margin-left:8px;vertical-align:2px}
 .moments b{font-weight:700}.moments span{color:var(--ink-2);font-size:.95rem;grid-column:1}
 .moments code{grid-column:1/-1;font:500 .82rem ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--haze);padding:6px 10px;border-radius:8px;margin-top:6px;overflow-x:auto;white-space:nowrap}
 .moments button{grid-row:1/3;grid-column:2;align-self:center;font:600 .88rem var(--body);padding:6px 13px;border-radius:999px;border:2px solid var(--ink);background:var(--butter);color:var(--ink);cursor:pointer}
@@ -162,6 +163,7 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
         <section class="step" aria-labelledby="s3">
           <h2 id="s3"><b>3</b>Moments only your app knows about</h2>
           <p class="sub">A streak, a purchase, a level up: one line each, wherever it happens in your code. Tap Preview to see it.</p>
+          <ul class="moments mine" id="myMoments" hidden></ul>
           <ul class="moments" id="moments"></ul>
           <p class="hint">Need something these don’t cover? <a href="/studio" id="studio">Build a custom moment</a> from moves, moods, effects and words.</p>
         </section>
@@ -197,10 +199,11 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
           <form class="ruleform" id="ruleForm" hidden>
             <div class="rf"><label for="rWhen">When</label><select id="rWhen"><option value="visit">someone visits a page</option><option value="click">someone taps a button or link</option><option value="text">some words appear on the page</option></select>
               <input id="rWhenVal" required maxlength="80" aria-label="Which page, button or words"></div>
-            <div class="rf"><label for="rThen">Then</label><select id="rThen"><option value="moment">play a moment</option><option value="say">say something</option><option value="point">point at a button or link</option><option value="play">play a custom moment</option></select></div>
+            <div class="rf"><label for="rThen">Then</label><select id="rThen"><option value="moment">play a moment</option><option value="say">say something</option><option value="point">point at a button or link</option><option value="pose">show one of its poses</option><option value="play">play a custom moment</option></select></div>
             <div class="rf" id="fMoment"><select id="rMoment" aria-label="Moment"></select><input id="rCount" type="number" min="0" placeholder="Number" aria-label="Number for the moment" hidden><input id="rSay" maxlength="70" placeholder="Its line (optional)" aria-label="What it says"></div>
             <div class="rf" id="fSay" hidden><input id="rText" maxlength="70" placeholder="Thanks for signing up!" aria-label="What it says"></div>
             <div class="rf" id="fPoint" hidden><input id="rTarget" maxlength="80" placeholder="Button text, like Upgrade" aria-label="Button or link text"><input id="rPointSay" maxlength="70" placeholder="What it says (optional)" aria-label="What it says"></div>
+            <div class="rf" id="fPose" hidden><select id="rPose" aria-label="Pose"></select><input id="rPoseSay" maxlength="70" placeholder="What it says (optional)" aria-label="What it says"></div>
             <div class="rf" id="fPlay" hidden><p class="hint" id="playInfo" style="margin:0"></p></div>
             <label class="once"><input type="checkbox" id="rOnce" checked> Only once per visitor</label>
             <div class="row"><button class="btn" type="submit" id="rAdd">Add this moment</button><button class="ghost" type="button" id="rTry">Try it here</button></div>
@@ -368,7 +371,7 @@ $('recheck').addEventListener('click', () => checkLive(true));
 let rules = [], canEdit = false;
 const WHEN = { visit: ['someone visits', '/thank-you  (use * for any, like /blog/*)'], click: ['someone taps', 'Button or link text, like Upgrade'], text: ['these words appear', 'Words on the page, like Order confirmed'] };
 const momentName = n => (CK.MOMENTS.find(x => x.m === n) || { name: n }).name;
-const thenText = t => t.type === 'moment' ? `play ${momentName(t.name)}${t.count != null ? ' (' + t.count + ')' : ''}${t.say ? `: “${t.say}”` : ''}` : t.type === 'say' ? `say “${t.text}”` : t.type === 'point' ? `point at “${t.target}”${t.text ? `: “${t.text}”` : ''}` : `play a custom moment (${t.steps.length} steps)`;
+const thenText = t => t.type === 'moment' ? `play ${momentName(t.name)}${t.count != null ? ' (' + t.count + ')' : ''}${t.say ? `: “${t.say}”` : ''}` : t.type === 'say' ? `say “${t.text}”` : t.type === 'point' ? `point at “${t.target}”${t.text ? `: “${t.text}”` : ''}` : t.type === 'pose' ? `show the ${t.name} pose${t.say ? `: “${t.say}”` : ''}` : `play a custom moment (${t.steps.length} steps)`;
 function renderRules() {
   const ul = $('rules');
   ul.innerHTML = rules.map((r, i) => `<li><span>When ${esc(WHEN[r.when.type][0])} <b>${esc(r.when.value)}</b>, ${esc(thenText(r.then))}<small>${r.once ? 'Once per visitor' : 'Every time'}</small></span><button type="button" data-try="${i}">Try</button>${canEdit ? `<button type="button" data-del="${i}" aria-label="Remove">Remove</button>` : '<span></span>'}</li>`).join('');
@@ -380,6 +383,7 @@ function runThen(t) {
   if (t.type === 'moment') pip.moment(t.name, Object.assign({}, t.say ? { say: t.say } : {}, t.count != null ? { count: t.count } : {}));
   else if (t.type === 'say') pip.say(t.text, { hold: 2600 });
   else if (t.type === 'point') pip.say(`${t.text || 'Over here!'} (points at “${t.target}” on your site)`, { hold: 3000 });
+  else if (t.type === 'pose') { pip.pose(t.name, 3000); if (t.say) pip.say(t.say, { hold: 2600 }); }
   else if (t.type === 'play') pip.play(t.steps);
   toStage();
 }
@@ -403,7 +407,7 @@ const customSteps = () => { try { const v = JSON.parse(get('ck-custom-steps') ||
 function syncForm() {
   const w = $('rWhen').value, t = $('rThen').value;
   $('rWhenVal').placeholder = WHEN[w][1];
-  $('fMoment').hidden = t !== 'moment'; $('fSay').hidden = t !== 'say'; $('fPoint').hidden = t !== 'point'; $('fPlay').hidden = t !== 'play';
+  $('fMoment').hidden = t !== 'moment'; $('fSay').hidden = t !== 'say'; $('fPoint').hidden = t !== 'point'; $('fPlay').hidden = t !== 'play'; $('fPose').hidden = t !== 'pose';
   const m = $('rMoment').value; $('rCount').hidden = !(m === 'streak' || m === 'level-up'); $('rCount').placeholder = m === 'streak' ? 'Days' : 'Level';
   const cs = customSteps();
   $('playInfo').innerHTML = cs ? `Uses the last moment you built in the studio (${cs.length} steps). <a href="/studio?mascot=${cur ? cur.id : ''}">Build a different one</a>` : `Build one in the <a href="/studio?mascot=${cur ? cur.id : ''}">studio</a> first, then tap “Use without code” there.`;
@@ -413,6 +417,7 @@ function formThen() {
   const t = $('rThen').value;
   if (t === 'moment') { const c = $('rCount').hidden || $('rCount').value === '' ? null : Number($('rCount').value); return Object.assign({ type: 'moment', name: $('rMoment').value }, $('rSay').value.trim() ? { say: $('rSay').value.trim() } : {}, c != null ? { count: c } : {}); }
   if (t === 'say') return $('rText').value.trim() ? { type: 'say', text: $('rText').value.trim() } : null;
+  if (t === 'pose') return $('rPose').value ? Object.assign({ type: 'pose', name: $('rPose').value }, $('rPoseSay').value.trim() ? { say: $('rPoseSay').value.trim() } : {}) : null;
   if (t === 'point') return $('rTarget').value.trim() ? { type: 'point', target: $('rTarget').value.trim(), text: $('rPointSay').value.trim() } : null;
   const cs = customSteps(); return cs ? { type: 'play', steps: cs } : null;
 }
@@ -441,6 +446,10 @@ async function loadPoses() {
   $('poseForm').hidden = !canEdit; $('posePrev').hidden = true; $('poseErr').textContent = '';
   if (!canEdit) $('poseErr').textContent = '';
   $('poseIntro').textContent = `Paint ${cur.name || 'your mascot'} doing anything: riding a skateboard, holding a trophy, wearing a graduation cap. Keep the ones you like and use them in custom moments.`;
+  const mm = $('myMoments'); mm.hidden = !list.length;
+  mm.innerHTML = list.map(p => `<li><b>${esc(p.name)}</b><span>${esc(p.desc || 'Your custom pose')}</span><button type="button" data-pp="${esc(p.name)}">Preview</button><code>${esc(plat === 'ios' ? `Critter.play([["do": "pose", "name": "${p.name}"]])` : `pip.pose('${p.name}')`)}</code></li>`).join('');
+  mm.querySelectorAll('[data-pp]').forEach(b => b.addEventListener('click', () => { pip && pip.pose && pip.pose(b.dataset.pp, 3000); toStage(); }));
+  $('rPose').innerHTML = list.length ? list.map(p => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('') : '<option value="">Paint a pose first</option>';
   $('poseList').innerHTML = list.map(p => `<li><img src="${esc(p.image)}" alt="${esc(p.desc || p.name)}" loading="lazy"><b>${esc(p.name)}</b><code style="font-size:.75rem;word-break:break-all">${esc(poseCode(p.name))}</code><div class="row"><button type="button" data-play="${esc(p.name)}">Play</button>${canEdit ? `<button type="button" data-rm="${esc(p.name)}">Remove</button>` : ''}</div></li>`).join('');
   $('poseList').querySelectorAll('[data-play]').forEach(b => b.addEventListener('click', () => { pip && pip.pose && pip.pose(b.dataset.play, 3000); toStage(); }));
   $('poseList').querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', async () => {

@@ -1072,6 +1072,7 @@ var paintedEngine=PipPaintedEngine();
         if(t.type==='moment')this.moment(t.name,Object.assign({},t.say?{say:t.say}:{},t.count!=null?{count:t.count}:{}));
         else if(t.type==='say')this._m.say(t.text,{hold:2800});
         else if(t.type==='point'){const el=findByText(t.target);if(el)this.point(el,t.text||undefined);else if(t.text)this._m.say(t.text,{hold:2600})}
+        else if(t.type==='pose'){this.pose(t.name,3000);if(t.say)this._m.say(t.say,{hold:2600})}
         else if(t.type==='play')this.play(t.steps)};
       const pathOk=pat=>{const p=(location.pathname.replace(/\/+$/,'')||'/').toLowerCase();pat=String(pat||'').trim();try{if(/^https?:/i.test(pat))pat=new URL(pat).pathname}catch(e){}
         pat=(pat.split(/[?#]/)[0].replace(/\/+$/,'')||'/').toLowerCase();if(pat[0]!=='/')pat='/'+pat;
