@@ -230,11 +230,14 @@ pre .t{color:var(--butter)}pre .a{color:#9EE6C2}
 <section class="studio-tease" aria-labelledby="sth">
   <div class="wrap st-grid">
     <div>
-      <h2 id="sth">Describe a moment. Pip acts it out.</h2>
-      <p class="lede">Type what should happen, like <em>“the user levels up, backflip, dance and say level {level}!”</em> Watch it play, then copy the code, or hand your AI builder one prompt and let it do the rest.</p>
-      <div class="ctas"><a class="btn" href="/studio">Open the studio</a><a class="btn ghost" href="/api/checkout?plan=painted">Create your mascot · $19</a></div>
+      <h2 id="sth">Built-in moments, plus your own.</h2>
+      <p class="lede">Streaks, purchases, level ups: one line each. For anything else, tap together moves, moods, effects and words in the studio and watch Pip play it before you copy the code.</p>
+      <div class="ctas"><a class="btn" href="/studio">Build a custom moment</a><a class="btn ghost" href="/api/checkout?plan=painted">Create your mascot · $19</a></div>
     </div>
-    <pre class="st-code" aria-label="Example code"><span class="c">// the moment you described</span>
+    <pre class="st-code" aria-label="Example code"><span class="c">// built in</span>
+pip.moment('streak', { count: 7 })
+
+<span class="c">// your own, from the studio</span>
 pip.play(levelUp, { level })</pre>
   </div>
 </section>

@@ -53,7 +53,16 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
 .btn{display:inline-flex;align-items:center;justify-content:center;font:700 1rem var(--body);padding:12px 20px;border-radius:999px;border:2px solid var(--ink);background:var(--peach);color:var(--ink);cursor:pointer;text-decoration:none;box-shadow:0 4px 0 var(--ink)}
 .btn:active{transform:translateY(2px);box-shadow:0 2px 0 var(--ink)}
 .ghost{display:inline-flex;align-items:center;font:600 .95rem var(--body);padding:9px 16px;border-radius:999px;border:2px solid var(--ink);background:var(--white);color:var(--ink);cursor:pointer;text-decoration:none}
-.hint{color:var(--ink-2);font-size:.92rem;margin-top:10px}
+.hint{color:var(--ink-2);font-size:.92rem;margin-top:10px}.hint a{color:var(--ink);font-weight:600}
+.auto{margin:4px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+.auto li{position:relative;padding-left:26px}
+.auto li::before{content:"";position:absolute;left:4px;top:.55em;width:10px;height:6px;border-left:2.5px solid var(--sprout);border-bottom:2.5px solid var(--sprout);transform:rotate(-45deg)}
+.moments{margin:0;padding:0;list-style:none}
+.moments li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:12px 0;border-top:1px solid var(--line)}
+.moments li:first-child{border-top:0;padding-top:4px}
+.moments b{font-weight:700}.moments span{color:var(--ink-2);font-size:.95rem;grid-column:1}
+.moments code{grid-column:1/-1;font:500 .82rem ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--haze);padding:6px 10px;border-radius:8px;margin-top:6px;overflow-x:auto;white-space:nowrap}
+.moments button{grid-row:1/3;grid-column:2;align-self:center;font:600 .88rem var(--body);padding:6px 13px;border-radius:999px;border:2px solid var(--ink);background:var(--butter);color:var(--ink);cursor:pointer}
 .keyline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .keyline code{font:500 .9rem ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--haze);padding:8px 12px;border-radius:10px;word-break:break-all;flex:1 1 220px}
 .gate{max-width:520px;margin:40px auto 90px;background:var(--white);border:2px solid var(--ink);border-radius:28px;padding:28px;display:flex;flex-direction:column;gap:14px}
@@ -93,10 +102,6 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
     <div class="layout">
       <div class="left">
         <div class="stage" id="stage"></div>
-        <div class="try" role="group" aria-label="Try a moment">
-          <button data-m="welcome">Welcome</button><button data-m="first-purchase">Purchase</button><button data-m="streak">7-day streak</button><button data-m="level-up">Level up</button><button data-m="oops">Oops</button><button data-p="flip">Backflip</button>
-        </div>
-      </div>
       <div>
         <div class="head">
           <h1 id="name">Your mascot</h1>
@@ -105,21 +110,30 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
 
         <section class="step" aria-labelledby="s1">
           <h2 id="s1"><b>1</b>Put it in your app</h2>
-          <p class="sub">Using Cursor, Lovable, Bolt or Claude? Copy the prompt and paste it in. Otherwise grab the code.</p>
-          <div class="tabs" role="group" aria-label="How you build"><button data-k="ai" aria-pressed="true">AI builder</button><button data-k="web" aria-pressed="false">Website</button><button data-k="ios" aria-pressed="false">iPhone app</button></div>
+          <p class="sub">Building with Cursor, Lovable, Bolt or Claude? Paste this prompt. It installs your mascot and adds the moments below in the right places.</p>
+          <div class="tabs" role="group" aria-label="How you build"><button data-k="ai" aria-pressed="true">AI builder</button><button data-k="web" aria-pressed="false">Website code</button><button data-k="ios" aria-pressed="false">iPhone app code</button></div>
           <pre id="code"></pre>
           <div class="row"><button class="btn" id="copy" type="button">Copy prompt</button><a class="ghost" id="plain" target="_blank" rel="noopener" href="/embed-test">Try it on a plain page</a></div>
           <p class="hint" id="codeHint"></p>
         </section>
 
         <section class="step" aria-labelledby="s2">
-          <h2 id="s2"><b>2</b>Make it do things</h2>
-          <p class="sub">It already reacts to forms, saves and errors on its own. For your app’s big moments, describe what should happen and get the code.</p>
-          <div class="row"><a class="btn" id="studio" href="/studio">Open the studio with your mascot</a><a class="ghost" href="/docs#moments">Moments in the docs</a></div>
+          <h2 id="s2"><b>2</b>What it does on its own</h2>
+          <p class="sub">No extra code. Once it’s installed, it notices these by itself:</p>
+          <div class="tabs plat" role="group" aria-label="Platform"><button data-p="web" aria-pressed="true">Website</button><button data-p="ios" aria-pressed="false">iPhone app</button></div>
+          <ul class="auto" id="auto"></ul>
+          <p class="hint" id="autoHint"></p>
         </section>
 
         <section class="step" aria-labelledby="s3">
-          <h2 id="s3"><b>3</b>Check it’s live</h2>
+          <h2 id="s3"><b>3</b>Moments only your app knows about</h2>
+          <p class="sub">A streak, a purchase, a level up: one line each, wherever it happens in your code. Tap Preview to see it.</p>
+          <ul class="moments" id="moments"></ul>
+          <p class="hint">Need something these don’t cover? <a href="/studio" id="studio">Build a custom moment</a> from moves, moods, effects and words.</p>
+        </section>
+
+        <section class="step" aria-labelledby="s3b">
+          <h2 id="s3b"><b>4</b>Check it’s live</h2>
           <p class="sub" id="liveText">Open a page of your app with the mascot on it. Within a minute, this page shows the site it’s running on.</p>
           <div class="row" style="margin-top:12px"><button class="ghost" id="recheck" type="button">Check again</button></div>
         </section>
@@ -144,7 +158,7 @@ const $ = id => document.getElementById(id);
 const get = k => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } };
 const set = (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch (e) {} };
 const params = new URLSearchParams(location.search);
-let key = get('pip-pass'), mascots = [], cur = null, kind = 'ai', pip = null, liveT = 0;
+let key = get('pip-pass'), mascots = [], cur = null, kind = 'ai', plat = 'web', pip = null, liveT = 0;
 
 async function me(k) {
   const r = await fetch('/api/me', { headers: { 'x-pip-pass': k } });
@@ -185,7 +199,7 @@ function show(m) {
   const pk = $('pick'); pk.hidden = mascots.length < 2;
   pk.innerHTML = mascots.map(x => `<a href="/mascots?id=${x.id}" data-id="${x.id}"${x.id === m.id ? ' aria-current="page"' : ''}>${esc(x.name || 'Untitled')}</a>`).join('');
   pk.querySelectorAll('a').forEach(a => a.addEventListener('click', e => { e.preventDefault(); show(mascots.find(x => x.id === a.dataset.id)); }));
-  $('studio').href = '/studio?mascot=' + m.id; $('studio').textContent = `Open the studio with ${m.name || 'your mascot'}`;
+  $('studio').href = '/studio?mascot=' + m.id;
   $('plain').href = '/embed-test?mascot=' + m.id;
   // the live mascot on the stage
   if (pip) pip.remove();
@@ -193,20 +207,29 @@ function show(m) {
   pip.setAttribute('mascot', m.id); pip.setAttribute('dock', '#stage'); pip.setAttribute('seasonal', 'off'); pip.setAttribute('no-ping', '');
   pip.setAttribute('greet', ''); pip.setAttribute('greeting', m.name ? `Hi! I'm ${m.name}.` : 'Hi there!');
   document.body.appendChild(pip);
-  renderCode(); checkLive(true);
+  renderCode(); renderPlat(); checkLive(true);
 }
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const HINT = { ai: 'It includes your mascot, install steps and which moments to use where.', web: 'Paste before the closing </body> tag. Works in React, Next.js, Vue and plain HTML.', ios: 'In Xcode: File → Add Package Dependencies…, paste the link from the first line, then add this to your root view.' };
+const HINT = { ai: 'Made for websites and web apps. Building an iPhone app in Xcode? Use the iPhone app code tab.', web: 'Paste before the closing </body> tag. Works in React, Next.js, Vue and plain HTML.', ios: 'In Xcode: File → Add Package Dependencies…, paste the link from the first line, then add this to your root view.' };
 function renderCode() {
   if (!cur) return;
   $('code').textContent = kind === 'ai' ? CK.aiPrompt(cur.id, 'web', cur.name) : CK.snipCode(cur.id, kind);
   $('copy').textContent = kind === 'ai' ? 'Copy prompt' : 'Copy code';
   $('codeHint').textContent = HINT[kind];
 }
-document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
-  kind = b.dataset.k; document.querySelectorAll('.tabs button').forEach(o => o.setAttribute('aria-pressed', String(o === b))); renderCode();
+document.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => {
+  kind = b.dataset.k; document.querySelectorAll('[data-k]').forEach(o => o.setAttribute('aria-pressed', String(o === b))); renderCode();
+  if (kind !== 'ai') setPlat(kind);
 }));
+function setPlat(p) { plat = p; document.querySelectorAll('[data-p]').forEach(o => o.setAttribute('aria-pressed', String(o.dataset.p === p))); renderPlat(); }
+document.querySelectorAll('[data-p]').forEach(b => b.addEventListener('click', () => setPlat(b.dataset.p)));
+function renderPlat() {
+  $('auto').innerHTML = CK.AUTO[plat].map(t => `<li>${esc(t)}</li>`).join('');
+  $('autoHint').textContent = plat === 'ios' ? 'Saves, errors and pointing at fields take one line each on iPhone, like Critter.watch(success: "Saved!") { … } and Critter.point(at: "email", say: "…").' : '';
+  $('moments').innerHTML = CK.MOMENTS.map((x, i) => `<li><b>${esc(x.name)}</b><span>${esc(x.desc)}</span><button type="button" data-i="${i}">Preview</button><code>${esc(x[plat])}</code></li>`).join('');
+  $('moments').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { const x = CK.MOMENTS[b.dataset.i]; if (pip && pip.moment) pip.moment(x.m, x.o || {}); if (innerWidth < 860) document.getElementById('stage').scrollIntoView({ behavior: 'smooth', block: 'center' }); }));
+}
 $('copy').addEventListener('click', async () => {
   const b = $('copy'), was = b.textContent;
   try { await navigator.clipboard.writeText($('code').textContent); b.textContent = 'Copied'; }
@@ -242,14 +265,6 @@ async function checkLive(first) {
   } catch (e) { setLive('', 'Couldn’t check right now'); }
 }
 $('recheck').addEventListener('click', () => checkLive(true));
-
-// try moments on the stage
-document.querySelectorAll('.try button').forEach(b => b.addEventListener('click', () => {
-  if (!pip || !pip.moment) return;
-  const m = b.dataset.m;
-  if (b.dataset.p) pip.play([{ do: 'flip' }, { do: 'say', text: 'Ta-da!' }]);
-  else pip.moment(m, m === 'streak' ? { count: 7 } : m === 'level-up' ? { count: 5 } : {});
-}));
 
 // key
 $('showKey').addEventListener('click', () => { const sh = $('showKey').textContent === 'Show'; $('keyText').textContent = sh ? key : 'ck_••••••••••••'; $('showKey').textContent = sh ? 'Hide' : 'Show'; });

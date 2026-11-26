@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Moment studio · Critterkit</title>
-<meta name="description" content="Describe a moment in plain words. Your mascot acts it out, and you get the code to paste into your app.">
+<title>Custom moments · Critterkit</title>
+<meta name="description" content="Build a custom moment for your mascot from moves, moods, effects and words. Watch it play, then copy one line of code.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#ECEBFF">
 <meta property="og:image" content="https://www.critterkit.com/og.png?v=2">
@@ -28,6 +28,7 @@ h1{font:800 clamp(2.2rem,5vw,3.4rem)/1.02 var(--display);letter-spacing:-.02em;f
 .lede{color:var(--ink-2);font-size:1.15rem;margin:0 0 22px;max-width:36ch}
 .stage{position:relative;background:var(--white);border:2px solid var(--ink);border-radius:32px;aspect-ratio:1/1;max-height:560px;width:100%;overflow:visible}
 .stage critter-mascot{--pip-size:min(240px,46vw)}
+@media (max-width:860px){.stage critter-mascot{--pip-size:min(180px,26vh)}}
 .ask{display:flex;flex-direction:column;gap:12px}
 .ask label{font-weight:600}
 .ask textarea{font:500 1.1rem/1.4 var(--body);padding:16px 18px;border-radius:18px;border:2px solid var(--ink);background:var(--white);color:var(--ink);resize:vertical;min-height:92px}
@@ -50,6 +51,27 @@ pre{margin:0;background:var(--ink);color:#F2F0FF;border-radius:18px;padding:16px
 .vals label{display:flex;gap:6px;align-items:center;font:500 .95rem var(--body)}
 .vals input{width:110px;font:500 1rem var(--body);padding:7px 10px;border-radius:12px;border:2px solid var(--ink);background:var(--white);color:var(--ink)}
 .note a{color:var(--ink)}
+.seqbox{background:var(--white);border:2px solid var(--ink);border-radius:24px;padding:16px 18px;margin-bottom:22px}
+.seq{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px;counter-reset:s}
+.seq li{counter-increment:s;display:inline-flex;align-items:center;gap:6px;font:600 .92rem var(--body);background:var(--haze);border-radius:999px;padding:5px 6px 5px 10px}
+.seq li::before{content:counter(s);font:700 .72rem var(--body);color:var(--ink-2)}
+.seq li button{border:0;background:transparent;color:var(--ink-2);font:700 1rem var(--body);cursor:pointer;width:24px;height:24px;border-radius:50%;line-height:1}
+.seq li button:hover{background:var(--white);color:var(--ink)}
+.seq-empty{color:var(--ink-2);margin:0}
+.seqbox .row{margin-top:12px}
+.pal h2,.ch{font:700 1rem var(--display);margin:16px 0 8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{font:600 .92rem var(--body);padding:7px 13px;border-radius:999px;border:2px solid var(--ink);background:var(--white);color:var(--ink);cursor:pointer}
+.chips button:hover{background:var(--butter)}
+.addrow{display:flex;gap:8px}
+.addrow input{flex:1;min-width:0;font:500 1rem var(--body);padding:9px 14px;border-radius:999px;border:2px solid var(--ink);background:var(--white);color:var(--ink)}
+.describe{margin-top:24px;background:var(--white);border:2px dashed var(--ink-2);border-radius:20px;padding:14px 18px}
+.describe summary{font-weight:700;cursor:pointer}
+.describe .ask{margin-top:12px}
+.describe textarea{min-height:76px}
+.go[disabled]{opacity:.45;cursor:default}
+@media (min-width:861px){.stage{position:sticky;top:20px}}
+@media (max-width:860px){main{display:flex;flex-direction:column}.stage{order:-1;position:sticky;top:0;z-index:2;max-height:34vh;aspect-ratio:auto;height:34vh;border-radius:0 0 28px 28px;border-top:0;margin:0 -24px;width:auto;align-self:stretch}}
 </style>
 <script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};</script>
 <script defer src="/_vercel/insights/script.js"></script>
@@ -58,27 +80,45 @@ pre{margin:0;background:var(--ink);color:#F2F0FF;border-radius:18px;padding:16px
 <header class="bar"><a class="mark" href="/"><i></i>Critterkit</a><nav><a href="/docs">Docs</a><a href="/builder">Builder</a></nav></header>
 <main>
   <section aria-labelledby="h1">
-    <h1 id="h1">Describe a moment</h1>
-    <p class="lede">Say what should happen in plain words. Pip acts it out, and you get the code to paste into your app.</p>
-    <div class="ask">
-      <label for="text">When…</label>
-      <textarea id="text" maxlength="200" placeholder="the user levels up, jump, do a backflip, dance and say Level 5!"></textarea>
-      <div class="ideas" aria-label="Ideas to try">
-        <button type="button">the user levels up, backflip, dance and say you reached level {level}</button>
-        <button type="button">the order ships, celebrate with a pizza</button>
-        <button type="button">the payment fails, look worried and shake it off</button>
-        <button type="button">it's Friday, poof to the middle and dance</button>
-        <button type="button">a 100-day streak, go wild</button>
-      </div>
-      <button class="go" id="go" type="button">Make it happen</button>
-      <p class="msg" id="msg" role="status" aria-live="polite"></p>
+    <h1 id="h1">Custom moments</h1>
+    <p class="lede">For the moments the built-in ones don’t cover. Tap moves, moods, effects and words to build a sequence, watch it play, then copy one line.</p>
+    <div class="seqbox">
+      <ol class="seq" id="seq" aria-label="Your moment, in order"></ol>
+      <p class="seq-empty" id="seqEmpty">Tap anything below to start. Each step plays as you add it.</p>
+      <div class="row"><button class="go" id="play" type="button" disabled>Play it</button><button class="ghost" id="clear" type="button" hidden>Start over</button></div>
     </div>
+    <div class="pal" aria-label="Things to add">
+      <h2>Moves</h2><div class="chips" id="pMoves"></div>
+      <h2>Moods</h2><div class="chips" id="pMoods"></div>
+      <h2>Effects</h2><div class="chips" id="pFx"></div>
+      <h2>Words</h2>
+      <form class="addrow" id="sayForm"><input id="sayText" maxlength="60" placeholder="Level {level}!" aria-label="Something to say"><button class="ghost" type="submit">Say it</button></form>
+      <p class="note">Put changing values in braces, like {level} or {name}. You fill them in from your app.</p>
+      <h2>Hold something up</h2>
+      <div class="chips" id="pProps"></div>
+      <h2>Timing</h2><div class="chips" id="pTime"></div>
+    </div>
+    <details class="describe" id="describe">
+      <summary>Or describe it and let AI build the sequence</summary>
+      <div class="ask">
+        <textarea id="text" maxlength="200" placeholder="the order ships: big jump, hold up a pizza, dance and say On its way!"></textarea>
+        <div class="ideas" aria-label="Ideas to try">
+          <button type="button">the user levels up, backflip, dance and say you reached level {level}</button>
+          <button type="button">the order ships, celebrate with a pizza</button>
+          <button type="button">the payment fails, look worried and shake it off</button>
+        </div>
+        <button class="ghost" id="go" type="button">Build it for me</button>
+        <p class="note">It can only use the moves above, so describe moves and feelings rather than new actions.</p>
+      </div>
+    </details>
+    <p class="msg" id="msg" role="status" aria-live="polite"></p>
     <div class="code" id="codeBox" hidden>
+      <h2 class="ch">Your code</h2>
       <div class="tabs" role="group" aria-label="Code for"><button type="button" data-k="web" aria-pressed="true">Website</button><button type="button" data-k="ios" aria-pressed="false">iPhone app (Swift)</button></div>
       <div class="vals" id="vals" hidden><span>Try it with</span></div>
       <pre id="code"></pre>
       <div class="row"><button class="ghost" id="copy" type="button">Copy code</button><button class="ghost" id="again" type="button">Play it again</button>
-        <span class="note">Call it whenever that moment happens in your app. <a href="/docs#play">How it works</a></span></div>
+        <span class="note">Call it wherever that moment happens in your app. <a href="/docs#play">How it works</a></span></div>
     </div>
   </section>
   <div class="stage" id="stage">
@@ -89,7 +129,7 @@ pre{margin:0;background:var(--ink);color:#F2F0FF;border-radius:18px;padding:16px
   (function(){var id=new URLSearchParams(location.search).get('mascot');if(!id||!/^[a-z0-9]{6,24}$/.test(id))return;
     var el=document.getElementById('pip');el.setAttribute('mascot',id);el.setAttribute('no-ping','');
     fetch('/api/mascot?id='+id).then(function(r){return r.ok?r.json():null}).then(function(d){if(!d||!d.name)return;
-      document.querySelector('.lede').textContent='Say what should happen in plain words. '+d.name+' acts it out, and you get the code to paste into your app.';
+      document.querySelector('.lede').textContent='For the moments the built-in ones don’t cover. Tap moves, moods, effects and words, watch '+d.name+' play it, then copy one line.';
       var b=document.createElement('a');b.href='/mascots?id='+id;b.textContent='← Back to '+d.name;b.className='back';document.querySelector('#h1').before(b)})})();
   </script>
 </main>
@@ -112,13 +152,42 @@ document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',
 document.querySelectorAll('.ideas button').forEach(b=>b.addEventListener('click',()=>{$('text').value=b.textContent;make()}));
 $('go').addEventListener('click',make);
 $('text').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();make()}});
-$('again').addEventListener('click',()=>steps&&pip.play(steps,values));
+$('again').addEventListener('click',()=>steps&&steps.length&&pip.play(steps,values));
+$('play').addEventListener('click',()=>steps&&steps.length&&pip.play(steps,values));
 $('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('code').textContent);$('copy').textContent='Copied!';setTimeout(()=>$('copy').textContent='Copy code',1400)}catch(e){}});
-async function make(){const text=$('text').value.trim();if(text.length<3){$('msg').textContent='Describe what Pip should do first.';$('text').focus();return}
-  $('go').disabled=true;$('msg').textContent='Choreographing…';pip.react&&pip.setState('thinking');
+
+// The palette: everything the mascot can do, as chips
+const MOVES=[['Hop',{do:'jump'}],['Big jump',{do:'bigjump'}],['Backflip',{do:'flip'}],['Spin',{do:'spin'}],['Shake it off',{do:'shake'}],['Grow',{do:'grow'}],['Vanish to the middle',{do:'poof',to:'center'}],['Vanish home',{do:'poof',to:'home'}]];
+const MOODS=[['Cheer','success'],['Dance','dance'],['Love','love'],['Wave','wave'],['Surprised','surprised'],['Thinking','thinking'],['Confused','confused'],['Worried','error'],['Sad','sad'],['Nap','sleeping']].map(([l,st])=>[l,{do:'react',state:st,ms:st==='dance'?2800:2200}]);
+const FX=[['Sparkles','spark'],['Confetti','confetti'],['Hearts','hearts'],['Music notes','note'],['Sweat drop','sweat'],['!','bang'],['Puff of smoke','smoke'],['Dust','dust']].map(([l,k])=>[l,{do:'emote',kind:k}]);
+const PROPS=['🍕','🏆','🎂','☕','🎁','📦','🚀','💰','⭐','🔥','🎈','❤️'].map(e=>[e,{do:'prop',emoji:e,ms:3000}]);
+const TIME=[['Short pause',{do:'wait',ms:500}],['Long pause',{do:'wait',ms:1200}]];
+const NAMES={jump:'Hop',bigjump:'Big jump',flip:'Backflip',spin:'Spin',shake:'Shake it off',grow:'Grow'};
+const label=st=>st.do==='react'?(MOODS.find(m=>m[1].state===st.state)||[st.state])[0]:st.do==='emote'?(FX.find(f=>f[1].kind===st.kind)||[st.kind])[0]
+  :st.do==='prop'?'Hold '+st.emoji:st.do==='say'?'“'+st.text+'”':st.do==='wait'?(st.ms>=1000?'Long pause':'Short pause'):st.do==='poof'?(st.to==='home'?'Vanish home':'Vanish to the '+(st.to==='center'?'middle':st.to))
+  :st.do==='moment'?'Moment: '+st.name:NAMES[st.do]||st.do;
+function chips(id,list){const box=$(id);list.forEach(([l,st])=>{const b=document.createElement('button');b.type='button';b.textContent=l;b.addEventListener('click',()=>add({...st}));box.appendChild(b)})}
+chips('pMoves',MOVES);chips('pMoods',MOODS);chips('pFx',FX);chips('pProps',PROPS);chips('pTime',TIME);
+$('sayForm').addEventListener('submit',e=>{e.preventDefault();const t=$('sayText').value.trim();if(!t)return;add({do:'say',text:t});$('sayText').value=''});
+function syncVals(){const used=new Set((steps||[]).flatMap(s=>[...String(s.text||'').matchAll(/\{(\w{1,20})\}/g)].map(m=>m[1])));
+  for(const k of Object.keys(values))if(!used.has(k))delete values[k];for(const k of used)if(!(k in values))values[k]=k==='name'?'Sam':5;renderVals()}
+function renderSeq(){steps=steps||[];const ol=$('seq');ol.innerHTML='';
+  steps.forEach((st,i)=>{const li=document.createElement('li'),x=document.createElement('button');li.append(label(st));x.type='button';x.textContent='×';x.setAttribute('aria-label','Remove '+label(st));
+    x.addEventListener('click',()=>{steps.splice(i,1);renderSeq()});li.appendChild(x);ol.appendChild(li)});
+  $('seqEmpty').hidden=steps.length>0;$('play').disabled=!steps.length;$('clear').hidden=!steps.length;syncVals();
+  if(steps.length)show();else $('codeBox').hidden=true}
+function add(st){steps=steps||[];if(steps.length>=12){$('msg').textContent='That’s plenty! Twelve steps is the most a moment can have.';return}
+  $('msg').textContent='';steps.push(st);renderSeq();
+  // play just the new step, so tapping feels like poking the mascot
+  const one=st.do==='poof'&&st.to!=='home'?[st,{do:'wait',ms:900},{do:'poof',to:'home'}]:[st];pip.play(one,values)}
+$('clear').addEventListener('click',()=>{steps=[];renderSeq()});
+renderSeq();
+async function make(){const text=$('text').value.trim();if(text.length<3){$('msg').textContent='Describe the moment first.';$('text').focus();return}
+  $('go').disabled=true;$('msg').textContent='Building your sequence…';pip.react&&pip.setState('thinking');
   try{const r=await fetch('/api/choreo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const j=await r.json().catch(()=>({}));
     pip.setState('idle');if(!r.ok||!j.steps){$('msg').textContent=j.error||'Something went wrong. Try again?';return}
-    steps=j.steps;values=j.values||{};$('msg').textContent='';renderVals();show();pip.play(steps,values)}
+    steps=j.steps;values=j.values||{};$('msg').textContent='Here it is. Tweak any step above, then copy the code.';renderSeq();pip.play(steps,values);
+    $('seq').scrollIntoView({behavior:'smooth',block:'center'})}
   catch(e){pip.setState('idle');$('msg').textContent='Couldn’t reach the studio. Check your connection and try again.'}
   finally{$('go').disabled=false}}
 </script>

@@ -92,6 +92,6 @@ UIKit: `Critter.start(.init(mascotID: "YOUR_MASCOT_ID"))`.
 ## Links
 
 - [Docs](https://www.critterkit.com/docs)
-- [Moment studio: describe a moment, get the code](https://www.critterkit.com/studio)
+- [Custom moments studio: build a play() sequence and copy the code](https://www.critterkit.com/studio)
 - [Create a painted mascot](https://www.critterkit.com/paint)
 - [Live demo](https://www.critterkit.com/demo)
