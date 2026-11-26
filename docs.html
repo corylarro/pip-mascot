@@ -77,7 +77,7 @@ ul.list{margin:0 0 8px;padding-left:20px;display:flex;flex-direction:column;gap:
   <div class="layout">
     <nav class="toc" aria-label="On this page">
       <a href="#install">Install</a><a href="#frameworks">React and Next.js</a><a href="#ios">iOS (Swift)</a><a href="#placement">Placement and size</a><a href="#autopilot">Autopilot</a>
-      <a href="#api">Make the mascot react</a><a href="#events">Events</a><a href="#hiding">Hiding</a><a href="#theming">Theming</a><a href="#reference">All options</a>
+      <a href="#api">Make the mascot react</a><a href="#moments">Moments</a><a href="#events">Events</a><a href="#hiding">Hiding</a><a href="#theming">Theming</a><a href="#reference">All options</a>
     </nav>
 
     <main>
@@ -218,6 +218,19 @@ pip.say(<span class="s">'Saved!'</span>, { hold: <span class="s">1500</span> })<
         </table></div>
         <p style="margin-top:12px">Reactions and states: <code>idle</code>, <code>thinking</code>, <code>success</code>, <code>error</code>, <code>surprised</code>, <code>confused</code>, <code>love</code>, <code>wave</code>, <code>talking</code>, <code>sleeping</code>, <code>dance</code> (a little dance with music notes, for big wins), <code>sad</code> (slumps under a tiny rain cloud, for empty states) and <code>peek</code> (ducks down so only its head shows, then pops back up).</p>
         <p style="margin-top:12px"><strong>Seasonal touches.</strong> Little effects drift around the mascot by date, without changing how it looks: falling leaves in November, snow in December, confetti on New Year's, hearts before Valentine's Day and bats the week before Halloween. Turn them off with <code>seasonal="off"</code>, or pick one with <code>seasonal="snow"</code> (also <code>leaves</code>, <code>confetti</code>, <code>hearts</code>, <code>bats</code>). In Swift, set <code>seasonal: false</code> in the configuration, or call <code>The mascot.season(.snow)</code>.</p>
+      </section>
+
+      <section id="moments" aria-labelledby="h-moments">
+        <h2 id="h-moments">Moments</h2>
+        <p>Ready-made celebrations for the things that matter in your app. Each one picks the right animation, effects and words, and you can swap in your own line with <code>say</code>.</p>
+<pre><span class="t">const</span> pip = document.querySelector(<span class="s">'critter-mascot'</span>)
+
+pip.moment(<span class="s">'first-purchase'</span>)
+pip.moment(<span class="s">'streak'</span>, { count: 7 })
+pip.moment(<span class="s">'milestone'</span>, { say: <span class="s">'100 notes written!'</span>, at: <span class="s">'#notes'</span> })</pre>
+        <p>Available moments: <code>first-purchase</code>, <code>purchase</code>, <code>streak</code> (with <code>count</code>; bigger celebrations at 7, 30, 100 and other milestones), <code>milestone</code>, <code>level-up</code> (optional <code>count</code>), <code>goal</code>, <code>welcome</code>, <code>welcome-back</code>, <code>empty</code> and <code>oops</code>. Add <code>at</code> (an element or selector) to have the mascot walk over and celebrate right there.</p>
+        <p>On iOS: <code>Critter.moment(.firstPurchase)</code>, <code>Critter.moment(.streak(days: 7))</code>, <code>Critter.moment(.milestone, say: "100 notes!", at: "notes")</code>.</p>
+        <p>With <code>autopilot</code> on, the mascot also nudges people who start a form and then pause or head for another tab: it walks to the next empty field and says how many are left.</p>
       </section>
 
       <section id="events" aria-labelledby="h-ev">

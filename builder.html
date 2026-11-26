@@ -887,6 +887,26 @@ function definePipElement(engine,defaultConfig,painted,origin){
       finally{if(id===this._tour)this._touring=false}
       if(id===this._tour)return this.home()}
     stopTour(){this._tour=(this._tour||0)+1;this._touring=false;return this.home()}
+    // Ready-made moments for the things that matter in an app. moment('streak',{count:7}), moment('first-purchase'),
+    // moment('milestone',{say:'100 notes!'}). Add {at: element or selector} to have it walk over and celebrate there.
+    async moment(name,opts={}){const m=this._m;if(!m||this._hiddenByUser)return;const n=Number(opts.count)||0,big=[3,7,10,14,21,30,50,100,180,365,500,1000].includes(n);
+      const P={'first-purchase':{s:'dance',ms:3200,t:'Your first order! Thank you!',fx:['spark']},
+        purchase:{s:'success',ms:2200,t:'Thank you!',fx:['spark']},
+        streak:{s:big?'dance':'success',ms:big?3200:2200,t:n?(big?`${n} days in a row! That's a milestone!`:`${n} days in a row!`):'Streak!',fx:big?['spark']:[]},
+        milestone:{s:'dance',ms:3000,t:'Milestone reached!',fx:['spark']},
+        'level-up':{s:'success',ms:2200,t:n?`Level ${n}!`:'Level up!',fx:['spark'],hop:true},
+        goal:{s:'success',ms:2400,t:'Goal complete!',fx:['spark']},
+        welcome:{s:'love',ms:2400,t:'Welcome aboard! Glad you’re here.',fx:[]},
+        'welcome-back':{s:'wave',ms:2200,t:'Welcome back!',fx:[]},
+        empty:{s:'sad',ms:2600,t:'Nothing here yet. Let’s add something!',fx:[]},
+        oops:{s:'error',ms:2400,t:'That didn’t work. Let’s try again.',fx:[]}}[name];
+      if(!P){console.warn('[Critterkit] unknown moment: '+name);return}
+      const at=typeof opts.at==='string'?document.querySelector(opts.at):opts.at;
+      if(at&&this._float){await this.goTo(at,{mode:'celebrate',text:opts.say||P.t,state:P.s,stay:true})}
+      else{m.react(P.s,P.ms);m.say(opts.say||P.t,{hold:Math.max(1800,P.ms-400)})}
+      if(m.emote)P.fx.forEach(k=>m.emote(k));if(P.hop&&m.hop)m.hop(380);
+      this.dispatchEvent(new CustomEvent('critter:moment',{detail:{name,count:n||undefined}}));
+      if(at&&this._float){clearTimeout(this._homeT);this._homeT=setTimeout(()=>this.home(),P.ms+600)}}
     get state(){return this._m?this._m.state:null}
   }
 
@@ -975,6 +995,19 @@ function definePipElement(engine,defaultConfig,painted,origin){
       clicks=clicks.filter(c=>n-c.t<1100&&Math.hypot(c.x-e.clientX,c.y-e.clientY)<70);clicks.push({t:n,x:e.clientX,y:e.clientY});
       if(clicks.length>=4&&M()){clicks=[];log('Rage clicks detected','confused');M().react('confused',2800);
         host.goTo(btn||e.target,{text:pick(['Whoa, easy! Is that one stuck?','Something not working? I saw that.','Deep breaths. Want me to report it?'])})}},true);
+
+    /* half-filled forms: a gentle nudge on exit intent (mouse heading for the tab bar) or after a long pause */
+    const touched=new Set();let nudgeAt=0,nudgeT=null;
+    const formOf=t=>t&&t.closest&&t.closest('form');
+    const unfinished=()=>{for(const f of touched){if(!f.isConnected){touched.delete(f);continue}
+      const fields=[...f.querySelectorAll('input,select,textarea')].filter(i=>!['hidden','submit','button','checkbox','radio'].includes(i.type)&&!i.disabled&&i.offsetParent!==null);
+      const empty=fields.filter(i=>!String(i.value||'').trim()),filled=fields.length-empty.length;if(filled>0&&(empty.length||fields.length))return {f,empty,left:empty.length}}return null};
+    const nudge=why=>{const m=M(),u=unfinished();if(!m||!u||host._hiddenByUser||Date.now()-nudgeAt<60000||Date.now()-((lastSubmit&&lastSubmit.t)||0)<5000)return;nudgeAt=Date.now();
+      const target=u.empty[0]||u.f.querySelector('[type=submit],button:not([type])')||u.f;log(`Half-filled form (${why})`,'nudge');
+      host.goTo(target,{text:u.left===1?'Almost done, just one more!':u.left?`Almost there! ${u.left} more to go.`:'Don’t forget to hit send!'})};
+    on(document,'input',e=>{const f=formOf(e.target);if(!f||mine(e))return;touched.add(f);clearTimeout(nudgeT);nudgeT=setTimeout(()=>nudge('paused'),25000)},true);
+    on(document,'submit',e=>{touched.delete(e.target);clearTimeout(nudgeT)},true);
+    on(document,'mouseout',e=>{if(!e.relatedTarget&&e.clientY<=4)nudge('leaving')});
 
     /* tab switch, connection, crashes, copy */
     let hiddenAt=0;

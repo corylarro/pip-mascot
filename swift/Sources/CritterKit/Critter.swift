@@ -88,6 +88,50 @@ public enum Critter {
         go(to: target, sit: true, mood: .success, say: text)
     }
 
+    /// Ready-made moments for the things that matter in an app.
+    ///
+    ///     Critter.moment(.firstPurchase)
+    ///     Critter.moment(.streak(days: 7))
+    ///     Critter.moment(.milestone, say: "100 notes written!", at: "notes")
+    public enum Moment {
+        case firstPurchase, purchase, milestone, goal, welcome, welcomeBack, empty, oops
+        case streak(days: Int)
+        case levelUp(_ level: Int? = nil)
+
+        var name: String {
+            switch self {
+            case .firstPurchase: return "first-purchase"
+            case .purchase: return "purchase"
+            case .milestone: return "milestone"
+            case .goal: return "goal"
+            case .welcome: return "welcome"
+            case .welcomeBack: return "welcome-back"
+            case .empty: return "empty"
+            case .oops: return "oops"
+            case .streak: return "streak"
+            case .levelUp: return "level-up"
+            }
+        }
+        var count: Int? {
+            switch self {
+            case .streak(let days): return days
+            case .levelUp(let level): return level
+            default: return nil
+            }
+        }
+    }
+
+    /// Play a moment, optionally walking over to a SwiftUI view marked with `.critterTarget("id")` first.
+    public static func moment(_ moment: Moment, say text: String? = nil, at target: String? = nil) {
+        var options: [String: Any] = [:]
+        if let count = moment.count { options["count"] = count }
+        if let text { options["say"] = text }
+        if let target, let rect = CritterTargets.frames[target] {
+            options["rect"] = ["x": Double(rect.minX), "y": Double(rect.minY), "w": Double(rect.width), "h": Double(rect.height)]
+        }
+        call("moment", moment.name, options)
+    }
+
     /// Walk to a SwiftUI view marked with `.critterTarget("id")`.
     public static func go(to target: String, sit: Bool = true, mood: Mood? = nil, say text: String? = nil, stay: Bool = false) {
         guard let rect = CritterTargets.frames[target] else {
