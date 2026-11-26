@@ -119,6 +119,7 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
     <div class="layout">
       <div class="left">
         <div class="stage" id="stage"></div>
+      </div>
       <div>
         <div class="head">
           <h1 id="name">Your mascot</h1>
@@ -235,7 +236,7 @@ async function load() {
 }
 
 function showCredits(info) {
-  if (!info) { $('credits').textContent = 'Enter your key on the paint page to see your paints here.'; return; }
+  if (!info) { $('credits').textContent = 'Enter your key to see your credits here.'; return; }
   if (info.owner) { $('credits').textContent = 'Signed in with the owner passcode.'; return; }
   const n = info.credits;
   $('credits').textContent = `${n} credit${n === 1 ? '' : 's'}. A custom pose uses 1, a new mascot uses 5.`;
