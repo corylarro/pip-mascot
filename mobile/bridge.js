@@ -102,6 +102,7 @@
       return el.tour(list, { done: done || undefined });
     },
     stopTour: function () { if (el && el.stopTour) el.stopTour(); },
+    play: function (steps) { if (el && el.play) el.play(steps || []); },
     moment: function (name, opts) { if (!el || !el.moment) return; opts = opts || {}; if (opts.rect) { opts.at = stand(opts.rect); delete opts.rect; } el.moment(name, opts); },
     season: function (name) { if (el) el.setAttribute('seasonal', name || 'auto'); },
     hide: function () { if (el && el.hideMascot) el.hideMascot(); },

@@ -665,7 +665,7 @@ function definePipElement(engine,defaultConfig,painted,origin){
   const adapt=rig=>({rig,get state(){return rig.state},get cfg(){return rig.cfg},get focusEl(){return rig.focusEl},set focusEl(v){rig.focusEl=v},
     get lean(){return rig.lean},set lean(v){rig.lean=v},setState:s=>rig.setState(s),react:(s,ms)=>rig.react(s,ms),say:(t,o)=>rig.say(t,o),
     cover:on=>{rig.cover=!!on},lookAt:(x,y)=>rig.lookAt(x,y),lookAtCaret:i=>rig.lookAtCaret(i),bump:()=>rig.bump(),hop:v=>rig.hop(v),
-    point:(x,y)=>rig.point(x,y),unpoint:()=>rig.unpoint(),destroy:()=>rig.destroy(),land:()=>rig.land(),emote:(k,n)=>rig.emote(k,n),
+    point:(x,y)=>rig.point(x,y),unpoint:()=>rig.unpoint(),destroy:()=>rig.destroy(),land:()=>rig.land(),emote:(k,n)=>rig.emote(k,n),flip:(d,l)=>rig.flip(d,l),spin:()=>rig.spin(),bigJump:l=>rig.bigJump(l),landed:()=>rig.landed(),shake:()=>rig.shake(),growPop:(k,ms)=>rig.growPop(k,ms),fade:on=>rig.fade(on),prop:(c,ms)=>rig.prop(c,ms),burst:k=>rig.burst(k),
     walkStart:d=>rig.walkStart(d),walkStop:()=>rig.walkStop(),stepPhase:(i,p)=>rig.stepPhase(i,p),
     watch(inp){const secret=inp.type==='password';inp.addEventListener('focus',()=>{rig.focusEl=inp;if(secret)rig.cover=true;rig.lookAtCaret(inp)});
       inp.addEventListener('input',()=>{rig.lookAtCaret(inp);rig.bump()});inp.addEventListener('blur',()=>{rig.focusEl=null;if(secret)rig.cover=false})}});
@@ -887,6 +887,41 @@ function definePipElement(engine,defaultConfig,painted,origin){
       finally{if(id===this._tour)this._touring=false}
       if(id===this._tour)return this.home()}
     stopTour(){this._tour=(this._tour||0)+1;this._touring=false;return this.home()}
+    // Choreography: play a list of steps. Motion steps wait for themselves to finish; react, say, emote and prop
+    // start and carry on while the next step runs. Example:
+    //   pip.play([{do:'flip'},{do:'react',state:'dance',ms:2500},{do:'say',text:'Level 5!'},{do:'emote',kind:'spark'}])
+    async play(steps){const id=this._play=(this._play||0)+1,m=()=>this._m,W=ms=>wait(Math.max(0,Number(ms)||0));let moved=false;
+      for(const st of Array.isArray(steps)?steps.slice(0,24):[]){if(id!==this._play||!m()||this._hiddenByUser)return;const M=m(),d=String(st&&st.do||'').toLowerCase();
+        try{
+          if(d==='react'||d==='dance'){M.react(d==='dance'?'dance':st.state||'success',clamp(Number(st.ms)||2400,600,8000))}
+          else if(d==='say'){M.say(String(st.text||'').slice(0,90),{hold:clamp(Number(st.ms)||String(st.text||'').length*60+900,900,6000)})}
+          else if(d==='emote'){const k=st.kind;if(k==='confetti'||k==='hearts')M.burst&&M.burst(k);else M.emote&&M.emote(k,st.count)}
+          else if(d==='prop'){M.prop?M.prop(st.emoji,clamp(Number(st.ms)||2600,800,8000)):0}
+          else if(d==='jump'){M.hop&&M.hop(420);await W(650)}
+          else if(d==='bigjump'){if(M.bigJump&&this._float){M.bigJump(false);await W(90);await this._arc(820,this._size()[1]*1.25);M.landed&&M.landed();await W(250)}else await W(M.bigJump?M.bigJump():(M.hop(600),1100))}
+          else if(d==='flip'||d==='backflip'){if(M.flip&&this._float){M.flip(st.dir==='forward'?1:-1,false);await W(90);await this._arc(700,this._size()[1]*.85);M.landed&&M.landed();await W(200)}else await W(M.flip?M.flip(st.dir==='forward'?1:-1):(M.hop(600),900))}
+          else if(d==='spin'){await W(M.spin?M.spin():700)}
+          else if(d==='shake'){await W(M.shake?M.shake():900)}
+          else if(d==='grow'){await W(M.growPop?M.growPop(1.38,clamp(Number(st.ms)||900,400,3000)):600)}
+          else if(d==='poof'){await this._poof(st.to||'random');moved=true}
+          else if(d==='goto'){const el=typeof st.target==='string'?document.querySelector(st.target):null;if(el&&this._float){await this.goTo(el,{mode:st.mode||'point',text:st.text,stay:true});moved=true}}
+          else if(d==='moment'){this.moment(st.name,{count:st.count,say:st.text});await W(2400)}
+          else if(d==='wait'){await W(clamp(Number(st.ms)||600,0,5000))}
+        }catch(e){}
+      }
+      if(moved&&id===this._play){await wait(1800);if(id===this._play)this.home()}}
+    // lift the whole mascot along an arc (for flips and big jumps), so nothing gets cut off
+    _arc(ms,height){const p0=this._pos.slice(),t0=performance.now();if(RM<1){ms*=.6;height*=.4}
+      return new Promise(res=>{const step=now=>{const p=clamp((now-t0)/ms,0,1);this._setPos(p0[0],p0[1]-4*height*p*(1-p));if(p<1)requestAnimationFrame(step);else{this._setPos(p0[0],p0[1]);res()}};requestAnimationFrame(step)})}
+    async _poof(to){const M=this._m;if(!M||!this._float||!M.fade){return}
+      M.emote('smoke');await wait(120);M.fade(false);await wait(260);
+      const [w,h]=this._size();let x,y;const d=this._dock();
+      if(to==='home'){[x,y]=d}else if(to==='left'){x=12;y=d[1]}else if(to==='right'){x=innerWidth-w-12;y=d[1]}
+      else if(to==='center'){x=(innerWidth-w)/2;y=(innerHeight-h)/2}
+      else{const el=typeof to==='string'&&to!=='random'?document.querySelector(to):null;
+        if(el){const r=el.getBoundingClientRect();x=clamp(r.left+r.width/2-w/2,4,innerWidth-w-4);y=clamp(r.top-h*.93+4,4,innerHeight-h-4)}
+        else{x=12+Math.random()*(innerWidth-w-24);y=Math.max(12,innerHeight*.15+Math.random()*(innerHeight*.6-h))}}
+      this._docked=to==='home';this._setPos(x,y);M.emote('smoke');await wait(60);M.fade(true);await wait(500)}
     // Ready-made moments for the things that matter in an app. moment('streak',{count:7}), moment('first-purchase'),
     // moment('milestone',{say:'100 notes!'}). Add {at: element or selector} to have it walk over and celebrate there.
     async moment(name,opts={}){const m=this._m;if(!m||this._hiddenByUser)return;const n=Number(opts.count)||0,big=[3,7,10,14,21,30,50,100,180,365,500,1000].includes(n);

@@ -77,7 +77,7 @@ ul.list{margin:0 0 8px;padding-left:20px;display:flex;flex-direction:column;gap:
   <div class="layout">
     <nav class="toc" aria-label="On this page">
       <a href="#install">Install</a><a href="#frameworks">React and Next.js</a><a href="#ios">iOS (Swift)</a><a href="#placement">Placement and size</a><a href="#autopilot">Autopilot</a>
-      <a href="#api">Make the mascot react</a><a href="#moments">Moments</a><a href="#events">Events</a><a href="#hiding">Hiding</a><a href="#theming">Theming</a><a href="#reference">All options</a>
+      <a href="#api">Make the mascot react</a><a href="#moments">Moments</a><a href="#play">Choreography</a><a href="#events">Events</a><a href="#hiding">Hiding</a><a href="#theming">Theming</a><a href="#reference">All options</a>
     </nav>
 
     <main>
@@ -231,6 +231,19 @@ pip.moment(<span class="s">'milestone'</span>, { say: <span class="s">'100 notes
         <p>Available moments: <code>first-purchase</code>, <code>purchase</code>, <code>streak</code> (with <code>count</code>; bigger celebrations at 7, 30, 100 and other milestones), <code>milestone</code>, <code>level-up</code> (optional <code>count</code>), <code>goal</code>, <code>welcome</code>, <code>welcome-back</code>, <code>empty</code> and <code>oops</code>. Add <code>at</code> (an element or selector) to have the mascot walk over and celebrate right there.</p>
         <p>On iOS: <code>Critter.moment(.firstPurchase)</code>, <code>Critter.moment(.streak(days: 7))</code>, <code>Critter.moment(.milestone, say: "100 notes!", at: "notes")</code>.</p>
         <p>With <code>autopilot</code> on, the mascot also nudges people who start a form and then pause or head for another tab: it walks to the next empty field and says how many are left.</p>
+      </section>
+
+      <section id="play" aria-labelledby="h-play">
+        <h2 id="h-play">Choreography</h2>
+        <p>String moves together with <code>play</code>. The easiest way is the <a href="/studio">Moment studio</a>: describe what should happen in plain words, watch the mascot act it out, then copy the code.</p>
+<pre>pip.play([
+  { <span class="t">do</span>: <span class="s">'flip'</span> },
+  { <span class="t">do</span>: <span class="s">'react'</span>, state: <span class="s">'dance'</span>, ms: 2500 },
+  { <span class="t">do</span>: <span class="s">'say'</span>, text: <span class="s">'Level 5!'</span> },
+  { <span class="t">do</span>: <span class="s">'emote'</span>, kind: <span class="s">'spark'</span> }
+])</pre>
+        <p>Moves (each waits until it's done): <code>jump</code>, <code>bigjump</code>, <code>flip</code>, <code>spin</code>, <code>shake</code>, <code>grow</code>, <code>poof</code> (vanish and reappear, with <code>to</code>: home, center, left, right, random or a selector), <code>goto</code> (with <code>target</code>), <code>moment</code> and <code>wait</code>. These start and keep going while the next step runs: <code>react</code> (a mood, with <code>state</code> and <code>ms</code>), <code>say</code>, <code>emote</code> (spark, note, dust, bang, sweat, smoke, drops, confetti, hearts) and <code>prop</code> (hold up any emoji, like <code>{ do: 'prop', emoji: '🍕' }</code>).</p>
+        <p>On iOS: <code>Critter.play([["do": "flip"], ["do": "say", "text": "Level 5!"]])</code>.</p>
       </section>
 
       <section id="events" aria-labelledby="h-ev">
