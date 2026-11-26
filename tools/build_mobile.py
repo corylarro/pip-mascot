@@ -10,6 +10,6 @@ html=f'''<!DOCTYPE html><html><head><meta charset="utf-8">
 <script>{bridge}</script>
 </body></html>'''
 open(f'{root}/mobile/pip-mobile.html','w').write(html)
-os.makedirs(f'{root}/swift/Sources/PipMascot/Resources',exist_ok=True)
-open(f'{root}/swift/Sources/PipMascot/Resources/pip-mobile.html','w').write(html)
+os.makedirs(f'{root}/swift/Sources/CritterKit/Resources',exist_ok=True)
+open(f'{root}/swift/Sources/CritterKit/Resources/pip-mobile.html','w').write(html)
 print(len(html),'bytes')

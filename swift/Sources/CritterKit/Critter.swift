@@ -1,38 +1,38 @@
 import UIKit
 
-/// Pip: an animated mascot that lives on top of your app and reacts to what's happening.
+/// Critter: an animated mascot that lives on top of your app and reacts to what's happening.
 ///
-///     Pip.start(.init(mascotID: "your-mascot-id"))
-///     Pip.point(at: emailField, say: "That email looks off.")
-///     Pip.celebrate(at: streakCard, say: "7 days in a row!")
+///     Critter.start(.init(mascotID: "your-mascot-id"))
+///     Critter.point(at: emailField, say: "That email looks off.")
+///     Critter.celebrate(at: streakCard, say: "7 days in a row!")
 ///
 /// Call it from the main thread (SwiftUI views and button actions already are).
 @MainActor
-public enum Pip {
+public enum Critter {
 
     // MARK: - Types
 
-    public typealias Corner = PipCorner
-    public typealias Mood = PipMood
-    public typealias Event = PipEvent
-    public typealias Configuration = PipConfiguration
-    public typealias Season = PipSeason
+    public typealias Corner = CritterCorner
+    public typealias Mood = CritterMood
+    public typealias Event = CritterEvent
+    public typealias Configuration = CritterConfiguration
+    public typealias Season = CritterSeason
 
-    /// Called when Pip finishes loading, is tapped, hidden, shown, or changes state.
+    /// Called when Critter finishes loading, is tapped, hidden, shown, or changes state.
     public static var onEvent: ((Event) -> Void)?
 
     // MARK: - Start and stop
 
-    /// Show Pip on top of your app. Call again with a new configuration to change it.
+    /// Show Critter on top of your app. Call again with a new configuration to change it.
     public static func start(_ configuration: Configuration = Configuration()) {
-        PipOverlay.log("starting (\(configuration.mascotID.map { "painted " + $0 } ?? "drawn mascot"))")
-        PipOverlay.shared.start(configuration)
-        if configuration.autopilot { PipAutopilot.shared.start() } else { PipAutopilot.shared.stop() }
+        CritterOverlay.log("starting (\(configuration.mascotID.map { "painted " + $0 } ?? "drawn mascot"))")
+        CritterOverlay.shared.start(configuration)
+        if configuration.autopilot { CritterAutopilot.shared.start() } else { CritterAutopilot.shared.stop() }
     }
 
     public static func stop() {
-        PipAutopilot.shared.stop()
-        PipOverlay.shared.stop()
+        CritterAutopilot.shared.stop()
+        CritterOverlay.shared.stop()
     }
 
     // MARK: - Reactions
@@ -78,19 +78,19 @@ public enum Pip {
         go(to: screenRect(of: view), sit: true, mood: .success, say: text)
     }
 
-    /// Point at a SwiftUI view marked with `.pipTarget("id")`.
+    /// Point at a SwiftUI view marked with `.critterTarget("id")`.
     public static func point(at target: String, say text: String? = nil, mood: Mood = .error) {
         go(to: target, sit: false, mood: mood, say: text)
     }
 
-    /// Sit on a SwiftUI view marked with `.pipTarget("id")` and cheer.
+    /// Sit on a SwiftUI view marked with `.critterTarget("id")` and cheer.
     public static func celebrate(at target: String, say text: String? = nil) {
         go(to: target, sit: true, mood: .success, say: text)
     }
 
-    /// Walk to a SwiftUI view marked with `.pipTarget("id")`.
+    /// Walk to a SwiftUI view marked with `.critterTarget("id")`.
     public static func go(to target: String, sit: Bool = true, mood: Mood? = nil, say text: String? = nil, stay: Bool = false) {
-        guard let rect = PipTargets.frames[target] else {
+        guard let rect = CritterTargets.frames[target] else {
             if let mood { react(mood) }
             if let text { say(text) }
             return
@@ -98,16 +98,16 @@ public enum Pip {
         go(to: rect, sit: sit, mood: mood, say: text, stay: stay)
     }
 
-    /// Walk people through a screen: Pip points at each `.pipTarget` in turn, then heads home.
+    /// Walk people through a screen: Critter points at each `.critterTarget` in turn, then heads home.
     ///
-    ///     Pip.tour([("plan", "Pick a plan"), ("start", "Then tap here")], done: "You're all set!")
+    ///     Critter.tour([("plan", "Pick a plan"), ("start", "Then tap here")], done: "You're all set!")
     public static func tour(_ steps: [(target: String, say: String)], done: String? = nil) {
         let list: [[String: Any]] = steps.compactMap { step in
-            guard let r = PipTargets.frames[step.target] else { return nil }
+            guard let r = CritterTargets.frames[step.target] else { return nil }
             let rect: [String: Any] = ["x": Double(r.minX), "y": Double(r.minY), "w": Double(r.width), "h": Double(r.height)]
             return ["r": rect, "text": step.say, "mode": "point"]
         }
-        PipOverlay.log("tour: \(list.count) of \(steps.count) targets found")
+        CritterOverlay.log("tour: \(list.count) of \(steps.count) targets found")
         guard !list.isEmpty else { return }
         if let done { call("tour", list, done) } else { call("tour", list, NSNull()) }
     }
@@ -115,10 +115,10 @@ public enum Pip {
     /// Force a seasonal effect (handy for screenshots), or go back to picking by date with `.auto`.
     public static func season(_ season: Season) { call("season", season.rawValue) }
 
-    /// Stop a tour early and send Pip home.
+    /// Stop a tour early and send Critter home.
     public static func stopTour() { call("stopTour") }
 
-    /// Walk to a rectangle in screen coordinates. Pip walks home afterwards unless `stay` is true.
+    /// Walk to a rectangle in screen coordinates. Critter walks home afterwards unless `stay` is true.
     public static func go(to rect: CGRect, sit: Bool = true, mood: Mood? = nil, say text: String? = nil, stay: Bool = false) {
         let r: [String: Any] = ["x": Double(rect.minX), "y": Double(rect.minY), "w": Double(rect.width), "h": Double(rect.height)]
         var options: [String: Any] = ["mode": sit ? "sit" : "point", "stay": stay]
@@ -129,9 +129,9 @@ public enum Pip {
 
     // MARK: - Watching work
 
-    /// Wrap async work: Pip thinks while it runs, then cheers or looks worried.
+    /// Wrap async work: Critter thinks while it runs, then cheers or looks worried.
     ///
-    ///     try await Pip.watch(success: "Saved!") { try await api.save(note) }
+    ///     try await Critter.watch(success: "Saved!") { try await api.save(note) }
     @discardableResult
     public static func watch<T>(thinking: String? = nil,
                                 success: String? = nil,
@@ -156,12 +156,12 @@ public enum Pip {
     // MARK: - Helpers
 
     static func call(_ function: String, _ args: Any...) {
-        PipOverlay.shared.call("Pip." + function, args)
+        CritterOverlay.shared.call("Pip." + function, args)
     }
 
     private static func ms(_ seconds: TimeInterval) -> Int { Int((seconds * 1000).rounded()) }
 
-    /// Pip's layer covers the whole screen, so window coordinates line up with it.
+    /// Critter's layer covers the whole screen, so window coordinates line up with it.
     private static func screenRect(of view: UIView) -> CGRect {
         view.convert(view.bounds, to: nil)
     }
@@ -169,15 +169,15 @@ public enum Pip {
 
 // MARK: - Types
 
-public enum PipCorner: String, Sendable {
+public enum CritterCorner: String, Sendable {
     case bottomRight = "bottom-right", bottomLeft = "bottom-left", topRight = "top-right", topLeft = "top-left"
 }
 
-public enum PipSeason: String, Sendable {
+public enum CritterSeason: String, Sendable {
     case auto, off, snow, leaves, confetti, hearts, bats
 }
 
-public enum PipMood: String, Sendable {
+public enum CritterMood: String, Sendable {
     case idle, thinking, success, error, surprised, confused, love, wave, talking, sleeping
     /// A happy little dance with music notes. Good for big wins.
     case dance
@@ -187,15 +187,15 @@ public enum PipMood: String, Sendable {
     case peek
 }
 
-public enum PipEvent: Sendable {
+public enum CritterEvent: Sendable {
     case ready, failedToLoad, tapped, hidden, shown
     case stateChanged(String)
 }
 
-public struct PipConfiguration: Sendable {
+public struct CritterConfiguration: Sendable {
     /// Your painted mascot's id from the paint page. Leave nil for the drawn mascot.
     public var mascotID: String?
-    public var corner: PipCorner
+    public var corner: CritterCorner
     /// Distance from the screen edges, on top of the safe area.
     public var offset: CGPoint
     /// Width of the mascot in points.
@@ -204,15 +204,15 @@ public struct PipConfiguration: Sendable {
     public var greeting: String?
     /// React to text fields, passwords, the keyboard and coming back to the app.
     public var autopilot: Bool
-    /// Let people tap a small close button to put Pip away.
+    /// Let people tap a small close button to put Critter away.
     public var hideable: Bool
-    /// Seconds of quiet before Pip dozes off. 0 keeps it awake.
+    /// Seconds of quiet before Critter dozes off. 0 keeps it awake.
     public var sleepAfter: TimeInterval
-    /// Holiday touches that drift around Pip by date (leaves in November, snow in December…). They never change how Pip looks.
+    /// Holiday touches that drift around Critter by date (leaves in November, snow in December…). They never change how Critter looks.
     public var seasonal: Bool
 
     public init(mascotID: String? = nil,
-                corner: PipCorner = .bottomRight,
+                corner: CritterCorner = .bottomRight,
                 offset: CGPoint = CGPoint(x: 10, y: 6),
                 size: CGFloat = 104,
                 greets: Bool = true,

@@ -1,12 +1,12 @@
 import SwiftUI
-import PipMascot
+import CritterKit
 
 @main
-struct PipDemoApp: App {
+struct CritterDemoApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .pipMascot(PipDemoSettings.configuration)
+                .critterMascot(CritterDemoSettings.configuration)
         }
     }
 }

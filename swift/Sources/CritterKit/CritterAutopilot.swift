@@ -1,10 +1,10 @@
 import UIKit
 
-/// Watches the app and lets Pip react by itself:
+/// Watches the app and lets Critter react by itself:
 /// typing in a field, password fields, the keyboard, coming back to the app, and screenshots.
 @MainActor
-final class PipAutopilot: NSObject {
-    static let shared = PipAutopilot()
+final class CritterAutopilot: NSObject {
+    static let shared = CritterAutopilot()
 
     private var running = false
     private var backgroundedAt: Date?
@@ -33,36 +33,36 @@ final class PipAutopilot: NSObject {
 
     @objc private func fieldBegan(_ note: Notification) {
         guard let field = note.object as? UITextField else { return }
-        Pip.coverEyes(field.isSecureTextEntry)
+        Critter.coverEyes(field.isSecureTextEntry)
         let r = field.convert(field.bounds, to: nil)
-        Pip.look(at: CGPoint(x: r.midX, y: r.midY))
+        Critter.look(at: CGPoint(x: r.midX, y: r.midY))
     }
 
     @objc private func fieldEnded(_ note: Notification) {
-        Pip.coverEyes(false)
+        Critter.coverEyes(false)
     }
 
     @objc private func textViewBegan(_ note: Notification) {
         guard let view = note.object as? UITextView else { return }
-        Pip.coverEyes(false)
+        Critter.coverEyes(false)
         let r = view.convert(view.bounds, to: nil)
-        Pip.look(at: CGPoint(x: r.midX, y: r.midY))
+        Critter.look(at: CGPoint(x: r.midX, y: r.midY))
     }
 
-    // MARK: Keyboard: Pip sits on top of it so it stays in view
+    // MARK: Keyboard: Critter sits on top of it so it stays in view
 
     @objc private func keyboardChanged(_ note: Notification) {
         guard let frame = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue else { return }
         let screenHeight = UIScreen.main.bounds.height
         if frame.minY >= screenHeight - 1 || frame.height < 60 {
-            Pip.call("keyboard", NSNull())
+            Critter.call("keyboard", NSNull())
         } else {
-            Pip.call("keyboard", Double(frame.minY))
+            Critter.call("keyboard", Double(frame.minY))
         }
     }
 
     @objc private func keyboardHiding(_ note: Notification) {
-        Pip.call("keyboard", NSNull())
+        Critter.call("keyboard", NSNull())
     }
 
     // MARK: Coming back
@@ -76,13 +76,13 @@ final class PipAutopilot: NSObject {
         backgroundedAt = nil
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 700_000_000)
-            Pip.react(.wave)
-            Pip.say("Welcome back!")
+            Critter.react(.wave)
+            Critter.say("Welcome back!")
         }
     }
 
     @objc private func tookScreenshot() {
-        Pip.react(.love)
-        Pip.say("Ooh, did I make it in?")
+        Critter.react(.love)
+        Critter.say("Ooh, did I make it in?")
     }
 }

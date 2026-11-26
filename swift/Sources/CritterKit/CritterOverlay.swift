@@ -3,7 +3,7 @@ import WebKit
 
 /// A see-through window above the app that holds the mascot.
 /// Only taps on the mascot itself are caught; everything else falls through to the app.
-final class PipWindow: UIWindow {
+final class CritterWindow: UIWindow {
     var hitRect: CGRect = .zero
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
@@ -12,8 +12,8 @@ final class PipWindow: UIWindow {
     }
 }
 
-/// Root of Pip's window. It hands status bar and rotation decisions back to the app's own screens.
-final class PipViewController: UIViewController {
+/// Root of Critter's window. It hands status bar and rotation decisions back to the app's own screens.
+final class CritterViewController: UIViewController {
     override func loadView() {
         let v = UIView()
         v.backgroundColor = .clear
@@ -22,7 +22,7 @@ final class PipViewController: UIViewController {
 
     private var appRoot: UIViewController? {
         guard let scene = view.window?.windowScene else { return nil }
-        let appWindows = scene.windows.filter { !($0 is PipWindow) }
+        let appWindows = scene.windows.filter { !($0 is CritterWindow) }
         return (appWindows.first { $0.isKeyWindow } ?? appWindows.first)?.rootViewController
     }
 
@@ -38,15 +38,15 @@ final class PipViewController: UIViewController {
 
     override func viewSafeAreaInsetsDidChange() {
         super.viewSafeAreaInsetsDidChange()
-        PipOverlay.shared.safeAreaChanged()
+        CritterOverlay.shared.safeAreaChanged()
     }
 }
 
 /// Receives messages from the web view and passes them to the overlay on the main thread.
-final class PipWebDelegate: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
-    weak var owner: PipOverlay?
+final class CritterWebDelegate: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+    weak var owner: CritterOverlay?
 
-    init(owner: PipOverlay) {
+    init(owner: CritterOverlay) {
         self.owner = owner
     }
 
@@ -56,13 +56,13 @@ final class PipWebDelegate: NSObject, WKNavigationDelegate, WKScriptMessageHandl
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        PipOverlay.log("page failed: \(error.localizedDescription)")
-        Task { @MainActor in Pip.onEvent?(.failedToLoad) }
+        CritterOverlay.log("page failed: \(error.localizedDescription)")
+        Task { @MainActor in Critter.onEvent?(.failedToLoad) }
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        PipOverlay.log("page failed to start: \(error.localizedDescription)")
-        Task { @MainActor in Pip.onEvent?(.failedToLoad) }
+        CritterOverlay.log("page failed to start: \(error.localizedDescription)")
+        Task { @MainActor in Critter.onEvent?(.failedToLoad) }
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
@@ -79,20 +79,20 @@ final class PipWebDelegate: NSObject, WKNavigationDelegate, WKScriptMessageHandl
 }
 
 @MainActor
-final class PipOverlay {
-    static let shared = PipOverlay()
+final class CritterOverlay {
+    static let shared = CritterOverlay()
 
-    private var window: PipWindow?
+    private var window: CritterWindow?
     private var webView: WKWebView?
-    private var delegate: PipWebDelegate?
+    private var delegate: CritterWebDelegate?
     private var loaded = false
     private var pending: [String] = []
-    private var config = Pip.Configuration()
+    private var config = Critter.Configuration()
     private var sceneObserver: NSObjectProtocol?
 
     // MARK: Lifecycle
 
-    func start(_ configuration: Pip.Configuration) {
+    func start(_ configuration: Critter.Configuration) {
         config = configuration
         if window == nil {
             attach()
@@ -127,19 +127,19 @@ final class PipOverlay {
             // Called before the app's window exists (for example in App.init); try again once a scene is active.
             if sceneObserver == nil {
                 sceneObserver = NotificationCenter.default.addObserver(forName: UIScene.didActivateNotification, object: nil, queue: .main) { _ in
-                    Task { @MainActor in PipOverlay.shared.sceneBecameActive() }
+                    Task { @MainActor in CritterOverlay.shared.sceneBecameActive() }
                 }
             }
             return
         }
 
-        let w = PipWindow(windowScene: scene)
+        let w = CritterWindow(windowScene: scene)
         w.windowLevel = UIWindow.Level.normal + 1
         w.backgroundColor = .clear
-        let vc = PipViewController()
+        let vc = CritterViewController()
         w.rootViewController = vc
 
-        let d = PipWebDelegate(owner: self)
+        let d = CritterWebDelegate(owner: self)
         let cfg = WKWebViewConfiguration()
         cfg.userContentController.add(d, name: "pip")
         cfg.allowsInlineMediaPlayback = true
@@ -154,7 +154,7 @@ final class PipOverlay {
         web.scrollView.contentInsetAdjustmentBehavior = .never
         web.navigationDelegate = d
         if #available(iOS 16.4, *) {
-            web.isInspectable = true   // lets you inspect Pip from Safari's Develop menu while testing
+            web.isInspectable = true   // lets you inspect Critter from Safari's Develop menu while testing
         }
         vc.view.addSubview(web)
         NSLayoutConstraint.activate([
@@ -188,10 +188,10 @@ final class PipOverlay {
         guard let url = Bundle.module.url(forResource: "pip-mobile", withExtension: "html"),
               let html = try? String(contentsOf: url, encoding: .utf8) else {
             log("could not find pip-mobile.html in the package resources")
-            Pip.onEvent?(.failedToLoad)
+            Critter.onEvent?(.failedToLoad)
             return
         }
-        // The base URL lets the page load painted mascots from Pip's servers.
+        // The base URL lets the page load painted mascots from Critter's servers.
         web.loadHTMLString(html, baseURL: URL(string: "https://www.critterkit.com/"))
     }
 
@@ -256,15 +256,15 @@ final class PipOverlay {
     private func run(_ js: String) {
         guard !js.isEmpty else { return }
         webView?.evaluateJavaScript(js) { _, error in
-            if let error { PipOverlay.log("script error: \(error.localizedDescription) in \(js.prefix(60))") }
+            if let error { CritterOverlay.log("script error: \(error.localizedDescription) in \(js.prefix(60))") }
         }
     }
 
     nonisolated static func log(_ text: String) {
-        print("[Pip] \(text)")
+        print("[Critterkit] \(text)")
     }
 
-    private func log(_ text: String) { PipOverlay.log(text) }
+    private func log(_ text: String) { CritterOverlay.log(text) }
 
     // MARK: Messages from the page
 
@@ -276,12 +276,12 @@ final class PipOverlay {
             window?.hitRect = CGRect(x: num("x"), y: num("y"), width: num("w"), height: num("h"))
         case "log": log((m["level"] as? String == "error" ? "page error: " : "page: ") + (m["text"] as? String ?? ""))
         case "loaded": log("bridge ready")
-        case "ready": log("mascot ready"); Pip.onEvent?(.ready)
-        case "error": log("painted mascot failed to load"); Pip.onEvent?(.failedToLoad)
-        case "tap": Pip.onEvent?(.tapped)
-        case "hide": Pip.onEvent?(.hidden)
-        case "show": Pip.onEvent?(.shown)
-        case "statechange": Pip.onEvent?(.stateChanged(m["state"] as? String ?? ""))
+        case "ready": log("mascot ready"); Critter.onEvent?(.ready)
+        case "error": log("painted mascot failed to load"); Critter.onEvent?(.failedToLoad)
+        case "tap": Critter.onEvent?(.tapped)
+        case "hide": Critter.onEvent?(.hidden)
+        case "show": Critter.onEvent?(.shown)
+        case "statechange": Critter.onEvent?(.stateChanged(m["state"] as? String ?? ""))
         default: break
         }
     }

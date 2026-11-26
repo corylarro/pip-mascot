@@ -1,8 +1,8 @@
 import SwiftUI
-import PipMascot
+import CritterKit
 
-// Stillwater: a small meditation app that shows off Pip.
-// Sign up, then keep a streak, check in on your mood and breathe with Pip.
+// Stillwater: a small meditation app that shows off Critter.
+// Sign up, then keep a streak, check in on your mood and breathe with Critter.
 // Long-press the Stillwater logo or your initial for the demo controls.
 // Needs iOS 17 or later.
 
@@ -109,7 +109,7 @@ struct SignUpView: View {
                         .focused($focus, equals: .name)
                         .onSubmit { focus = .email }
                         .modifier(StillField(icon: "person", focused: focus == .name, invalid: invalid == .name))
-                        .pipTarget("name")
+                        .critterTarget("name")
 
                     TextField("", text: $email, prompt: Text("Email").foregroundStyle(Still.mist))
                         .keyboardType(.emailAddress)
@@ -120,14 +120,14 @@ struct SignUpView: View {
                         .focused($focus, equals: .email)
                         .onSubmit { focus = .password }
                         .modifier(StillField(icon: "envelope", focused: focus == .email, invalid: invalid == .email))
-                        .pipTarget("email")
+                        .critterTarget("email")
 
                     SecureField("", text: $password, prompt: Text("Password, 8 or more characters").foregroundStyle(Still.mist))
                         .submitLabel(.go)
                         .focused($focus, equals: .password)
                         .onSubmit { createAccount() }
                         .modifier(StillField(icon: "lock", focused: focus == .password, invalid: invalid == .password))
-                        .pipTarget("password")
+                        .critterTarget("password")
 
                     if let hint {
                         Text(hint)
@@ -189,13 +189,13 @@ struct SignUpView: View {
         let failing = demo.serverDown
         Task {
             do {
-                try await Pip.watch(thinking: "Setting things up…",
+                try await Critter.watch(thinking: "Setting things up…",
                                     success: "Welcome, \(first)!",
                                     failure: "The server's having a moment. Try again?") {
                     try await Task.sleep(nanoseconds: 1_400_000_000)
                     if failing { throw URLError(.badServerResponse) }
                 }
-                // Give Pip's cheer a moment on screen before moving on.
+                // Give Critter's cheer a moment on screen before moving on.
                 try? await Task.sleep(nanoseconds: 1_300_000_000)
                 withAnimation(.easeInOut(duration: 0.45)) { demo.userName = first }
             } catch {
@@ -210,7 +210,7 @@ struct SignUpView: View {
             invalid = field
             hint = text
         }
-        Pip.point(at: field.rawValue, say: pip)
+        Critter.point(at: field.rawValue, say: pip)
     }
 
     private func clear(_ field: Field) {
@@ -335,7 +335,7 @@ struct HomeView: View {
                                      startPoint: .topLeading, endPoint: .bottomTrailing))
         )
         .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).strokeBorder(Still.line, lineWidth: 1))
-        .pipTarget("streak")
+        .critterTarget("streak")
     }
 
     private var feelings: some View {
@@ -364,7 +364,7 @@ struct HomeView: View {
                 }
             }
         }
-        .pipTarget("feelings")
+        .critterTarget("feelings")
     }
 
     private var sessionCard: some View {
@@ -408,7 +408,7 @@ struct HomeView: View {
         .padding(20)
         .background(RoundedRectangle(cornerRadius: 28, style: .continuous).fill(Still.card))
         .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).strokeBorder(Still.line, lineWidth: 1))
-        .pipTarget("session")
+        .critterTarget("session")
     }
 
     private var sessionButtonTitle: String {
@@ -440,16 +440,16 @@ struct HomeView: View {
         withAnimation(.easeOut(duration: 0.2)) { feeling = f }
         switch f {
         case .calm:
-            Pip.react(.love)
-            Pip.say("Love that. Let's keep it going.")
+            Critter.react(.love)
+            Critter.say("Love that. Let's keep it going.")
         case .tired:
-            Pip.react(.sleeping, for: 2.2)
-            Pip.say("Same. A short one tonight?")
+            Critter.react(.sleeping, for: 2.2)
+            Critter.say("Same. A short one tonight?")
         case .stressed:
-            Pip.go(to: "session", sit: true, mood: .love, say: "Let's breathe it out together.")
+            Critter.go(to: "session", sit: true, mood: .love, say: "Let's breathe it out together.")
         case .great:
-            Pip.react(.dance, for: 3)
-            Pip.say("Yes! Ride that wave.")
+            Critter.react(.dance, for: 3)
+            Critter.say("Yes! Ride that wave.")
         }
     }
 
@@ -458,13 +458,13 @@ struct HomeView: View {
             try? await Task.sleep(nanoseconds: 600_000_000)
             withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) { demo.today = .done }
             bump += 1
-            Pip.celebrate(at: "streak", say: "\(demo.streak) days in a row! So proud of you.")
+            Critter.celebrate(at: "streak", say: "\(demo.streak) days in a row! So proud of you.")
         }
     }
 
     private func rest() {
         withAnimation(.easeOut(duration: 0.25)) { demo.today = .rest }
-        Pip.go(to: "streak", sit: true, mood: .love, say: "Rest days count too. See you tomorrow?")
+        Critter.go(to: "streak", sit: true, mood: .love, say: "Rest days count too. See you tomorrow?")
     }
 }
 
@@ -526,7 +526,7 @@ struct BreathingView: View {
     }
 
     private func run() async {
-        Pip.say("Breathe with me.", for: 2.4)
+        Critter.say("Breathe with me.", for: 2.4)
         for c in 1...cycles {
             cycle = c
             withAnimation(.easeInOut(duration: 4)) { inhale = true }
@@ -687,62 +687,62 @@ struct DemoMenu: View {
 
     var body: some View {
         Toggle("Simulate a server outage", isOn: $demo.serverDown)
-        Menu("Move Pip") {
+        Menu("Move Critter") {
             Button("Bottom right") { move(.bottomRight) }
             Button("Bottom left") { move(.bottomLeft) }
             Button("Top right") { move(.topRight) }
             Button("Top left") { move(.topLeft) }
         }
-        Menu("Make Pip react") {
-            Button("Wave") { Pip.react(.wave); Pip.say("Hello there!") }
-            Button("Cheer") { Pip.react(.success); Pip.say("We did it!") }
-            Button("Love") { Pip.react(.love) }
-            Button("Dance") { Pip.react(.dance, for: 3); Pip.say("Big win!") }
-            Button("Sad") { Pip.react(.sad, for: 3); Pip.say("Nothing here yet…") }
-            Button("Peek") { Pip.react(.peek, for: 2.5) }
-            Button("Nap") { Pip.set(.sleeping) }
-            Button("Wake up") { Pip.set(.idle) }
+        Menu("Make Critter react") {
+            Button("Wave") { Critter.react(.wave); Critter.say("Hello there!") }
+            Button("Cheer") { Critter.react(.success); Critter.say("We did it!") }
+            Button("Love") { Critter.react(.love) }
+            Button("Dance") { Critter.react(.dance, for: 3); Critter.say("Big win!") }
+            Button("Sad") { Critter.react(.sad, for: 3); Critter.say("Nothing here yet…") }
+            Button("Peek") { Critter.react(.peek, for: 2.5) }
+            Button("Nap") { Critter.set(.sleeping) }
+            Button("Wake up") { Critter.set(.idle) }
         }
         Menu("Seasonal") {
-            Button("By date") { Pip.season(.auto) }
-            Button("Leaves") { Pip.season(.leaves) }
-            Button("Snow") { Pip.season(.snow) }
-            Button("Confetti") { Pip.season(.confetti) }
-            Button("Hearts") { Pip.season(.hearts) }
-            Button("Bats") { Pip.season(.bats) }
-            Button("Off") { Pip.season(.off) }
+            Button("By date") { Critter.season(.auto) }
+            Button("Leaves") { Critter.season(.leaves) }
+            Button("Snow") { Critter.season(.snow) }
+            Button("Confetti") { Critter.season(.confetti) }
+            Button("Hearts") { Critter.season(.hearts) }
+            Button("Bats") { Critter.season(.bats) }
+            Button("Off") { Critter.season(.off) }
         }
         Button("Give the tour") {
-            // Let the menu finish closing before Pip starts walking.
+            // Let the menu finish closing before Critter starts walking.
             Task {
                 try? await Task.sleep(nanoseconds: 500_000_000)
-                Pip.tour([("streak", "This is your streak. Keep it going!"),
+                Critter.tour([("streak", "This is your streak. Keep it going!"),
                           ("feelings", "Tell me how you feel each night."),
                           ("session", "Then breathe with me here.")],
                          done: "That's it. Enjoy!")
             }
         }
-        Button("Hide Pip") { Pip.hide() }
-        Button("Show Pip") { Pip.show() }
+        Button("Hide Critter") { Critter.hide() }
+        Button("Show Critter") { Critter.show() }
         Button("Restart the demo", role: .destructive) {
             withAnimation(.easeInOut(duration: 0.4)) { demo.reset() }
-            Pip.home()
+            Critter.home()
         }
     }
 
-    private func move(_ corner: Pip.Corner) {
-        var config = PipDemoSettings.configuration
+    private func move(_ corner: Critter.Corner) {
+        var config = CritterDemoSettings.configuration
         config.corner = corner
         config.greets = false
-        Pip.start(config)
+        Critter.start(config)
     }
 }
 
-enum PipDemoSettings {
+enum CritterDemoSettings {
     /// Swap in your own mascot id from the paint page. Set it to nil to try the drawn mascot.
-    static let configuration = Pip.Configuration(
+    static let configuration = Critter.Configuration(
         mascotID: "fd89vpfu99qm",
-        greeting: "Hi! I'm Pip. I'll keep you company."
+        greeting: "Hi! I'm Critter. I'll keep you company."
     )
 }
 

@@ -2,14 +2,14 @@
 import PackageDescription
 
 let package = Package(
-    name: "PipMascot",
+    name: "CritterKit",
     platforms: [.iOS(.v15)],
     products: [
-        .library(name: "PipMascot", targets: ["PipMascot"])
+        .library(name: "CritterKit", targets: ["CritterKit"])
     ],
     targets: [
         .target(
-            name: "PipMascot",
+            name: "CritterKit",
             resources: [.copy("Resources/pip-mobile.html")]
         )
     ]
