@@ -145,6 +145,7 @@ class PaintRig{
       lookX:new Spring(0,120,16),lookY:new Spring(0,120,16),tilt:new Spring(0,90,12),lean:new Spring(0,90,12),zzz:new Spring(0),q:new Spring(0)};
     for(const [k,v0] of Object.entries(FBASE))this.s['f_'+k]=new Spring(v0,170,20);
     this.squash=new Spring(1,320,13);this.sink=new Spring(0,150,17);this.slump=new Spring(0,120,14);this.groove=new Spring(0,90,12);this.state='idle';this.look=[0,0];this.timer=null;this.cover=false;
+    this.stretch=new Spring(0,38,7.5);this.sway=new Spring(0,60,8);this.walkDir=0;this.walkT=0;this.nextIdle=performance.now()+7000;this.yawnUntil=0;this.yawned=false;this.idleLook=0;this.idleTilt=0;
     this.jumpY=0;this.jumpV=0;this.shake=0;this.t=0;this.nextBlink=1.2;this.blinkStart=-1;this.parts=[];this.pokes=[];this.lastAct=performance.now();this.lastPointer=0;this.nextGlance=0;
     const on=(t,ev,fn,o)=>{t.addEventListener(ev,fn,o);this._ls.push([t,ev,fn,o])};
     this._resize();on(window,'resize',()=>this._resize());
@@ -159,13 +160,25 @@ class PaintRig{
   destroy(){this._dead=true;cancelAnimationFrame(this._raf);clearInterval(this._iv);clearTimeout(this.timer);clearTimeout(this._hopT);if(this._ro)this._ro.disconnect();this._ls.forEach(([t,ev,fn,o])=>t.removeEventListener(ev,fn,o))}
   get lean(){return this.s.lean.t}set lean(v){this.s.lean.t=v}
   bump(){this.squash.v-=1.4}
+  // walking with weight: a little crouch to start, a bobbing, rocking gait, and a wobble when it stops
+  walkStart(dir){this.walkDir=dir||1e-4;this.walkT=0;this.step=null;this.squash.v-=1.4*RM;this._act()}
+  walkStop(){if(!this.walkDir)return;this.walkDir=0;this.step=null;this.squash.v-=1.5*RM;this.emote('dust',5)}
+  // hop-walk: the page moves the mascot in little hops and tells us where we are in each one
+  stepPhase(i,p){if(this.step&&i!==this.step.i){this.squash.v-=.6*RM;if(i%2===0)this.emote('dust',2)}this.step={i,p}}
+  // small things it does on its own when nobody's interacting, so it never looks like a loop
+  _idleAction(now){const a=pick(['look','look','stretch','bounce','sway']);
+    if(a==='look'){const s=Math.random()<.5?-1:1;this.look=[.95*s,.05];this.idleTilt=5*s;this.idleLook=now+2600;setTimeout(()=>{if(this.state==='idle'){this.look=[-.95*s,.05];this.idleTilt=-5*s}},900);setTimeout(()=>{this.idleTilt=0;if(this.state==='idle')this.look=[0,0]},1900)}
+    if(a==='stretch'){this.stretch.t=1;setTimeout(()=>{this.stretch.t=0;this.squash.v-=.8},850)}
+    if(a==='bounce'){this.hop(120);setTimeout(()=>this.hop(150),330)}
+    if(a==='sway'){const s=Math.random()<.5?-1:1;this.sway.t=.05*s;setTimeout(()=>{this.sway.t=-.05*s},420);setTimeout(()=>{this.sway.t=0},840)}}
+  _yawn(){this.yawned=true;this.yawnUntil=performance.now()+1700;this.stretch.t=1;setTimeout(()=>{this.stretch.t=0},1100)}
   point(x,y){const r=this.cv.getBoundingClientRect(),side=x<r.left+r.width/2?'L':'R';this.lookAt(x,y);this.focusLook=performance.now()+2600;
     if(this.full&&this.full['point'+side]){this.pointSide=side;this.pointUntil=performance.now()+3400;this.squash.v-=1.6;this.s.lean.t=0}
     else{this.s.lean.t=(side==='L'?-1:1)*6;clearTimeout(this._pt);this._pt=setTimeout(()=>{this.s.lean.t=0},1400)}}
   unpoint(){this.s.lean.t=0;this.pointSide=null}
   lookAtCaret(inp){const r=inp.getBoundingClientRect(),cs=getComputedStyle(inp);const m=PaintRig._m||(PaintRig._m=document.createElement('canvas').getContext('2d'));m.font=cs.font;
     const txt=inp.type==='password'?'•'.repeat(inp.value.length):inp.value;this.lookAt(r.left+parseFloat(cs.paddingLeft||0)+Math.min(m.measureText(txt).width,r.width-24),r.top+r.height/2)}
-  _act(){this.lastAct=performance.now();if(this.state==='sleeping')this.setState('idle'),this.hop(160)}
+  _act(){this.lastAct=performance.now();this.yawned=false;if(this.state==='sleeping')this.setState('idle'),this.hop(160)}
   setBase(k){this.base=k;this.patches={};this.full={};this.hop(220)}
   addFull(name,k){if(!this.base)return;const off=this.face?alignFrames(this.base,k,this.face.box):{dx:0,dy:0};this.full[name]={canvas:k.canvas,off}}
   // face: {box, eyes:[box], mouth:box} in 1024px image coordinates
@@ -196,13 +209,13 @@ class PaintRig{
   setState(n){clearTimeout(this.timer);this._enter(n)}
   react(n,ms=2300){this.lastAct=performance.now();this._enter(n);clearTimeout(this.timer);this.timer=setTimeout(()=>this._enter('idle'),ms)}
   _enter(n){if(!STATES[n])return;if(n!==this.state)this.squash.v-=1.8;this.state=n;this.onState(n);
-    if(n==='success'){this.hop(360);setTimeout(()=>this.hop(250),560);this.burst('confetti')}
-    if(n==='error'){this.shake=10;this.squash.v-=3}
-    if(n==='surprised'){this.hop(220);this.squash.v+=2}
+    if(n==='success'){this.hop(360);setTimeout(()=>this.hop(250),560);this.burst('confetti');this.emote('spark')}
+    if(n==='error'){this.shake=10;this.squash.v-=3;this.emote('sweat')}
+    if(n==='surprised'){this.hop(220);this.squash.v+=2;this.emote('bang')}
     if(n==='love')this.burst('hearts');if(n==='wave')this.hop(140);if(n==='dance')this.hop(220);if(n==='sad')this.squash.v+=1.5}
   lookAt(x,y){const r=this.cv.getBoundingClientRect();if(!r.width)return;this.look=[clamp((x-(r.left+r.width/2))/(r.width*.7),-1,1),clamp((y-(r.top+r.height*.45))/(r.height*.8),-1,1)]}
   hop(v){if(this.jumpY>-1&&this.jumpV>=0&&!this._hopT){if(RM<1){this.jumpV=-v*Math.sqrt(RM);return}this.squash.v-=v*.0075;this._hopT=setTimeout(()=>{this._hopT=null;this.jumpV=-v},75)}}
-  poke(){if(!this.base)return;const now=performance.now();this.pokes=this.pokes.filter(p=>now-p<4000);this.pokes.push(now);this.squash.v-=4;
+  poke(){if(!this.base)return;const now=performance.now();this.pokes=this.pokes.filter(p=>now-p<4000);this.pokes.push(now);this.squash.v-=5.5*RM;this.sway.v+=(this.pokes.length%2?1:-1)*1.6*RM;
     if(this.pokes.length>=5){this.pokes=[];this.react('confused',2400);this.say("Okay, okay! I'm awake!");return}
     const n=this.pokes.length;if(n===3){this.react('love',1800);this.say('Aww, thanks!');return}
     this.react(n===1?'surprised':'giggle',n===1?900:1400);this.say(n===1?'Boop!':pick(['Hee hee, that tickles!','Hey there!','Again? Okay!']))}
@@ -210,20 +223,33 @@ class PaintRig{
     const tick=()=>{if(tok!==this.sayTok)return;if(i>=text.length){this.s.talk.t=0;this.mouth=null;setTimeout(()=>{if(tok===this.sayTok)b.classList.remove('show')},hold);return}
       const ch=text[i++];b.textContent=text.slice(0,i);this.s.talk.t=/[aeiouy]/i.test(ch)?1:/\s/.test(ch)?0:/[.,!?]/.test(ch)?0:.45;
       this.mouth=/[ouw]/i.test(ch)?'o':/[eiy]/i.test(ch)?'e':/[a]/i.test(ch)?'a':/[bmp]/i.test(ch)?null:(/[a-z]/i.test(ch)&&this.mouth?this.mouth:null);setTimeout(tick,/[.,!?]/.test(ch)?speed*4:speed)};tick()}
+  // cartoon shorthand: dust puffs, a sweat drop, an "!", music notes, sparkles
+  emote(kind,n){if(RM<1)return;const D=this._dims||{bw:120,bh:150},R=Math.random;
+    if(kind==='dust'){const k=n||6;for(let i=0;i<k;i++){const s=i%2?1:-1;this.parts.push({k:'dust',x:s*D.bw*(.15+R()*.2),y:-3,vx:s*(50+R()*90),vy:-8-R()*22,g:30,life:.55+R()*.2,l0:.7,r:3+R()*4,a:0,va:0})}}
+    if(kind==='sweat')this.parts.push({k:'sweat',x:D.bw*.34,y:-D.bh*.86,vx:6,vy:10,g:110,life:1.2,a:0,va:0});
+    if(kind==='bang')this.parts.push({k:'bang',x:-D.bw*.38,y:-D.bh*1.02,vx:0,vy:0,g:0,life:1,l0:1,a:.18,va:0});
+    if(kind==='note'){const s=R()<.5?-1:1;this.parts.push({k:'note',x:s*D.bw*(.35+R()*.15),y:-D.bh*(.55+R()*.3),vx:s*14,vy:-55-R()*25,g:-8,life:1.4,l0:1.4,a:(R()-.5)*.5,va:(R()-.5)*.8,ch:R()<.5?'\u266A':'\u266B'})}
+    if(kind==='spark'){for(let i=0;i<(n||7);i++){const an=R()*Math.PI*2,rr=.45+R()*.25;this.parts.push({k:'spark',x:Math.cos(an)*D.bw*rr,y:-D.bh*.5+Math.sin(an)*D.bh*rr*.7,vx:0,vy:-12,g:0,life:.5+R()*.5,l0:1,a:R()*3,va:2+R()*3,s:.6+R()*.7})}}}
+  // a big landing (used by the drop-in entrance)
+  land(){this.squash.v-=4.2*RM;this.emote('dust',10);this.lastAct=performance.now()}
   burst(kind){if(RM<1)return;const cols=['#FF6B7A','#6E9BFF','#7DDC8A','#FFC23D','#B58CFF'];
     for(let i=0;i<(kind==='hearts'?7:34);i++)this.parts.push(kind==='hearts'?{h:1,x:(Math.random()-.5)*80,y:-150,vx:(Math.random()-.5)*30,vy:-50-Math.random()*50,life:1.8,g:-15,c:'#FF4D6D',a:0,va:0}:
       {x:0,y:-120,vx:(Math.random()-.5)*480,vy:-260-Math.random()*320,life:1.7,g:900,c:cols[i%5],a:Math.random()*6,va:(Math.random()-.5)*14})}
-  _tick(){const now=performance.now();
-    if(this.state==='idle'&&!this.focusEl&&now-this.lastPointer>3500&&now>this.nextGlance){this.look=[(Math.random()-.5)*1.4,(Math.random()-.5)*.8];this.nextGlance=now+1800+Math.random()*2500}
+  _tick(){const now=performance.now();if(this.state==='dance'&&Math.random()<.6)this.emote('note');
+    const calm=this.base&&this.state==='idle'&&!this.cover&&!this.focusEl&&!this.walkDir&&!(this.bubble&&this.bubble.classList.contains('show'));
+    if(calm&&RM===1&&now-this.lastAct>4000&&now>this.nextIdle&&!(this.sleepAfter&&now-this.lastAct>this.sleepAfter-3500)){this._idleAction(now);this.nextIdle=now+5500+Math.random()*6500}
+    if(calm&&this.sleepAfter&&!this.yawned&&now-this.lastAct>this.sleepAfter-1900)this._yawn();
+    if(this.state==='idle'&&!this.focusEl&&now>this.idleLook&&now-this.lastPointer>3500&&now>this.nextGlance){this.look=[(Math.random()-.5)*1.4,(Math.random()-.5)*.8];this.nextGlance=now+1800+Math.random()*2500}
     if(this.base&&this.sleepAfter&&this.state==='idle'&&!this.cover&&!this.focusEl&&!(this.bubble&&this.bubble.classList.contains('show'))&&now-this.lastAct>this.sleepAfter)this._enter('sleeping')}
   _frame(now){
     const dt=Math.min((now-this._last)/1000,.05);this._last=now;this.t+=dt;const t=this.t,S=STATES[this.state]||{};
     const P0=this.patches||{};for(const k of ['happy','worried','surprised','confused'])this.s[k].t=S[k]||0;
     if(this.state==='confused'&&!P0.confused)this.s.worried.t=.5;
-    this.s.blinkHold.t=(S.blink||(this.cover?1:0));this.s.tilt.t=S.tilt||0;this.s.zzz.t=S.zzz||0;this.s.q.t=S.q||0;
+    this.s.blinkHold.t=(S.blink||(this.cover?1:0));this.s.tilt.t=(S.tilt||0)+(this.state==='idle'?this.idleTilt||0:0);this.s.zzz.t=S.zzz||0;this.s.q.t=S.q||0;
     const lk=S.look||this.look;this.s.lookX.t=lk[0];this.s.lookY.t=lk[1];
     const FS=FSTATES[this.state]||FSTATES[{sad:'error',dance:'success',peek:'idle'}[this.state]]||{};for(const k in FBASE)this.s['f_'+k].t=(FS[k]!==undefined?FS[k]:FBASE[k]);
     if(this.cover&&this.state!=='sleeping'){this.s.f_open.t=.03;this.s.f_curve.t=.6}
+    const yawning=performance.now()<this.yawnUntil;if(yawning){this.s.blinkHold.t=.75;this.s.f_open.t=.25;this.s.f_mouthOpen.t=1;this.s.f_mouthW.t=.7}
     const v={};for(const k in this.s)v[k]=this.s[k].step(dt);const sq=this.squash.step(dt);
     this.sink.t=this.state==='peek'?1:0;this.slump.t=this.state==='sad'?1:0;this.groove.t=this.state==='dance'?1:0;
     const sink=this.sink.step(dt),slump=this.slump.step(dt),grv=this.groove.step(dt),beat=t*8.4,dbx=Math.sin(t*4.2)*9*grv*RM,drot=Math.sin(beat)*7*grv*RM,dby=-Math.abs(Math.sin(beat))*9*grv*RM;
@@ -231,8 +257,10 @@ class PaintRig{
     let blink=0;if(this.blinkStart>=0){const p=(t-this.blinkStart)/.16;blink=p<1?(p<.5?p*2:(1-p)*2):0}
     if(this.jumpY<0||this.jumpV<0){this.jumpV+=1500*dt;this.jumpY+=this.jumpV*dt;if(this.jumpY>=0){this.jumpY=0;if(this.jumpV>120)this.squash.v-=this.jumpV*.011;this.jumpV=0}}
     this.shake*=Math.pow(.02,dt);const shx=this.shake*Math.sin(t*55)*RM;
+    const st=this.stretch.step(dt);this.sway.t=this.walkDir?-Math.sign(this.walkDir)*.08*RM:(Math.abs(this.sway.t)<.06?this.sway.t:0);const sw=this.sway.step(dt);
+    let gb=0,gr=0,gq=0;if(this.walkDir&&this.step){const a=Math.sin(this.step.p*Math.PI);gr=(this.step.i%2?1:-1)*a*3*RM;gq=-a*.045*RM}else if(this.walkDir){this.walkT+=dt;const ph=this.walkT*7.6,s1=Math.abs(Math.sin(ph));gb=-s1*9*RM;gr=Math.sin(ph)*4.5*RM;gq=Math.pow(1-s1,6)*.08*RM}
     const sleeping=this.state==='sleeping',breathe=(sleeping?Math.sin(t*1.2)*.03:Math.sin(t*2.3)*.015)*RM,air=this.jumpY<0?Math.min(Math.abs(this.jumpV)/2600,.1):0;
-    const sy=sq+breathe+air,sx=1+(1-sy)*.9;const giggle=this.state==='giggle'?Math.sin(t*22)*2.5*RM:0;
+    const sy=sq+breathe+air+st*.09-gq,sx=1+(sq+breathe+air-gq-1)*-.9-st*.05;const giggle=this.state==='giggle'?Math.sin(t*22)*2.5*RM:0;
     const wv=this.state==='wave'&&this.full&&this.full.waveA,wph=t*6.2,
       wr=wv&&!this.full.waveB?Math.sin(wph)*2.4*RM:0,wb=wv?-Math.abs(Math.sin(wph))*(this.full.waveB?3:6)*RM:0;
     const ctx=this.ctx,W=this.W,H=this.H;ctx.setTransform(this.dpr,0,0,this.dpr,0,0);ctx.clearRect(0,0,W,H);
@@ -240,11 +268,11 @@ class PaintRig{
     if(!this.base){this._raf=requestAnimationFrame(this._frame.bind(this));return}
     const B=this.base.bbox,ground=this.fit?H*.97:H*.9,scale=this.fit?Math.min(W/(1+2*this.pad)*this.fit/B.w,H/(1+this.padTop)*this.fit/B.h):Math.min(W*.66/B.w,H*.68/B.h),footX=B.x+B.w/2,footY=B.y+B.h;
     // shadow
-    const lift=Math.min(-this.jumpY/260,1);const sg=ctx.createRadialGradient(W/2,ground,0,W/2,ground,B.w*scale*.5);sg.addColorStop(0,'rgba(25,25,60,.28)');sg.addColorStop(1,'rgba(25,25,60,0)');
+    this._dims={bw:B.w*scale,bh:B.h*scale};const lift=Math.min(-this.jumpY/260,1);const sg=ctx.createRadialGradient(W/2,ground,0,W/2,ground,B.w*scale*.5);sg.addColorStop(0,'rgba(25,25,60,.28)');sg.addColorStop(1,'rgba(25,25,60,0)');
     ctx.save();ctx.globalAlpha=1-clamp(sink,0,1)*.9;ctx.translate(W/2,ground);ctx.scale(1-lift*.4,.16);ctx.translate(-W/2,-ground);ctx.fillStyle=sg;ctx.beginPath();ctx.arc(W/2,ground,B.w*scale*.5,0,Math.PI*2);ctx.fill();ctx.restore();
     // body
     const sinkPx=sink*B.h*scale*.5;ctx.save();if(sink>.01){ctx.beginPath();ctx.rect(0,0,W,ground+1);ctx.clip()}
-    ctx.translate(W/2+shx+dbx,ground+this.jumpY+wb+dby+sinkPx+slump*3);ctx.rotate((v.tilt+giggle+v.lean+wr+drot)*Math.PI/180);ctx.scale(sx*(1+.035*slump)*scale,sy*(1-.06*slump)*scale);ctx.translate(-footX,-footY);
+    ctx.translate(W/2+shx+dbx,ground+this.jumpY+wb+dby+sinkPx+slump*3+gb);const follow=(this.state==='idle'||this.state==='talking')&&!this.walkDir&&!this.pointSide?v.lookX*4*RM:0;ctx.rotate((v.tilt+giggle+v.lean+wr+drot+gr+follow)*Math.PI/180);if(Math.abs(sw)>.001)ctx.transform(1,0,sw,1,0,0);ctx.scale(sx*(1+.035*slump)*scale,sy*(1-.06*slump)*scale);ctx.translate(-footX,-footY);
     const FF=this.full||{},pointing=this.pointSide&&performance.now()<this.pointUntil&&FF['point'+this.pointSide],waving=!pointing&&this.state==='wave'&&FF.waveA;
     if(pointing){const fr=FF['point'+this.pointSide];ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
     else if(waving){const fr=(FF.waveB&&Math.floor(t*3.4)%2)?FF.waveB:FF.waveA;ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
@@ -254,7 +282,8 @@ class PaintRig{
       const draw=(ps,a)=>{if(ps&&a>.01){ctx.globalAlpha=Math.min(1,a);for(const p of ps)ctx.drawImage(p.c,p.x+ox,p.y+oy)}};
       draw(P.neutral,1);draw(P.happy,v.happy);draw(P.worried,v.worried);draw(P.surprised,v.surprised);draw(P.confused,v.confused);
       // lip-sync: snap between closed, "ah" and "oh" mouths (fall back to a fade if a shape is missing)
-      if(this.mouth==='o'&&P.oMouth)draw(P.oMouth,1);else if(this.mouth==='e'&&P.talkE)draw(P.talkE,1);else if(this.mouth&&P.talk)draw(P.talk,1);else if(!P.talk)draw(P.talk,v.talk);
+      const ym=yawning?(P.oMouth?'o':'a'):this.mouth;
+      if(ym==='o'&&P.oMouth)draw(P.oMouth,1);else if(ym==='e'&&P.talkE)draw(P.talkE,1);else if(ym&&P.talk)draw(P.talk,1);else if(!P.talk)draw(P.talk,v.talk);
       draw(P.blink,Math.max(blink,v.blinkHold));ctx.globalAlpha=1}
     ctx.restore();
     // extras
@@ -267,6 +296,13 @@ class PaintRig{
     if(this.state==='thinking'){ctx.fillStyle='rgba(40,30,60,.8)';for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(W/2+B.w*scale*.3+i*14,headY+8+Math.sin(t*7-i*.9)*4,4.5,0,Math.PI*2);ctx.fill()}}
     this.parts=this.parts.filter(p=>{p.life-=dt;p.vy+=p.g*dt;p.vx*=Math.pow(.4,dt);p.x+=p.vx*dt;p.y+=p.vy*dt;p.a+=p.va*dt;
       ctx.save();ctx.globalAlpha=clamp(p.life*1.5,0,1);ctx.translate(W/2+p.x+(p.h?Math.sin(t*4+p.life*3)*6:0),ground+p.y);ctx.rotate(p.a);ctx.fillStyle=p.c;
+      if(p.k){const age=1-p.life/(p.l0||1);
+        if(p.k==='dust'){ctx.globalAlpha=clamp(p.life*1.3,0,.55);ctx.fillStyle='#D9D1C7';ctx.beginPath();ctx.arc(0,0,p.r*(1+age*1.6),0,Math.PI*2);ctx.fill()}
+        else if(p.k==='sweat'){ctx.fillStyle='#6FB7FF';ctx.beginPath();ctx.moveTo(0,-9);ctx.bezierCurveTo(6,-1,6,6,0,6);ctx.bezierCurveTo(-6,6,-6,-1,0,-9);ctx.fill();ctx.fillStyle='rgba(255,255,255,.7)';ctx.beginPath();ctx.arc(-1.8,1.5,1.6,0,Math.PI*2);ctx.fill()}
+        else if(p.k==='bang'){const pop=age<.15?age/.15*1.25:1.25-Math.min((age-.15)*2,.25);ctx.scale(pop,pop);ctx.font='800 26px Fredoka, system-ui, sans-serif';ctx.textAlign='center';ctx.lineWidth=5;ctx.strokeStyle='#fff';ctx.strokeText('!',0,0);ctx.fillStyle='#FF5A4E';ctx.fillText('!',0,0)}
+        else if(p.k==='note'){ctx.font='700 20px system-ui, sans-serif';ctx.textAlign='center';ctx.lineWidth=4;ctx.strokeStyle='rgba(255,255,255,.9)';ctx.strokeText(p.ch,0,0);ctx.fillStyle='#6E5BFF';ctx.fillText(p.ch,0,0)}
+        else if(p.k==='spark'){const sc=p.s*Math.sin(Math.min(age,1)*Math.PI)*9;ctx.fillStyle='#FFC23D';ctx.beginPath();for(let j=0;j<8;j++){const rr=j%2?sc*.38:sc,an=j*Math.PI/4;ctx.lineTo(Math.cos(an)*rr,Math.sin(an)*rr)}ctx.fill()}
+        ctx.restore();return p.life>0}
       if(p.h){ctx.beginPath();ctx.moveTo(0,5);ctx.bezierCurveTo(-9,-1,-6,-8,0,-3);ctx.bezierCurveTo(6,-8,9,-1,0,5);ctx.fill()}else ctx.fillRect(-3.5,-2.5,7,5);ctx.restore();return p.life>0});
     this._raf=requestAnimationFrame(this._frame.bind(this));
   }

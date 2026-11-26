@@ -665,7 +665,8 @@ function definePipElement(engine,defaultConfig,painted,origin){
   const adapt=rig=>({rig,get state(){return rig.state},get cfg(){return rig.cfg},get focusEl(){return rig.focusEl},set focusEl(v){rig.focusEl=v},
     get lean(){return rig.lean},set lean(v){rig.lean=v},setState:s=>rig.setState(s),react:(s,ms)=>rig.react(s,ms),say:(t,o)=>rig.say(t,o),
     cover:on=>{rig.cover=!!on},lookAt:(x,y)=>rig.lookAt(x,y),lookAtCaret:i=>rig.lookAtCaret(i),bump:()=>rig.bump(),hop:v=>rig.hop(v),
-    point:(x,y)=>rig.point(x,y),unpoint:()=>rig.unpoint(),destroy:()=>rig.destroy(),
+    point:(x,y)=>rig.point(x,y),unpoint:()=>rig.unpoint(),destroy:()=>rig.destroy(),land:()=>rig.land(),emote:(k,n)=>rig.emote(k,n),
+    walkStart:d=>rig.walkStart(d),walkStop:()=>rig.walkStop(),stepPhase:(i,p)=>rig.stepPhase(i,p),
     watch(inp){const secret=inp.type==='password';inp.addEventListener('focus',()=>{rig.focusEl=inp;if(secret)rig.cover=true;rig.lookAtCaret(inp)});
       inp.addEventListener('input',()=>{rig.lookAtCaret(inp);rig.bump()});inp.addEventListener('blur',()=>{rig.focusEl=null;if(secret)rig.cover=false})}});
   const RM=engine.RM,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),wait=ms=>new Promise(r=>setTimeout(r,ms)),pick=a=>a[Math.floor(Math.random()*a.length)];
@@ -771,8 +772,7 @@ function definePipElement(engine,defaultConfig,painted,origin){
           requestAnimationFrame(()=>{const d=this._dock();this._setPos(d[0],d[1]);this.style.visibility='';setTimeout(greet,500)})}
         else requestAnimationFrame(()=>{this._avoidCheck(true);const d=this._dock();
           if(this._hiddenByUser){this._setPos(d[0],d[1]);this.style.visibility='';this._docked=true;return}
-          this._setPos(d[0],this._place().v==='top'?-this._size()[1]-20:innerHeight+20);this.style.visibility='';
-          this.walkTo(d[0],d[1],{ms:700,hops:false}).then(()=>{this._docked=true;setTimeout(greet,150)})});
+          this.style.visibility='';this._drop(d[0],d[1]).then(()=>{this._docked=true;setTimeout(greet,350)})});
       }else setTimeout(greet,500);
       if(this.hasAttribute('autopilot'))this._ap=autopilot(this);
     }
@@ -816,16 +816,25 @@ function definePipElement(engine,defaultConfig,painted,origin){
     _setPos(x,y){this._pos=[x,y];this.style.transform=`translate(${this._rel[0]}px,${this._rel[1]}px)`;this._placeBubble()}
     _placeBubble(){const b=this.shadowRoot&&this.shadowRoot.querySelector('.bubble');if(!b)return;const r=this.getBoundingClientRect(),c=r.left+r.width/2;
       b.classList.toggle('below',r.top<90);b.classList.toggle('r',c>innerWidth*.6);b.classList.toggle('l',c<innerWidth*.4)}
+    // entrance: falls in from above the screen and lands with a squash and a puff of dust
+    _drop(x,y){const m=this._m,y0=-this._size()[1]-30,ms=RM<1?260:560,tok=this._walkTok=(this._walkTok||0)+1;this._setPos(x,y0);
+      if(!m||!m.land){return this.walkTo(x,y,{ms:700,hops:false})}
+      return new Promise(res=>{const t0=performance.now();const step=now=>{if(tok!==this._walkTok||!this._m)return res();const p=clamp((now-t0)/ms,0,1);
+        this._setPos(x,y0+(y-y0)*p*p);if(p<1)requestAnimationFrame(step);else{m.land();res()}};requestAnimationFrame(step)})}
     walkTo(x,y,{ms,hops=true}={}){
       if(!this._float||!this._m||this._hiddenByUser)return Promise.resolve();const m=this._m,[x0,y0]=this._pos,dist=Math.hypot(x-x0,y-y0);
       const tok=this._walkTok=(this._walkTok||0)+1;this._docked=false;
       if(dist<3){this._setPos(x,y);return Promise.resolve()}
-      ms=ms||clamp(dist/.6,380,1500);if(RM<1)ms=Math.min(ms,300);this._walking=true;m.lean=Math.sign(x-x0)*9;
+      ms=ms||clamp(dist/.6,380,1500);if(RM<1)ms=Math.min(ms,300);this._walking=true;m.lean=Math.sign(x-x0)*9;const gait=!!m.walkStart&&dist>30,hopper=gait&&!!m.stepPhase&&RM===1;let n=1,hh=0;if(gait){m.walkStart(x-x0||1);hops=false}
+      if(hopper){const sz=this._size?this._size()[1]:120;n=Math.max(2,Math.round(dist/Math.max(70,sz*.7)));ms=clamp(n*175,380,1300);hh=clamp(sz*.1,7,17)}
       return new Promise(res=>{const t0=performance.now();let lastHop=-1e9;
-        const step=now=>{if(tok!==this._walkTok||!this._m){this._walking=false;return res()}
-          const p=clamp((now-t0)/ms,0,1),e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;this._setPos(x0+(x-x0)*e,y0+(y-y0)*e);
+        const step=now=>{if(tok!==this._walkTok||!this._m){this._walking=false;if(gait&&m.walkStop)m.walkStop();return res()}
+          const p=clamp((now-t0)/ms,0,1);let e,yo=0;
+          if(hopper){const f=p*n,i=Math.min(Math.floor(f),n-1),q=f-i;e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;e=.35*p+.65*e;yo=-Math.sin(q*Math.PI)*hh*(i===0||i===n-1?.75:1);m.stepPhase(i,q)}
+          else e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+          this._setPos(x0+(x-x0)*e,y0+(y-y0)*e+yo);
           if(hops&&now-lastHop>300&&p<.85){m.hop(150);lastHop=now}
-          if(p<1)requestAnimationFrame(step);else{m.lean=0;this._walking=false;res()}};
+          if(p<1)requestAnimationFrame(step);else{m.lean=0;if(gait)m.walkStop();this._walking=false;res()}};
         requestAnimationFrame(step)})}
     async goTo(el,{mode='point',text,state,stay}={}){if(this._hiddenByUser)return;
       if(!this._float||!el||!this._m)return;clearTimeout(this._homeT);this._goAt=Date.now();this._m.unpoint();
