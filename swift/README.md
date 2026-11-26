@@ -46,6 +46,21 @@ try await Critter.watch(success: "Saved!") {
 }
 ```
 
+Celebrate the moments only your app knows about:
+
+```swift
+Critter.moment(.firstPurchase)
+Critter.moment(.streak(days: 7))
+Critter.moment(.levelUp(5))
+```
+
+Play a custom moment (build one at [critterkit.com/studio](https://www.critterkit.com/studio)), including custom poses you painted for your mascot:
+
+```swift
+Critter.play([["do": "pose", "name": "snowboarding"], ["do": "spin"], ["do": "say", "text": "Level {level}!"]],
+             values: ["level": level])
+```
+
 Walk people through a screen:
 
 ```swift
