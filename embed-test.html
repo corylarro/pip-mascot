@@ -32,11 +32,11 @@
 
   <!-- The only two lines added for the mascot -->
   <script src="/critter.js"></script>
-  <critter-mascot autopilot greet></critter-mascot>
+  <critter-mascot autopilot greet seasonal="off"></critter-mascot>
   <script>
     // Testing helper: /embed-test?mascot=ID swaps in a saved painted mascot.
     var id=new URLSearchParams(location.search).get('mascot');
-    if(id){var old=document.querySelector('critter-mascot'),m=document.createElement('critter-mascot');m.setAttribute('mascot',id);m.setAttribute('autopilot','');m.setAttribute('greet','');m.style.setProperty('--pip-size','150px');old.replaceWith(m)}
+    if(id){var old=document.querySelector('critter-mascot'),m=document.createElement('critter-mascot');m.setAttribute('mascot',id);m.setAttribute('autopilot','');m.setAttribute('greet','');m.setAttribute('seasonal','off');m.style.setProperty('--pip-size','150px');old.replaceWith(m)}
   </script>
 </body>
 </html>

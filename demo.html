@@ -299,7 +299,7 @@ function logIt(d) {
 }
 function mount() {
   if (pip) pip.remove();
-  pip = document.createElement('critter-mascot');
+  pip = document.createElement('critter-mascot'); pip.setAttribute('seasonal', 'off');
   pip.setAttribute('autopilot', ''); pip.setAttribute('greet', ''); pip.setAttribute('position', corner);
   if (kind === 'painted') {
     pip.setAttribute('mascot', PAINTED_ID); pip.style.setProperty('--pip-size', innerWidth < 600 ? '104px' : '140px');

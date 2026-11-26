@@ -18,7 +18,7 @@ Steps (JSON objects):
 - {"do":"say","text":"..."}  a speech bubble, at most 60 characters, friendly, no emoji.
 - {"do":"jump"} small hop. {"do":"bigjump"} high leap. {"do":"flip"} backflip. {"do":"spin"} twirl. {"do":"shake"} wet-dog shake. {"do":"grow"} pop up bigger then back.
 - {"do":"emote","kind":K}  K is one of: ${EMOTES.join(', ')} (spark = sparkles, note = music note, bang = "!", sweat = sweat drop, smoke = puff, drops = water drops).
-- {"do":"prop","emoji":"🍕","ms":N}  hold up one emoji as a prop for anything the moves can't show (food, instruments, weather, objects). ms 1000-5000.
+- {"do":"prop","emoji":"🍕","ms":N}  hold up one emoji as a prop for anything the moves can't show (food, instruments, weather, objects). ms 2000-5000. Whenever the request names a thing (pizza, cake, trophy, coffee, a package…), you MUST include a prop step showing it, early in the sequence.
 - {"do":"poof","to":T}  vanish in smoke and reappear. T is one of: ${POOF.join(', ')}. If it poofs away, end with a poof home.
 - {"do":"wait","ms":N}  pause, 200-3000.
 react, say, emote and prop start and keep going while the next step runs; moves, poof and wait take their time.
@@ -38,7 +38,7 @@ function sanitize(steps) {
     else if (MOVES.includes(d)) out.push({ do: d });
     else if (d === 'backflip') out.push({ do: 'flip' });
     else if (d === 'emote' && EMOTES.includes(st.kind)) out.push({ do: 'emote', kind: st.kind });
-    else if (d === 'prop' && clean(st.emoji)) out.push({ do: 'prop', emoji: [...clean(st.emoji)].slice(0, 2).join(''), ms: clampN(st.ms, 1000, 5000, 2600) });
+    else if (d === 'prop' && clean(st.emoji)) out.push({ do: 'prop', emoji: [...clean(st.emoji)].slice(0, 2).join(''), ms: clampN(st.ms, 2000, 5000, 3000) });
     else if (d === 'poof') out.push({ do: 'poof', to: POOF.includes(st.to) ? st.to : 'random' });
     else if (d === 'wait') out.push({ do: 'wait', ms: clampN(st.ms, 200, 3000, 600) });
   }
@@ -46,6 +46,24 @@ function sanitize(steps) {
   const poofs = out.filter(s => s.do === 'poof');
   if (poofs.length && poofs[poofs.length - 1].to !== 'home') out.push({ do: 'wait', ms: 1200 }, { do: 'poof', to: 'home' });
   return out;
+}
+
+// If the request names a thing but the AI forgot to hold it up, add the prop ourselves.
+const PROPS = [[/pizza/, '🍕'], [/birthday|cake/, '🎂'], [/trophy|award|prize|win(ner)?\b/, '🏆'], [/coffee|latte|espresso/, '☕'], [/tea\b/, '🍵'],
+  [/gift|present/, '🎁'], [/package|parcel|order|ship|deliver|box\b/, '📦'], [/rocket|launch/, '🚀'], [/guitar/, '🎸'], [/music|song|sing/, '🎵'],
+  [/umbrella|rain/, '☂️'], [/snow/, '❄️'], [/sun\b|sunny|summer/, '☀️'], [/money|cash|paid|payment|sale/, '💰'], [/crown|king|queen/, '👑'],
+  [/balloon|party/, '🎈'], [/book|read/, '📚'], [/ice ?cream/, '🍦'], [/taco/, '🌮'], [/burger/, '🍔'], [/donut|doughnut/, '🍩'], [/popcorn|movie/, '🍿'],
+  [/flower|bloom|garden/, '🌸'], [/heart|love/, '❤️'], [/star\b|stars/, '⭐'], [/fire|streak/, '🔥'], [/medal/, '🥇'], [/coin/, '🪙'], [/key\b/, '🔑'],
+  [/mail|email|letter|message/, '✉️'], [/phone|call/, '📱'], [/bell|notification|reminder/, '🔔'], [/camera|photo/, '📸'], [/plant|seed/, '🌱'],
+  [/cookie/, '🍪'], [/apple/, '🍎'], [/banana/, '🍌'], [/carrot/, '🥕'], [/water|drink|hydrat/, '💧'], [/sleep|bed|night/, '🌙'], [/dumbbell|workout|gym|lift/, '🏋️'],
+  [/ball\b|soccer|football/, '⚽'], [/basketball/, '🏀'], [/game|controller/, '🎮'], [/pencil|write|note/, '✏️'], [/lock|password/, '🔒'], [/check|done|complete/, '✅']];
+function ensureProp(text, steps) {
+  if (steps.some(s => s.do === 'prop')) return steps;
+  const t = text.toLowerCase(), hit = PROPS.find(([re]) => re.test(t));
+  if (!hit) return steps;
+  const at = Math.max(0, steps.findIndex(s => s.do !== 'react'));
+  steps.splice(at, 0, { do: 'prop', emoji: hit[1], ms: 3200 });
+  return steps.slice(0, 13);
 }
 
 const textOf = j => !j ? '' : typeof j.output_text === 'string' ? j.output_text : (j.output || []).flatMap(o => o.content || []).filter(c => c.type === 'output_text').map(c => c.text).join('');
@@ -82,7 +100,7 @@ export default async function handler(req, res) {
       if (!r.ok) continue;
       const t = textOf(await r.json());
       const j = JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1));
-      const steps = sanitize(j.steps);
+      const steps = ensureProp(text, sanitize(j.steps));
       // example values for any {placeholders} the steps use
       const used = new Set(steps.flatMap(s => [...String(s.text || '').matchAll(/\{(\w{1,20})\}/g)].map(m => m[1])));
       const values = {};

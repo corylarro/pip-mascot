@@ -1391,7 +1391,7 @@ function renderPick(){const pid=paintedId(),el=$('livePick');if(!pid||!paintedEn
   el.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{livePick=b.dataset.p;stopLive();startLive()}))}
 function startLive(){if(liveEl)return;apLog.innerHTML='';renderPick();
   const pid=paintedId(),usePainted=!!(pid&&paintedEngine&&livePick==='painted');
-  liveEl=document.createElement('critter-mascot');liveEl.setAttribute('autopilot','');liveEl.setAttribute('greet','');
+  liveEl=document.createElement('critter-mascot');liveEl.setAttribute('autopilot','');liveEl.setAttribute('seasonal','off');liveEl.setAttribute('greet','');
   if(usePainted){liveEl.setAttribute('mascot',pid);liveEl.setAttribute('greeting',"I'm watching this app for you. Try breaking something!");liveEl.style.setProperty('--pip-size','150px')}
   liveEl.setAttribute('config',JSON.stringify({...cfg,greeting:`I'm ${cfg.name}. I'm watching this app for you. Try breaking something!`}));
   liveEl.addEventListener('pip:autopilot',e=>{const d=e.detail,li=document.createElement('li'),tm=new Date(d.time);
