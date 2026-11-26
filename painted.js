@@ -162,9 +162,9 @@ class PaintRig{
   bump(){this.squash.v-=1.4}
   // walking with weight: a little crouch to start, a bobbing, rocking gait, and a wobble when it stops
   walkStart(dir){this.walkDir=dir||1e-4;this.walkT=0;this.step=null;this.squash.v-=1.4*RM;this._act()}
-  walkStop(){if(!this.walkDir)return;this.walkDir=0;this.step=null;this.squash.v-=1.5*RM}
+  walkStop(){if(!this.walkDir)return;this.walkDir=0;this.step=null;this.squash.v-=1.5*RM;this.emote('dust',5)}
   // hop-walk: the page moves the mascot in little hops and tells us where we are in each one
-  stepPhase(i,p){if(this.step&&i!==this.step.i)this.squash.v-=1.1*RM;this.step={i,p}}
+  stepPhase(i,p){if(this.step&&i!==this.step.i){this.squash.v-=1.1*RM;this.emote('dust',3)}this.step={i,p}}
   // small things it does on its own when nobody's interacting, so it never looks like a loop
   _idleAction(now){const a=pick(['look','look','stretch','bounce','sway']);
     if(a==='look'){const s=Math.random()<.5?-1:1;this.look=[.95*s,.05];this.idleTilt=5*s;this.idleLook=now+2600;setTimeout(()=>{if(this.state==='idle'){this.look=[-.95*s,.05];this.idleTilt=-5*s}},900);setTimeout(()=>{this.idleTilt=0;if(this.state==='idle')this.look=[0,0]},1900)}
@@ -209,9 +209,9 @@ class PaintRig{
   setState(n){clearTimeout(this.timer);this._enter(n)}
   react(n,ms=2300){this.lastAct=performance.now();this._enter(n);clearTimeout(this.timer);this.timer=setTimeout(()=>this._enter('idle'),ms)}
   _enter(n){if(!STATES[n])return;if(n!==this.state)this.squash.v-=1.8;this.state=n;this.onState(n);
-    if(n==='success'){this.hop(360);setTimeout(()=>this.hop(250),560);this.burst('confetti')}
-    if(n==='error'){this.shake=10;this.squash.v-=3}
-    if(n==='surprised'){this.hop(220);this.squash.v+=2}
+    if(n==='success'){this.hop(360);setTimeout(()=>this.hop(250),560);this.burst('confetti');this.emote('spark')}
+    if(n==='error'){this.shake=10;this.squash.v-=3;this.emote('sweat')}
+    if(n==='surprised'){this.hop(220);this.squash.v+=2;this.emote('bang')}
     if(n==='love')this.burst('hearts');if(n==='wave')this.hop(140);if(n==='dance')this.hop(220);if(n==='sad')this.squash.v+=1.5}
   lookAt(x,y){const r=this.cv.getBoundingClientRect();if(!r.width)return;this.look=[clamp((x-(r.left+r.width/2))/(r.width*.7),-1,1),clamp((y-(r.top+r.height*.45))/(r.height*.8),-1,1)]}
   hop(v){if(this.jumpY>-1&&this.jumpV>=0&&!this._hopT){if(RM<1){this.jumpV=-v*Math.sqrt(RM);return}this.squash.v-=v*.0075;this._hopT=setTimeout(()=>{this._hopT=null;this.jumpV=-v},75)}}
@@ -223,10 +223,19 @@ class PaintRig{
     const tick=()=>{if(tok!==this.sayTok)return;if(i>=text.length){this.s.talk.t=0;this.mouth=null;setTimeout(()=>{if(tok===this.sayTok)b.classList.remove('show')},hold);return}
       const ch=text[i++];b.textContent=text.slice(0,i);this.s.talk.t=/[aeiouy]/i.test(ch)?1:/\s/.test(ch)?0:/[.,!?]/.test(ch)?0:.45;
       this.mouth=/[ouw]/i.test(ch)?'o':/[eiy]/i.test(ch)?'e':/[a]/i.test(ch)?'a':/[bmp]/i.test(ch)?null:(/[a-z]/i.test(ch)&&this.mouth?this.mouth:null);setTimeout(tick,/[.,!?]/.test(ch)?speed*4:speed)};tick()}
+  // cartoon shorthand: dust puffs, a sweat drop, an "!", music notes, sparkles
+  emote(kind,n){if(RM<1)return;const D=this._dims||{bw:120,bh:150},R=Math.random;
+    if(kind==='dust'){const k=n||6;for(let i=0;i<k;i++){const s=i%2?1:-1;this.parts.push({k:'dust',x:s*D.bw*(.15+R()*.2),y:-3,vx:s*(50+R()*90),vy:-8-R()*22,g:30,life:.55+R()*.2,l0:.7,r:3+R()*4,a:0,va:0})}}
+    if(kind==='sweat')this.parts.push({k:'sweat',x:D.bw*.34,y:-D.bh*.86,vx:6,vy:10,g:110,life:1.2,a:0,va:0});
+    if(kind==='bang')this.parts.push({k:'bang',x:D.bw*.36,y:-D.bh*1.02,vx:0,vy:0,g:0,life:1,l0:1,a:.18,va:0});
+    if(kind==='note'){const s=R()<.5?-1:1;this.parts.push({k:'note',x:s*D.bw*(.35+R()*.15),y:-D.bh*(.55+R()*.3),vx:s*14,vy:-55-R()*25,g:-8,life:1.4,l0:1.4,a:(R()-.5)*.5,va:(R()-.5)*.8,ch:R()<.5?'\u266A':'\u266B'})}
+    if(kind==='spark'){for(let i=0;i<(n||7);i++){const an=R()*Math.PI*2,rr=.45+R()*.25;this.parts.push({k:'spark',x:Math.cos(an)*D.bw*rr,y:-D.bh*.5+Math.sin(an)*D.bh*rr*.7,vx:0,vy:-12,g:0,life:.5+R()*.5,l0:1,a:R()*3,va:2+R()*3,s:.6+R()*.7})}}}
+  // a big landing (used by the drop-in entrance)
+  land(){this.squash.v-=4.2*RM;this.emote('dust',10);this.lastAct=performance.now()}
   burst(kind){if(RM<1)return;const cols=['#FF6B7A','#6E9BFF','#7DDC8A','#FFC23D','#B58CFF'];
     for(let i=0;i<(kind==='hearts'?7:34);i++)this.parts.push(kind==='hearts'?{h:1,x:(Math.random()-.5)*80,y:-150,vx:(Math.random()-.5)*30,vy:-50-Math.random()*50,life:1.8,g:-15,c:'#FF4D6D',a:0,va:0}:
       {x:0,y:-120,vx:(Math.random()-.5)*480,vy:-260-Math.random()*320,life:1.7,g:900,c:cols[i%5],a:Math.random()*6,va:(Math.random()-.5)*14})}
-  _tick(){const now=performance.now();
+  _tick(){const now=performance.now();if(this.state==='dance'&&Math.random()<.6)this.emote('note');
     const calm=this.base&&this.state==='idle'&&!this.cover&&!this.focusEl&&!this.walkDir&&!(this.bubble&&this.bubble.classList.contains('show'));
     if(calm&&RM===1&&now-this.lastAct>4000&&now>this.nextIdle&&!(this.sleepAfter&&now-this.lastAct>this.sleepAfter-3500)){this._idleAction(now);this.nextIdle=now+5500+Math.random()*6500}
     if(calm&&this.sleepAfter&&!this.yawned&&now-this.lastAct>this.sleepAfter-1900)this._yawn();
@@ -259,7 +268,7 @@ class PaintRig{
     if(!this.base){this._raf=requestAnimationFrame(this._frame.bind(this));return}
     const B=this.base.bbox,ground=this.fit?H*.97:H*.9,scale=this.fit?Math.min(W/(1+2*this.pad)*this.fit/B.w,H/(1+this.padTop)*this.fit/B.h):Math.min(W*.66/B.w,H*.68/B.h),footX=B.x+B.w/2,footY=B.y+B.h;
     // shadow
-    const lift=Math.min(-this.jumpY/260,1);const sg=ctx.createRadialGradient(W/2,ground,0,W/2,ground,B.w*scale*.5);sg.addColorStop(0,'rgba(25,25,60,.28)');sg.addColorStop(1,'rgba(25,25,60,0)');
+    this._dims={bw:B.w*scale,bh:B.h*scale};const lift=Math.min(-this.jumpY/260,1);const sg=ctx.createRadialGradient(W/2,ground,0,W/2,ground,B.w*scale*.5);sg.addColorStop(0,'rgba(25,25,60,.28)');sg.addColorStop(1,'rgba(25,25,60,0)');
     ctx.save();ctx.globalAlpha=1-clamp(sink,0,1)*.9;ctx.translate(W/2,ground);ctx.scale(1-lift*.4,.16);ctx.translate(-W/2,-ground);ctx.fillStyle=sg;ctx.beginPath();ctx.arc(W/2,ground,B.w*scale*.5,0,Math.PI*2);ctx.fill();ctx.restore();
     // body
     const sinkPx=sink*B.h*scale*.5;ctx.save();if(sink>.01){ctx.beginPath();ctx.rect(0,0,W,ground+1);ctx.clip()}
@@ -287,6 +296,13 @@ class PaintRig{
     if(this.state==='thinking'){ctx.fillStyle='rgba(40,30,60,.8)';for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(W/2+B.w*scale*.3+i*14,headY+8+Math.sin(t*7-i*.9)*4,4.5,0,Math.PI*2);ctx.fill()}}
     this.parts=this.parts.filter(p=>{p.life-=dt;p.vy+=p.g*dt;p.vx*=Math.pow(.4,dt);p.x+=p.vx*dt;p.y+=p.vy*dt;p.a+=p.va*dt;
       ctx.save();ctx.globalAlpha=clamp(p.life*1.5,0,1);ctx.translate(W/2+p.x+(p.h?Math.sin(t*4+p.life*3)*6:0),ground+p.y);ctx.rotate(p.a);ctx.fillStyle=p.c;
+      if(p.k){const age=1-p.life/(p.l0||1);
+        if(p.k==='dust'){ctx.globalAlpha=clamp(p.life*1.3,0,.55);ctx.fillStyle='#D9D1C7';ctx.beginPath();ctx.arc(0,0,p.r*(1+age*1.6),0,Math.PI*2);ctx.fill()}
+        else if(p.k==='sweat'){ctx.fillStyle='#6FB7FF';ctx.beginPath();ctx.moveTo(0,-9);ctx.bezierCurveTo(6,-1,6,6,0,6);ctx.bezierCurveTo(-6,6,-6,-1,0,-9);ctx.fill();ctx.fillStyle='rgba(255,255,255,.7)';ctx.beginPath();ctx.arc(-1.8,1.5,1.6,0,Math.PI*2);ctx.fill()}
+        else if(p.k==='bang'){const pop=age<.15?age/.15*1.25:1.25-Math.min((age-.15)*2,.25);ctx.scale(pop,pop);ctx.font='800 26px Fredoka, system-ui, sans-serif';ctx.textAlign='center';ctx.lineWidth=5;ctx.strokeStyle='#fff';ctx.strokeText('!',0,0);ctx.fillStyle='#FF5A4E';ctx.fillText('!',0,0)}
+        else if(p.k==='note'){ctx.font='700 20px system-ui, sans-serif';ctx.textAlign='center';ctx.lineWidth=4;ctx.strokeStyle='rgba(255,255,255,.9)';ctx.strokeText(p.ch,0,0);ctx.fillStyle='#6E5BFF';ctx.fillText(p.ch,0,0)}
+        else if(p.k==='spark'){const sc=p.s*Math.sin(Math.min(age,1)*Math.PI)*9;ctx.fillStyle='#FFC23D';ctx.beginPath();for(let j=0;j<8;j++){const rr=j%2?sc*.38:sc,an=j*Math.PI/4;ctx.lineTo(Math.cos(an)*rr,Math.sin(an)*rr)}ctx.fill()}
+        ctx.restore();return p.life>0}
       if(p.h){ctx.beginPath();ctx.moveTo(0,5);ctx.bezierCurveTo(-9,-1,-6,-8,0,-3);ctx.bezierCurveTo(6,-8,9,-1,0,5);ctx.fill()}else ctx.fillRect(-3.5,-2.5,7,5);ctx.restore();return p.life>0});
     this._raf=requestAnimationFrame(this._frame.bind(this));
   }

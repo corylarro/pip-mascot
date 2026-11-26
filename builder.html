@@ -665,7 +665,7 @@ function definePipElement(engine,defaultConfig,painted,origin){
   const adapt=rig=>({rig,get state(){return rig.state},get cfg(){return rig.cfg},get focusEl(){return rig.focusEl},set focusEl(v){rig.focusEl=v},
     get lean(){return rig.lean},set lean(v){rig.lean=v},setState:s=>rig.setState(s),react:(s,ms)=>rig.react(s,ms),say:(t,o)=>rig.say(t,o),
     cover:on=>{rig.cover=!!on},lookAt:(x,y)=>rig.lookAt(x,y),lookAtCaret:i=>rig.lookAtCaret(i),bump:()=>rig.bump(),hop:v=>rig.hop(v),
-    point:(x,y)=>rig.point(x,y),unpoint:()=>rig.unpoint(),destroy:()=>rig.destroy(),
+    point:(x,y)=>rig.point(x,y),unpoint:()=>rig.unpoint(),destroy:()=>rig.destroy(),land:()=>rig.land(),emote:(k,n)=>rig.emote(k,n),
     walkStart:d=>rig.walkStart(d),walkStop:()=>rig.walkStop(),stepPhase:(i,p)=>rig.stepPhase(i,p),
     watch(inp){const secret=inp.type==='password';inp.addEventListener('focus',()=>{rig.focusEl=inp;if(secret)rig.cover=true;rig.lookAtCaret(inp)});
       inp.addEventListener('input',()=>{rig.lookAtCaret(inp);rig.bump()});inp.addEventListener('blur',()=>{rig.focusEl=null;if(secret)rig.cover=false})}});
@@ -772,8 +772,7 @@ function definePipElement(engine,defaultConfig,painted,origin){
           requestAnimationFrame(()=>{const d=this._dock();this._setPos(d[0],d[1]);this.style.visibility='';setTimeout(greet,500)})}
         else requestAnimationFrame(()=>{this._avoidCheck(true);const d=this._dock();
           if(this._hiddenByUser){this._setPos(d[0],d[1]);this.style.visibility='';this._docked=true;return}
-          this._setPos(d[0],this._place().v==='top'?-this._size()[1]-20:innerHeight+20);this.style.visibility='';
-          this.walkTo(d[0],d[1],{ms:700,hops:false}).then(()=>{this._docked=true;setTimeout(greet,150)})});
+          this.style.visibility='';this._drop(d[0],d[1]).then(()=>{this._docked=true;setTimeout(greet,350)})});
       }else setTimeout(greet,500);
       if(this.hasAttribute('autopilot'))this._ap=autopilot(this);
     }
@@ -817,6 +816,11 @@ function definePipElement(engine,defaultConfig,painted,origin){
     _setPos(x,y){this._pos=[x,y];this.style.transform=`translate(${this._rel[0]}px,${this._rel[1]}px)`;this._placeBubble()}
     _placeBubble(){const b=this.shadowRoot&&this.shadowRoot.querySelector('.bubble');if(!b)return;const r=this.getBoundingClientRect(),c=r.left+r.width/2;
       b.classList.toggle('below',r.top<90);b.classList.toggle('r',c>innerWidth*.6);b.classList.toggle('l',c<innerWidth*.4)}
+    // entrance: falls in from above the screen and lands with a squash and a puff of dust
+    _drop(x,y){const m=this._m,y0=-this._size()[1]-30,ms=RM<1?260:560,tok=this._walkTok=(this._walkTok||0)+1;this._setPos(x,y0);
+      if(!m||!m.land){return this.walkTo(x,y,{ms:700,hops:false})}
+      return new Promise(res=>{const t0=performance.now();const step=now=>{if(tok!==this._walkTok||!this._m)return res();const p=clamp((now-t0)/ms,0,1);
+        this._setPos(x,y0+(y-y0)*p*p);if(p<1)requestAnimationFrame(step);else{m.land();res()}};requestAnimationFrame(step)})}
     walkTo(x,y,{ms,hops=true}={}){
       if(!this._float||!this._m||this._hiddenByUser)return Promise.resolve();const m=this._m,[x0,y0]=this._pos,dist=Math.hypot(x-x0,y-y0);
       const tok=this._walkTok=(this._walkTok||0)+1;this._docked=false;
