@@ -30,7 +30,7 @@ export default async function handler(req, res) {
       if (!r.ok) { res.status(r.status === 404 ? 404 : 502).json({ error: 'Couldn’t find that payment. If you were charged, email hello@zerotobuild.dev and we’ll sort it out.' }); return; }
       const s = r.json;
       if (s.status !== 'complete') { res.status(409).json({ status: s.status, error: 'This payment didn’t go through, so nothing was charged.' }); return; }
-      if (s.payment_status !== 'paid') { res.status(409).json({ status: 'processing', error: 'Your payment is still going through. Try again in a minute.' }); return; }
+      if (s.payment_status !== 'paid' && s.payment_status !== 'no_payment_required') { res.status(409).json({ status: 'processing', error: 'Your payment is still going through. Try again in a minute.' }); return; }
       res.json(await fulfil(s));
       return;
     }

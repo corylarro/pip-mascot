@@ -20,7 +20,7 @@ export default async function handler(req, res) {
   let event; try { event = JSON.parse(raw); } catch (e) { res.status(400).end(); return; }
   try {
     const s = event.data && event.data.object;
-    const paid = (event.type === 'checkout.session.completed' && s.payment_status === 'paid') || event.type === 'checkout.session.async_payment_succeeded';
+    const paid = (event.type === 'checkout.session.completed' && (s.payment_status === 'paid' || s.payment_status === 'no_payment_required')) || event.type === 'checkout.session.async_payment_succeeded';
     if (paid) { const out = await fulfil(s); console.log('stripe webhook: fulfilled', s.id, out.already ? '(already)' : ''); }
     res.json({ received: true });
   } catch (e) {
