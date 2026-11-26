@@ -58,6 +58,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 @keyframes pulse{50%{opacity:.55}}
 .mono{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
 [hidden]{display:none!important}
+.kind{display:flex;gap:6px;margin:4px 0 8px}.kind button{font:inherit;font-size:13px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}.kind button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 pre.snippet{margin:0;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;overflow-x:auto;font-family:var(--font-mono);font-size:12.5px;color:var(--ink);white-space:pre}
 a.ghost{display:inline-flex;align-items:center;text-decoration:none;border-radius:10px}
 .tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;margin-top:10px}
@@ -219,10 +220,11 @@ details.guide ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--mut
 
   <section class="card" id="useCard" aria-labelledby="use" hidden>
     <h2 id="use">Use it in your app</h2>
-    <p class="sub">Saves this mascot and gives you two lines to paste into any website. It runs on autopilot: it reacts to loading, saves, errors and forms, and walks over to point at problems.</p>
+    <p class="sub">Saves this mascot and gives you the code for your website or iPhone app. It runs on autopilot: it reacts to loading, saves, errors and forms, and walks over to point at problems.</p>
     <div class="field"><label for="mname">Mascot name</label><input type="text" id="mname" maxlength="24" autocomplete="off" placeholder="e.g. Basil"></div>
     <button type="button" class="primary" id="save">Save and get the code</button>
     <p class="hint" id="saveMsg"></p>
+    <div class="kind" id="snipKind" role="group" aria-label="Where it goes" hidden><button type="button" data-kind="web" aria-pressed="true">Website</button><button type="button" data-kind="ios" aria-pressed="false">iPhone app (Swift)</button></div>
     <pre class="snippet" id="snippet" hidden></pre>
     <div class="row" id="useActions" hidden><button type="button" class="ghost" id="copySnip">Copy code</button><a class="ghost" href="/builder#live" id="tryLive">See it in the Taskly demo</a><a class="ghost" href="/embed-test" id="tryPlain" target="_blank" rel="noopener">Try it on a plain page</a></div>
   </section>
@@ -473,11 +475,20 @@ async function reencode(b64,mime){const im=await loadImg(b64ToDataUrl(b64,mime))
   for(let i=0;i<8;i++){const d=src.toDataURL('image/png').split(',')[1];if(d.length<MAX)return{data:d,mime:'image/png'};
     w=Math.round(w*.85);h=Math.round(h*.85);const n=canvasOf(w,h),x=n.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(im,0,0,w,h);src=n}
   throw new Error('the painting is too large to upload')}
-function showSnippet(id){const code=`<script src="${location.origin}/critter.js"><\/script>\n<critter-mascot mascot="${id}" autopilot greet></critter-mascot>`;
+let snipKind='web',snipId=null;
+const SNIP_HINT={web:'Saved. Paste this into your site, before the closing </body> tag.',
+  ios:'Saved. In Xcode: File → Add Package Dependencies…, paste the link from the first line, then add this to your root view. More in the docs: critterkit.com/docs#ios'};
+function snipCode(id,kind){return kind==='ios'
+  ?`// Xcode: File → Add Package Dependencies… → https://github.com/corylarro/CritterKit\nimport CritterKit\n\nContentView()\n  .critterMascot(.init(mascotID: "${id}"))`
+  :`<script src="${location.origin}/critter.js"><\/script>\n<critter-mascot mascot="${id}" autopilot greet></critter-mascot>`}
+document.querySelectorAll('#snipKind button').forEach(b=>b.addEventListener('click',()=>{snipKind=b.dataset.kind;
+  document.querySelectorAll('#snipKind button').forEach(o=>o.setAttribute('aria-pressed',String(o===b)));
+  if(snipId){$('snippet').textContent=snipCode(snipId,snipKind);$('saveMsg').textContent=SNIP_HINT[snipKind]}}));
+function showSnippet(id){snipId=id;const code=snipCode(id,snipKind);$('snipKind').hidden=false;
   $('snippet').textContent=code;$('snippet').hidden=false;$('tryPlain').href='/embed-test?mascot='+encodeURIComponent(id);$('useActions').hidden=false;$('save').textContent='Save again as a new copy';
   try{localStorage.setItem('pip-painted-id',id);localStorage.setItem('pip-painted-name',$('mname').value.trim()||'Painted mascot')}catch(e){}}
-function showUse(){$('useCard').hidden=false;if(current.savedId){$('mname').value=current.name||'';showSnippet(current.savedId);$('saveMsg').textContent='Saved. Paste this into your site, before the closing </body> tag.'}
-  else{$('snippet').hidden=true;$('useActions').hidden=true;$('save').textContent='Save and get the code';$('saveMsg').textContent=''}}
+function showUse(){$('useCard').hidden=false;if(current.savedId){$('mname').value=current.name||'';showSnippet(current.savedId);$('saveMsg').textContent=SNIP_HINT[snipKind]}
+  else{$('snippet').hidden=true;$('snipKind').hidden=true;$('useActions').hidden=true;$('save').textContent='Save and get the code';$('saveMsg').textContent=''}}
 $('save').addEventListener('click',async()=>{if(!current||!(current.sheet||current.base)||!current.face)return;const btn=$('save');btn.disabled=true;btn.textContent='Saving…';$('saveMsg').textContent='';
   try{const name=$('mname').value.trim();const raw=current.mode==='sheet'?current.sheet:current.base;
     const {data:image,mime:imgMime}=await reencode(raw,current.mime);
@@ -492,7 +503,7 @@ $('save').addEventListener('click',async()=>{if(!current||!(current.sheet||curre
     if(atlas&&atlas.atlas){btn.textContent='Saving poses…';
       const r2=await fetch('/api/mascot?id='+encodeURIComponent(j.id),{method:'PUT',headers:H,body:JSON.stringify(atlas)}).catch(()=>null);
       if(!r2||!r2.ok)console.warn('Poses were not saved; the mascot still works, it just prepares them when it loads.')}
-    current.savedId=j.id;current.name=name;DB.put(current);showSnippet(j.id);$('saveMsg').textContent='Saved. Paste this into your site, before the closing </body> tag.';rig.react('success',1600)}
+    current.savedId=j.id;current.name=name;DB.put(current);showSnippet(j.id);$('saveMsg').textContent=SNIP_HINT[snipKind];rig.react('success',1600)}
   catch(e){$('saveMsg').textContent='Couldn’t save: '+(e.message||e);btn.textContent='Save and get the code'}finally{btn.disabled=false}});
 $('copySnip').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('snippet').textContent);$('copySnip').textContent='Copied'}catch(e){
   const r=document.createRange();r.selectNodeContents($('snippet'));const sel=getSelection();sel.removeAllRanges();sel.addRange(r)}setTimeout(()=>{$('copySnip').textContent='Copy code'},1600)});
