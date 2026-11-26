@@ -206,7 +206,7 @@ pre .t{color:var(--butter)}pre .a{color:#9EE6C2}
     <div class="stage">
       <span class="play-label">Hi, I'm Pip. Poke me.</span>
       <div class="spot" id="pipHome"></div>
-      <critter-mascot id="pipPainted" class="loading" mascot="xyjv3nf5en3k" dock="#pipHome" greet greeting="Hi! I'm Pip."></critter-mascot>
+      <critter-mascot id="pipPainted" class="loading" mascot="xyjv3nf5en3k" dock="#pipHome" seasonal="off" greet greeting="Hi! I'm Pip."></critter-mascot>
       <div class="play" role="group" aria-label="Make Pip react">
         <button data-r="wave">Wave</button><button data-r="success">Cheer</button><button data-r="dance">Dance</button><button data-r="error">Oops</button><button data-r="sleeping">Nap</button>
       </div>
@@ -329,7 +329,7 @@ let pip = painted;
 painted.addEventListener('ready', () => requestAnimationFrame(() => painted.classList.remove('loading')));
 // If the painting can't load, the drawn seed takes its place.
 painted.addEventListener('error', () => {
-  painted.remove(); const d = document.createElement('critter-mascot'); d.id = 'pipDrawn'; d.setAttribute('greet', ''); d.setAttribute('greeting', "Hi! I'm Pip.");
+  painted.remove(); const d = document.createElement('critter-mascot'); d.id = 'pipDrawn'; d.setAttribute('greet', ''); d.setAttribute('seasonal', 'off'); d.setAttribute('greeting', "Hi! I'm Pip.");
   document.getElementById('pipHome').appendChild(d); pip = d;
 });
 
@@ -430,7 +430,7 @@ const moments = {
   pass: async () => { await toHero(); pip.cover(true); say("I'm not looking!", 2000); await wait(2400); pip.cover(false); },
   rage: async () => { await toHero(); pip.react('surprised', 1600); say('Easy there. I think it heard you.', 2600); },
   dance: async () => { await toHero(); pip.setState('idle'); pip.react('dance', 3400); say('100 days in a row!', 3000); },
-  season: async () => { await toHero(); clearTimeout(seasonT); pip.setAttribute('seasonal', 'snow'); say('Holiday mode, on its own.', 2600); seasonT = setTimeout(() => pip.setAttribute('seasonal', 'auto'), 8000); },
+  season: async () => { await toHero(); clearTimeout(seasonT); pip.setAttribute('seasonal', 'snow'); say('Holiday mode, on its own.', 2600); seasonT = setTimeout(() => pip.setAttribute('seasonal', 'off'), 8000); },
 };
 document.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', () => moments[b.dataset.m]()));
 
