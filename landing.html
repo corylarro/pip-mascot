@@ -423,11 +423,24 @@ document.querySelectorAll('[data-look]').forEach(b => b.addEventListener('click'
   old.parentNode.insertBefore(el, old.nextSibling);
 }));
 
+// Point: stand over "Try it free" and point at "Create your mascot", so the main button stays visible
+async function pointAtCreate() {
+  const main = document.querySelector('.hero .ctas .btn:not(.ghost)'), alt = document.querySelector('.hero .ctas .btn.ghost');
+  pip.setState('idle');
+  if (!pip._size || !pip._m || !pip.walkTo) return pip.point(main, 'Make yours here!');
+  clearTimeout(pip._homeT); pip._m.unpoint && pip._m.unpoint();
+  const [w, h] = pip._size(), a = alt.getBoundingClientRect(), m0 = main.getBoundingClientRect();
+  // side by side: stand on "Try it free". Stacked: stand beside "Try it free", under the right end of the main button
+  const x = Math.min(Math.max(a.top < m0.bottom - 4 ? a.left + a.width / 2 - w / 2 : a.right + 6, 4), innerWidth - w - 4);
+  await pip.walkTo(x, a.top + a.height / 2 - h * .6);
+  const r = main.getBoundingClientRect(); pip._m.point(r.left + r.width / 2, r.top + r.height / 2); say('Make yours here!', 2600);
+  pip._homeT = setTimeout(() => pip.home(), 3600);
+}
 // Reaction chips
 document.querySelectorAll('.play button').forEach(b => b.addEventListener('click', () => {
   const r = b.dataset.r, lines = { wave: 'Hello there!', success: 'We did it!', dance: 'Party time!', error: 'Uh oh.', love: 'I like you.', sleeping: '' };
   if (r === 'sleeping') { pip.setState('sleeping'); return; }
-  if (r === 'point') { pip.setState('idle'); pip.point(document.querySelector('.hero .ctas .btn'), 'Make yours here!'); return; }
+  if (r === 'point') { pointAtCreate(); return; }
   pip.setState('idle'); pip.react(r, r === 'dance' ? 3200 : 2400); if (lines[r]) say(lines[r]);
 }));
 
