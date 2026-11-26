@@ -43,7 +43,7 @@ For panels 1, 8, 9, 10 and 11, count the character's ARMS: the upper limbs, incl
 Also say whether the character in panel 1 is an animal with paws, and for panels 8 to 11 whether a hand with separate human-style fingers appears.
 Reply with ONLY this JSON (no prose): {"arms":{"1":2,"8":2,"9":2,"10":2,"11":2},"pawAnimal":false,"fingers":{"8":false,"9":false,"10":false,"11":false}}`;
 
-import { whoIs, spend, refuse } from './_keys.js';
+import { whoIs, spend, refuse, MASCOT_COST } from './_keys.js';
 import { moderate } from './_moderate.js';
 
 export default async function handler(req, res) {
@@ -60,7 +60,7 @@ export default async function handler(req, res) {
   const quality = ['low', 'medium', 'high'].includes(b.quality) ? b.quality : 'medium';
 
   // A paint uses one credit for buyers; checks and touch-ups are free. Credits are only used when the paint succeeds.
-  if ((b.step === 'base' || b.step === 'reference') && who.rec && !(who.rec.credits > 0)) { res.status(402).json({ error: 'You’re out of paint credits.', credits: 0 }); return; }
+  if ((b.step === 'base' || b.step === 'reference') && who.rec && !(who.rec.credits >= MASCOT_COST)) { res.status(402).json({ error: `A new mascot uses ${MASCOT_COST} credits and you have ${who.rec.credits || 0}.`, credits: who.rec.credits || 0 }); return; }
 
   try {
     // Screen what the person typed (and any photo) before painting, so a blocked request never uses a paint.
@@ -78,7 +78,7 @@ export default async function handler(req, res) {
             method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },
             body: JSON.stringify({ model, prompt, size, quality, output_format: 'webp', n: 1 })
           });
-          if (r.ok && r.json && r.json.data && r.json.data[0]) { const credits = await spend(who).catch(() => null); res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model, size, credits }); return; }
+          if (r.ok && r.json && r.json.data && r.json.data[0]) { const credits = await spend(who, MASCOT_COST).catch(() => null); res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model, size, credits }); return; }
           last = r;
           if (/size|resolution|dimension/i.test(r.msg || '') && r.status === 400) continue;   // try the next size
           if (!tryNext(r.status, r.msg)) break outer;
@@ -104,7 +104,7 @@ export default async function handler(req, res) {
             fd.append('size', size); fd.append('quality', quality); fd.append('output_format', 'webp'); fd.append('n', '1');
             if (hiFi) fd.append('input_fidelity', 'high');
             const r = await call(`${API}/images/edits`, { method: 'POST', headers: auth, body: fd });
-            if (r.ok && r.json && r.json.data && r.json.data[0]) { const credits = await spend(who).catch(() => null); res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model, size, credits }); return; }
+            if (r.ok && r.json && r.json.data && r.json.data[0]) { const credits = await spend(who, MASCOT_COST).catch(() => null); res.json({ image: r.json.data[0].b64_json, mime: 'image/webp', model, size, credits }); return; }
             last = r;
             if (hiFi && /input_fidelity|fidelity/i.test(r.msg || '')) continue;   // same model and size, without the optional setting
             break;

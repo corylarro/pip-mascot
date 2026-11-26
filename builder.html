@@ -741,7 +741,7 @@ function definePipElement(engine,defaultConfig,painted,origin){
       const sleepAfter=sa===null?20000:Number(sa)*1000;let m;
       if(isPainted){const rig=new painted.PaintRig(root.querySelector('canvas[role=img]'),{bubble:root.querySelector('.bubble'),fit:.94,pad:.4,padTop:.45,hit:this,sleepAfter,onState});m=this._m=adapt(rig);
         this._ready=fetch(`${this.getAttribute('api')||origin}/api/mascot?id=${encodeURIComponent(mid)}`).then(r=>{if(!r.ok)throw new Error('Mascot not found');return r.json()})
-          .then(d=>painted.mountMascot(rig,d)).then(()=>{this.dispatchEvent(new CustomEvent('ready'));this._seen(mid)}).catch(e=>{console.warn('critter-mascot:',e);this.dispatchEvent(new CustomEvent('error',{detail:String(e)}))})}
+          .then(d=>{this._rules=Array.isArray(d.rules)?d.rules:[];return painted.mountMascot(rig,d)}).then(()=>{this.dispatchEvent(new CustomEvent('ready'));this._seen(mid);this._startRules(mid)}).catch(e=>{console.warn('critter-mascot:',e);this.dispatchEvent(new CustomEvent('error',{detail:String(e)}))})}
       else{m=this._m=new engine.Mascot(root.querySelector('svg'),cfg,{bubble:root.querySelector('.bubble'),sleepAfter,onState});this._ready=Promise.resolve()}
       const say=m.say.bind(m);m.say=(t,o)=>{this._placeBubble();return say(t,o)};
       const st=this.getAttribute('state');if(st)m.setState(st);
@@ -776,7 +776,7 @@ function definePipElement(engine,defaultConfig,painted,origin){
       }else setTimeout(greet,500);
       if(this.hasAttribute('autopilot'))this._ap=autopilot(this);
     }
-    disconnectedCallback(){if(this._seasonStop){this._seasonStop();this._seasonStop=null}if(this._ap){this._ap();this._ap=null}if(this._m){this._m.destroy();this._m=null}
+    disconnectedCallback(){if(this._rulesStop){this._rulesStop();this._rulesStop=null}if(this._seasonStop){this._seasonStop();this._seasonStop=null}if(this._ap){this._ap();this._ap=null}if(this._m){this._m.destroy();this._m=null}
       clearInterval(this._avT);if(this._onResize){removeEventListener('resize',this._onResize);removeEventListener('scroll',this._onResize)}if(this._aro)this._aro.disconnect();clearTimeout(this._homeT);this._walkTok=(this._walkTok||0)+1}
     _season(){if(this._seasonStop){this._seasonStop();this._seasonStop=null}const cv=this.shadowRoot&&this.shadowRoot.querySelector('.season');if(!cv)return;
       const a=(this.getAttribute('seasonal')||'auto').trim().toLowerCase();if(['off','false','none','no'].includes(a)||RM<1)return;
@@ -821,6 +821,33 @@ function definePipElement(engine,defaultConfig,painted,origin){
     _seen(mid){try{const h=location.hostname;if(!/^https?:$/.test(location.protocol)||/(^|\.)critterkit\.com$|\.vercel\.app$|^localhost$|^127\./.test(h)||this.hasAttribute('no-ping'))return;
       const k='ck-seen:'+mid,d=new Date().toISOString().slice(0,10);if(localStorage.getItem(k)===d)return;localStorage.setItem(k,d);
       fetch(`${this.getAttribute('api')||origin}/api/seen?id=${encodeURIComponent(mid)}`,{method:'POST',mode:'no-cors',keepalive:true}).catch(()=>{})}catch(e){}}
+    // No-code moments set up on the mascot's page: "when someone visits /thank-you, play first-purchase".
+    // Triggers: visit (a path, * wildcards), click (button or link text), text (words that appear on the page). Opt out with no-rules.
+    _startRules(mid){const rules=this._rules||[];if(!rules.length||this.hasAttribute('no-rules'))return;
+      const norm=t=>String(t||'').replace(/\s+/g,' ').trim().toLowerCase();
+      const KEY=id=>'ck-rule:'+mid+':'+id,done=id=>{try{return localStorage.getItem(KEY(id))==='1'}catch(e){return false}},mark=id=>{try{localStorage.setItem(KEY(id),'1')}catch(e){}};
+      const findByText=txt=>{const n=norm(txt);for(const el of document.querySelectorAll('button,a,[role=button],input[type=submit],input[type=button],label,h1,h2,h3')){
+        if(el===this||!el.getClientRects().length)continue;const v=norm(el.innerText||el.value||el.getAttribute('aria-label'));if(v&&v.includes(n))return el}return null};
+      const fire=r=>{if(!this._m||this._hiddenByUser)return;if(r.once){if(done(r.id))return;mark(r.id)}const t=r.then||{};
+        this.dispatchEvent(new CustomEvent('pip:rule',{detail:{id:r.id,when:r.when,then:t}}));
+        if(t.type==='moment')this.moment(t.name,Object.assign({},t.say?{say:t.say}:{},t.count!=null?{count:t.count}:{}));
+        else if(t.type==='say')this._m.say(t.text,{hold:2800});
+        else if(t.type==='point'){const el=findByText(t.target);if(el)this.point(el,t.text||undefined);else if(t.text)this._m.say(t.text,{hold:2600})}
+        else if(t.type==='play')this.play(t.steps)};
+      const pathOk=pat=>{const p=(location.pathname.replace(/\/+$/,'')||'/').toLowerCase();pat=String(pat||'').trim();try{if(/^https?:/i.test(pat))pat=new URL(pat).pathname}catch(e){}
+        pat=(pat.split(/[?#]/)[0].replace(/\/+$/,'')||'/').toLowerCase();if(pat[0]!=='/')pat='/'+pat;
+        if(pat.includes('*'))return new RegExp('^'+pat.split('*').map(x=>x.replace(/[.+?^${}()|[\]\\]/g,'\\$&')).join('.*')+'$').test(p);return p===pat};
+      const textRules=rules.filter(r=>r.when.type==='text'),seenText=new Set();let lastPath=null,q=0;
+      const scan=()=>{q=0;if(!textRules.length||!document.body)return;const body=norm(document.body.innerText);
+        for(const r of textRules)if(!seenText.has(r.id)&&body.includes(norm(r.when.value))){seenText.add(r.id);fire(r)}};
+      const visit=()=>{const p=location.pathname;if(p===lastPath)return;lastPath=p;seenText.clear();
+        for(const r of rules)if(r.when.type==='visit'&&pathOk(r.when.value))setTimeout(()=>fire(r),900);if(textRules.length)setTimeout(scan,1300)};
+      const click=e=>{const el=e.target&&e.target.closest&&e.target.closest('button,a,[role=button],input[type=submit],input[type=button]');if(!el||el===this)return;
+        const v=norm(el.innerText||el.value||el.getAttribute('aria-label'));if(!v)return;for(const r of rules)if(r.when.type==='click'&&v.includes(norm(r.when.value)))fire(r)};
+      visit();const iv=setInterval(visit,700);document.addEventListener('click',click,true);
+      const mo=textRules.length&&typeof MutationObserver!=='undefined'?new MutationObserver(()=>{if(!q)q=setTimeout(scan,600)}):null;
+      if(mo&&document.body)mo.observe(document.body,{childList:true,subtree:true,characterData:true});
+      this._rulesStop=()=>{clearInterval(iv);clearTimeout(q);document.removeEventListener('click',click,true);mo&&mo.disconnect()}}
     _drop(x,y){const m=this._m,y0=-this._size()[1]-30,ms=RM<1?260:560,tok=this._walkTok=(this._walkTok||0)+1;this._setPos(x,y0);
       if(!m||!m.land){return this.walkTo(x,y,{ms:700,hops:false})}
       return new Promise(res=>{const t0=performance.now();const step=now=>{if(tok!==this._walkTok||!this._m)return res();const p=clamp((now-t0)/ms,0,1);

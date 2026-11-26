@@ -14,7 +14,10 @@ export async function readJson(path) {
 }
 export const writeJson = (path, data) => put(path, JSON.stringify(data), { access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 });
 
-export const readKey = k => (KEY.test(k || '') ? readJson(`keys/${k}.json`) : Promise.resolve(null));
+// Credits: a new mascot uses 5, a custom pose uses 1. Keys made before credits held "paints" (one per mascot): 1 paint = 5 credits.
+export const MASCOT_COST = 5;
+const norm = rec => { if (rec && rec.cv !== 2) { rec.credits = (rec.credits || 0) * MASCOT_COST; rec.cv = 2; } return rec; };
+export const readKey = k => (KEY.test(k || '') ? readJson(`keys/${k}.json`).then(norm) : Promise.resolve(null));
 export const writeKey = (k, rec) => writeJson(`keys/${k}.json`, rec);
 export const findCheckout = id => readJson(`checkouts/${id}.json`);
 export const saveCheckout = (id, data) => writeJson(`checkouts/${id}.json`, data);
@@ -48,11 +51,11 @@ export function refuse(res, who, what) {
   return false;
 }
 
-// Use one paint credit after a successful paint. Returns credits left (null for the owner).
-export async function spend(who) {
+// Use credits after a successful paint (MASCOT_COST for a new mascot, 1 for a pose). Returns credits left (null for the owner).
+export async function spend(who, n = 1) {
   if (!who || !who.key) return null;
   const rec = (await readKey(who.key).catch(() => null)) || who.rec;
-  rec.credits = Math.max(0, (rec.credits || 0) - 1); rec.used = (rec.used || 0) + 1; rec.lastPaint = new Date().toISOString();
+  rec.credits = Math.max(0, (rec.credits || 0) - n); rec.used = (rec.used || 0) + 1; rec.lastPaint = new Date().toISOString();
   await writeKey(who.key, rec);
   return rec.credits;
 }

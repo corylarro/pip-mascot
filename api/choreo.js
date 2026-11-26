@@ -3,14 +3,10 @@
 // The AI can only pick from the moves below, so the result is always safe to run.
 import { moderate } from './_moderate.js';
 import { readJson, writeJson, ipTag } from './_keys.js';
+import { STATES, EMOTES, MOVES, POOF, clean, sanitize } from './_steps.js';
 
 const MODELS = () => [...new Set([process.env.OPENAI_TEXT_MODEL, 'gpt-5-mini', 'gpt-4.1-mini', 'gpt-4o-mini'].filter(Boolean))];
 const PER_HOUR = 30;
-
-const STATES = ['idle', 'thinking', 'success', 'error', 'surprised', 'confused', 'love', 'wave', 'sleeping', 'dance', 'sad', 'peek'];
-const EMOTES = ['spark', 'note', 'dust', 'bang', 'sweat', 'smoke', 'drops', 'confetti', 'hearts'];
-const MOVES = ['jump', 'bigjump', 'flip', 'spin', 'shake', 'grow'];
-const POOF = ['home', 'center', 'left', 'right', 'random'];
 
 const PROMPT = `You choreograph a cute animated app mascot. Turn the request into a short sequence of steps (3 to 8) the mascot can perform.
 Steps (JSON objects):
@@ -25,28 +21,6 @@ react, say, emote and prop start and keep going while the next step runs; moves,
 If the request includes a value that changes each time (a level, a name, a streak length, a score, an item), write it as a placeholder in curly braces in the say text, like {level} or {name}, and give a realistic example for each in "values".
 Keep it playful and all-ages. Interpret creatively and use props for things you can't animate. If the request is inappropriate, hurtful or not something a mascot should do, return a short confused reaction saying it can't do that one.
 Reply with ONLY JSON: {"steps":[...],"values":{}}`;
-
-const clampN = (v, a, b, d) => { const n = Number(v); return Number.isFinite(n) ? Math.max(a, Math.min(b, Math.round(n))) : d; };
-const clean = s => String(s || '').replace(/[<>]/g, '').trim();
-
-function sanitize(steps) {
-  const out = [];
-  for (const st of Array.isArray(steps) ? steps.slice(0, 10) : []) {
-    const d = String(st && st.do || '').toLowerCase();
-    if (d === 'react' && STATES.includes(st.state)) out.push({ do: 'react', state: st.state, ms: clampN(st.ms, 800, 5000, 2400) });
-    else if (d === 'say' && clean(st.text)) out.push({ do: 'say', text: clean(st.text).slice(0, 70) });
-    else if (MOVES.includes(d)) out.push({ do: d });
-    else if (d === 'backflip') out.push({ do: 'flip' });
-    else if (d === 'emote' && EMOTES.includes(st.kind)) out.push({ do: 'emote', kind: st.kind });
-    else if (d === 'prop' && clean(st.emoji)) out.push({ do: 'prop', emoji: [...clean(st.emoji)].slice(0, 2).join(''), ms: clampN(st.ms, 2000, 5000, 3000) });
-    else if (d === 'poof') out.push({ do: 'poof', to: POOF.includes(st.to) ? st.to : 'random' });
-    else if (d === 'wait') out.push({ do: 'wait', ms: clampN(st.ms, 200, 3000, 600) });
-  }
-  // anything that poofed away comes back
-  const poofs = out.filter(s => s.do === 'poof');
-  if (poofs.length && poofs[poofs.length - 1].to !== 'home') out.push({ do: 'wait', ms: 1200 }, { do: 'poof', to: 'home' });
-  return out;
-}
 
 // If the request names a thing but the AI forgot to hold it up, add the prop ourselves.
 const PROPS = [[/pizza/, '🍕'], [/birthday|cake/, '🎂'], [/trophy|award|prize|win(ner)?\b/, '🏆'], [/coffee|latte|espresso/, '☕'], [/tea\b/, '🍵'],

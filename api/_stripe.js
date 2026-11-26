@@ -2,7 +2,8 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { readKey, writeKey, newKey, findCheckout, saveCheckout } from './_keys.js';
 
-export const CREDITS = { painted: 6, credits: 10 };   // painted: the first paint + 5 repaints
+// Credits each plan adds. painted: the mascot itself (5) plus 10 to start. 'credits' is the old name of credits10.
+export const CREDITS = { painted: 15, credits: 10, credits10: 10, credits30: 30, credits100: 100 };
 
 export async function stripe(method, path, form) {
   const r = await fetch('https://api.stripe.com/v1' + path, {
@@ -22,7 +23,7 @@ export async function fulfil(s) {
   const meta = s.metadata || {}, plan = CREDITS[meta.plan] ? meta.plan : 'painted';
   let key = null, rec = null;
   if (meta.topup) { rec = await readKey(meta.topup); if (rec) key = meta.topup; }
-  if (!key) { key = newKey(); rec = { credits: 0, email: (s.customer_details && s.customer_details.email) || null, created: new Date().toISOString(), orders: [] }; }
+  if (!key) { key = newKey(); rec = { credits: 0, cv: 2, email: (s.customer_details && s.customer_details.email) || null, created: new Date().toISOString(), orders: [] }; }
   rec.credits = (rec.credits || 0) + CREDITS[plan];
   rec.orders = [...(rec.orders || []), { checkout: s.id, plan, total: s.amount_total ?? null, currency: s.currency || 'usd', at: new Date().toISOString() }];
   await saveCheckout(s.id, { key, plan });   // record first, so a second caller finds it

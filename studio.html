@@ -117,12 +117,12 @@ pre{margin:0;background:var(--ink);color:#F2F0FF;border-radius:18px;padding:16px
       <div class="tabs" role="group" aria-label="Code for"><button type="button" data-k="web" aria-pressed="true">Website</button><button type="button" data-k="ios" aria-pressed="false">iPhone app (Swift)</button></div>
       <div class="vals" id="vals" hidden><span>Try it with</span></div>
       <pre id="code"></pre>
-      <div class="row"><button class="ghost" id="copy" type="button">Copy code</button><button class="ghost" id="again" type="button">Play it again</button>
+      <div class="row"><button class="ghost" id="copy" type="button">Copy code</button><button class="ghost" id="again" type="button">Play it again</button><button class="ghost" id="nocode" type="button">Use without code</button>
         <span class="note">Call it wherever that moment happens in your app. <a href="/docs#play">How it works</a></span></div>
     </div>
   </section>
   <div class="stage" id="stage">
-    <critter-mascot id="pip" mascot="xyjv3nf5en3k" dock="#stage" seasonal="off" greeting="Tell me what to do!"></critter-mascot>
+    <critter-mascot id="pip" mascot="xyjv3nf5en3k" dock="#stage" seasonal="off" no-rules greeting="Tell me what to do!"></critter-mascot>
   </div>
   <script>
   // /studio?mascot=ID runs the studio with your own mascot (before the tag comes to life)
@@ -181,6 +181,10 @@ function add(st){steps=steps||[];if(steps.length>=12){$('msg').textContent='That
   // play just the new step, so tapping feels like poking the mascot
   const one=st.do==='poof'&&st.to!=='home'?[st,{do:'wait',ms:900},{do:'poof',to:'home'}]:[st];pip.play(one,values)}
 $('clear').addEventListener('click',()=>{steps=[];renderSeq()});
+// Hand the sequence to "Moments without code" on the mascot's page (placeholders can't be filled there, so they're kept as typed)
+$('nocode').addEventListener('click',()=>{if(!steps||!steps.length)return;try{localStorage.setItem('ck-custom-steps',JSON.stringify(steps))}catch(e){}
+  const id=new URLSearchParams(location.search).get('mascot')||(()=>{try{return localStorage.getItem('pip-painted-id')}catch(e){return null}})();
+  location.href='/mascots?'+(id?'id='+encodeURIComponent(id)+'&':'')+'rule=custom'});
 renderSeq();
 async function make(){const text=$('text').value.trim();if(text.length<3){$('msg').textContent='Describe the moment first.';$('text').focus();return}
   $('go').disabled=true;$('msg').textContent='Building your sequence…';pip.react&&pip.setState('thinking');

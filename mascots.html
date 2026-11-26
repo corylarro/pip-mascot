@@ -53,7 +53,23 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
 .btn{display:inline-flex;align-items:center;justify-content:center;font:700 1rem var(--body);padding:12px 20px;border-radius:999px;border:2px solid var(--ink);background:var(--peach);color:var(--ink);cursor:pointer;text-decoration:none;box-shadow:0 4px 0 var(--ink)}
 .btn:active{transform:translateY(2px);box-shadow:0 2px 0 var(--ink)}
 .ghost{display:inline-flex;align-items:center;font:600 .95rem var(--body);padding:9px 16px;border-radius:999px;border:2px solid var(--ink);background:var(--white);color:var(--ink);cursor:pointer;text-decoration:none}
-.hint{color:var(--ink-2);font-size:.92rem;margin-top:10px}.hint a{color:var(--ink);font-weight:600}
+.hint{color:var(--ink-2);font-size:.92rem;margin-top:10px}
+.rules{list-style:none;margin:0 0 12px;padding:0;display:grid;gap:8px}
+.rules li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;background:var(--haze);border-radius:14px;padding:10px 12px;font-size:.95rem}
+.rules li small{display:block;color:var(--ink-2)}
+.rules li button{font:600 .85rem var(--body);padding:5px 11px;border-radius:999px;border:1.5px solid var(--ink);background:var(--white);color:var(--ink);cursor:pointer}
+.ruleform{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:14px}
+.rf{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.rf label{font-weight:700;min-width:44px}
+.rf select,.rf input{font:500 1rem var(--body);padding:9px 12px;border-radius:12px;border:2px solid var(--ink);background:var(--white);color:var(--ink);min-width:0;flex:1 1 160px}
+.rf input[type=number]{flex:0 1 110px}
+.once{display:flex;gap:8px;align-items:center;font-weight:500}
+.packs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.pack{display:flex;flex-direction:column;gap:2px;text-decoration:none;color:var(--ink);border:2px solid var(--ink);border-radius:16px;padding:12px;background:var(--white)}
+.pack span{color:var(--ink-2);font-size:.9rem}.pack.pop{background:var(--butter)}
+.pack:hover{transform:translateY(-1px)}
+.notice{background:var(--white);border:2px solid var(--sprout);border-radius:16px;padding:12px 16px;margin-bottom:16px;font-weight:600}
+@media (max-width:520px){.packs{grid-template-columns:1fr}}.hint a{color:var(--ink);font-weight:600}
 .auto{margin:4px 0 0;padding:0;list-style:none;display:grid;gap:8px}
 .auto li{position:relative;padding-left:26px}
 .auto li::before{content:"";position:absolute;left:4px;top:.55em;width:10px;height:6px;border-left:2.5px solid var(--sprout);border-bottom:2.5px solid var(--sprout);transform:rotate(-45deg)}
@@ -98,6 +114,7 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
   </section>
 
   <main id="page" hidden>
+    <p class="notice" id="notice" role="status" hidden></p>
     <nav class="pick" id="pick" aria-label="Your mascots" hidden></nav>
     <div class="layout">
       <div class="left">
@@ -132,18 +149,38 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
           <p class="hint">Need something these don’t cover? <a href="/studio" id="studio">Build a custom moment</a> from moves, moods, effects and words.</p>
         </section>
 
+        <section class="step" id="rules-step" aria-labelledby="s4r">
+          <h2 id="s4r"><b>4</b>Moments without code</h2>
+          <p class="sub">For websites. Tell your mascot when to celebrate and it just does it, with no changes to your code. Changes reach your site within a minute.</p>
+          <ul class="rules" id="rules"></ul>
+          <form class="ruleform" id="ruleForm" hidden>
+            <div class="rf"><label for="rWhen">When</label><select id="rWhen"><option value="visit">someone visits a page</option><option value="click">someone taps a button or link</option><option value="text">some words appear on the page</option></select>
+              <input id="rWhenVal" required maxlength="80" aria-label="Which page, button or words"></div>
+            <div class="rf"><label for="rThen">Then</label><select id="rThen"><option value="moment">play a moment</option><option value="say">say something</option><option value="point">point at a button or link</option><option value="play">play a custom moment</option></select></div>
+            <div class="rf" id="fMoment"><select id="rMoment" aria-label="Moment"></select><input id="rCount" type="number" min="0" placeholder="Number" aria-label="Number for the moment" hidden><input id="rSay" maxlength="70" placeholder="Its line (optional)" aria-label="What it says"></div>
+            <div class="rf" id="fSay" hidden><input id="rText" maxlength="70" placeholder="Thanks for signing up!" aria-label="What it says"></div>
+            <div class="rf" id="fPoint" hidden><input id="rTarget" maxlength="80" placeholder="Button text, like Upgrade" aria-label="Button or link text"><input id="rPointSay" maxlength="70" placeholder="What it says (optional)" aria-label="What it says"></div>
+            <div class="rf" id="fPlay" hidden><p class="hint" id="playInfo" style="margin:0"></p></div>
+            <label class="once"><input type="checkbox" id="rOnce" checked> Only once per visitor</label>
+            <div class="row"><button class="btn" type="submit" id="rAdd">Add this moment</button><button class="ghost" type="button" id="rTry">Try it here</button></div>
+            <p class="err" id="rErr" aria-live="polite"></p>
+          </form>
+          <p class="hint" id="rulesHint"></p>
+        </section>
+
         <section class="step" aria-labelledby="s3b">
-          <h2 id="s3b"><b>4</b>Check it’s live</h2>
+          <h2 id="s3b"><b>5</b>Check it’s live</h2>
           <p class="sub" id="liveText">Open a page of your app with the mascot on it. Within a minute, this page shows the site it’s running on.</p>
           <div class="row" style="margin-top:12px"><button class="ghost" id="recheck" type="button">Check again</button></div>
         </section>
 
-        <section class="step" aria-labelledby="s4">
-          <h2 id="s4">Your key and paints</h2>
+        <section class="step" id="credits-step" aria-labelledby="s4">
+          <h2 id="s4">Your key and credits</h2>
           <p class="sub" id="credits"></p>
           <div class="keyline" id="keyline" hidden><code id="keyText">ck_••••••••••••</code><button class="ghost" id="showKey" type="button">Show</button><button class="ghost" id="copyKey" type="button">Copy</button></div>
           <p class="hint">Keep your key in a password manager or notes. It’s how you get back in on another device.</p>
-          <div class="row" style="margin-top:14px"><a class="ghost" href="/paint">Paint another mascot</a><a class="ghost" id="buyMore" href="/api/checkout?plan=credits" hidden>Buy more paints</a><button class="ghost" id="signOut" type="button">Sign out on this device</button></div>
+          <div class="packs" id="packs" hidden><a class="pack" data-plan="credits10" href="#"><b>10 credits</b><span>$9</span></a><a class="pack pop" data-plan="credits30" href="#"><b>30 credits</b><span>$19 · most popular</span></a><a class="pack" data-plan="credits100" href="#"><b>100 credits</b><span>$49</span></a></div>
+          <div class="row" style="margin-top:14px"><a class="ghost" href="/paint">Paint another mascot</a><button class="ghost" id="signOut" type="button">Sign out on this device</button></div>
         </section>
       </div>
     </div>
@@ -167,7 +204,21 @@ async function me(k) {
   return j;
 }
 
+async function redeem() {
+  const id = params.get('checkout_id'); if (!id) return;
+  history.replaceState(null, '', '/mascots');
+  for (let a = 0; a < 6; a++) {
+    try { const r = await fetch('/api/checkout?redeem=' + encodeURIComponent(id)), j = await r.json().catch(() => ({}));
+      if (r.ok && j.key) { if (!key) { key = j.key; set('pip-pass', key); } note(`Thanks! Your credits are in. You have ${j.credits} now.`); return; }
+      if (r.status !== 409) { note(j.error || 'We couldn’t find that payment. If you were charged, email hello@zerotobuild.dev.'); return; } }
+    catch (e) {}
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  note('Your payment is still going through. Refresh in a minute to see your credits.');
+}
+const note = t => { $('notice').textContent = t; $('notice').hidden = false; };
 async function load() {
+  await redeem();
   let info = null;
   if (key) { try { info = await me(key); } catch (e) { if (e.status === 401) { set('pip-pass', ''); key = ''; } } }
   // mascots saved with this key, plus the last one saved in this browser (older saves weren't linked to keys)
@@ -187,8 +238,9 @@ function showCredits(info) {
   if (!info) { $('credits').textContent = 'Enter your key on the paint page to see your paints here.'; return; }
   if (info.owner) { $('credits').textContent = 'Signed in with the owner passcode.'; return; }
   const n = info.credits;
-  $('credits').textContent = n > 0 ? `${n} paint${n === 1 ? '' : 's'} left. Each new painting uses one.` : 'You’re out of paints. Buy more to paint another mascot or try a new look.';
-  $('buyMore').hidden = n > 0; $('keyline').hidden = false;
+  $('credits').textContent = `${n} credit${n === 1 ? '' : 's'}. A custom pose uses 1, a new mascot uses 5.`;
+  $('keyline').hidden = false; $('packs').hidden = false;
+  document.querySelectorAll('.pack').forEach(a => { a.href = `/api/checkout?plan=${a.dataset.plan}&key=${encodeURIComponent(key)}`; });
 }
 
 function show(m) {
@@ -204,10 +256,10 @@ function show(m) {
   // the live mascot on the stage
   if (pip) pip.remove();
   pip = document.createElement('critter-mascot');
-  pip.setAttribute('mascot', m.id); pip.setAttribute('dock', '#stage'); pip.setAttribute('seasonal', 'off'); pip.setAttribute('no-ping', '');
+  pip.setAttribute('mascot', m.id); pip.setAttribute('dock', '#stage'); pip.setAttribute('seasonal', 'off'); pip.setAttribute('no-ping', ''); pip.setAttribute('no-rules', '');
   pip.setAttribute('greet', ''); pip.setAttribute('greeting', m.name ? `Hi! I'm ${m.name}.` : 'Hi there!');
   document.body.appendChild(pip);
-  renderCode(); renderPlat(); checkLive(true);
+  renderCode(); renderPlat(); checkLive(true); loadRules();
 }
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -265,6 +317,70 @@ async function checkLive(first) {
   } catch (e) { setLive('', 'Couldn’t check right now'); }
 }
 $('recheck').addEventListener('click', () => checkLive(true));
+
+// No-code moments
+let rules = [], canEdit = false;
+const WHEN = { visit: ['someone visits', '/thank-you  (use * for any, like /blog/*)'], click: ['someone taps', 'Button or link text, like Upgrade'], text: ['these words appear', 'Words on the page, like Order confirmed'] };
+const momentName = n => (CK.MOMENTS.find(x => x.m === n) || { name: n }).name;
+const thenText = t => t.type === 'moment' ? `play ${momentName(t.name)}${t.count != null ? ' (' + t.count + ')' : ''}${t.say ? `: “${t.say}”` : ''}` : t.type === 'say' ? `say “${t.text}”` : t.type === 'point' ? `point at “${t.target}”${t.text ? `: “${t.text}”` : ''}` : `play a custom moment (${t.steps.length} steps)`;
+function renderRules() {
+  const ul = $('rules');
+  ul.innerHTML = rules.map((r, i) => `<li><span>When ${esc(WHEN[r.when.type][0])} <b>${esc(r.when.value)}</b>, ${esc(thenText(r.then))}<small>${r.once ? 'Once per visitor' : 'Every time'}</small></span><button type="button" data-try="${i}">Try</button>${canEdit ? `<button type="button" data-del="${i}" aria-label="Remove">Remove</button>` : '<span></span>'}</li>`).join('');
+  ul.querySelectorAll('[data-try]').forEach(b => b.addEventListener('click', () => runThen(rules[b.dataset.try].then)));
+  ul.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => { const keep = rules.slice(); keep.splice(b.dataset.del, 1); await saveRules(keep); }));
+}
+function runThen(t) {
+  if (!pip || !pip.moment) return;
+  if (t.type === 'moment') pip.moment(t.name, Object.assign({}, t.say ? { say: t.say } : {}, t.count != null ? { count: t.count } : {}));
+  else if (t.type === 'say') pip.say(t.text, { hold: 2600 });
+  else if (t.type === 'point') pip.say(`${t.text || 'Over here!'} (points at “${t.target}” on your site)`, { hold: 3000 });
+  else if (t.type === 'play') pip.play(t.steps);
+  if (innerWidth < 860) $('stage').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+async function loadRules() {
+  rules = []; canEdit = !!key; renderRules(); $('ruleForm').hidden = !canEdit;
+  $('rulesHint').textContent = canEdit ? '' : 'Sign in with your key to add moments here.';
+  try { const r = await fetch(`/api/mascot?id=${cur.id}&fresh=${Date.now()}`); const d = await r.json(); rules = d.rules || []; renderRules(); } catch (e) {}
+}
+async function saveRules(list) {
+  $('rErr').textContent = '';
+  const r = await fetch('/api/mascot?id=' + cur.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-pip-pass': key }, body: JSON.stringify({ rules: list }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { $('rErr').textContent = r.status === 403 ? 'This mascot was saved before keys were linked, so it can’t take moments yet. Save it again from the paint page to turn this on.' : (j.error || 'Couldn’t save. Try again.'); return false; }
+  rules = j.rules || []; renderRules(); return true;
+}
+$('rMoment').innerHTML = CK.MOMENTS.map(x => `<option value="${x.m}">${esc(x.name)}</option>`).join('');
+const customSteps = () => { try { const v = JSON.parse(get('ck-custom-steps') || 'null'); return Array.isArray(v) && v.length ? v : null; } catch (e) { return null; } };
+function syncForm() {
+  const w = $('rWhen').value, t = $('rThen').value;
+  $('rWhenVal').placeholder = WHEN[w][1];
+  $('fMoment').hidden = t !== 'moment'; $('fSay').hidden = t !== 'say'; $('fPoint').hidden = t !== 'point'; $('fPlay').hidden = t !== 'play';
+  const m = $('rMoment').value; $('rCount').hidden = !(m === 'streak' || m === 'level-up'); $('rCount').placeholder = m === 'streak' ? 'Days' : 'Level';
+  const cs = customSteps();
+  $('playInfo').innerHTML = cs ? `Uses the last moment you built in the studio (${cs.length} steps). <a href="/studio?mascot=${cur ? cur.id : ''}">Build a different one</a>` : `Build one in the <a href="/studio?mascot=${cur ? cur.id : ''}">studio</a> first, then tap “Use without code” there.`;
+}
+['rWhen', 'rThen', 'rMoment'].forEach(id => $(id).addEventListener('change', syncForm));
+function formThen() {
+  const t = $('rThen').value;
+  if (t === 'moment') { const c = $('rCount').hidden || $('rCount').value === '' ? null : Number($('rCount').value); return Object.assign({ type: 'moment', name: $('rMoment').value }, $('rSay').value.trim() ? { say: $('rSay').value.trim() } : {}, c != null ? { count: c } : {}); }
+  if (t === 'say') return $('rText').value.trim() ? { type: 'say', text: $('rText').value.trim() } : null;
+  if (t === 'point') return $('rTarget').value.trim() ? { type: 'point', target: $('rTarget').value.trim(), text: $('rPointSay').value.trim() } : null;
+  const cs = customSteps(); return cs ? { type: 'play', steps: cs } : null;
+}
+$('rTry').addEventListener('click', () => { const t = formThen(); if (t) runThen(t); else $('rErr').textContent = 'Fill in what it should do first.'; });
+$('ruleForm').addEventListener('submit', async e => {
+  e.preventDefault(); const then = formThen(), value = $('rWhenVal').value.trim();
+  if (!value) { $('rErr').textContent = 'Say which page, button or words.'; return; }
+  if (!then) { $('rErr').textContent = $('rThen').value === 'play' ? 'Build a custom moment in the studio first.' : 'Fill in what it should do.'; return; }
+  $('rAdd').disabled = true;
+  const ok = await saveRules([...rules, { when: { type: $('rWhen').value, value }, then, once: $('rOnce').checked }]);
+  $('rAdd').disabled = false;
+  if (ok) { $('rWhenVal').value = ''; $('rSay').value = ''; $('rText').value = ''; $('rTarget').value = ''; $('rPointSay').value = ''; $('rCount').value = ''; }
+});
+syncForm();
+if (location.hash === '#rules') setTimeout(() => $('rules-step').scrollIntoView({ behavior: 'smooth' }), 800);
+if (location.hash === '#credits') setTimeout(() => $('credits-step').scrollIntoView({ behavior: 'smooth' }), 800);
+if (params.get('rule') === 'custom') setTimeout(() => { $('rThen').value = 'play'; syncForm(); $('rules-step').scrollIntoView({ behavior: 'smooth' }); }, 800);
 
 // key
 $('showKey').addEventListener('click', () => { const sh = $('showKey').textContent === 'Show'; $('keyText').textContent = sh ? key : 'ck_••••••••••••'; $('showKey').textContent = sh ? 'Hide' : 'Show'; });

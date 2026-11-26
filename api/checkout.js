@@ -1,6 +1,6 @@
 // Checkout with Stripe (Checkout Sessions, one-time payments).
 //   GET /api/checkout?plan=painted          -> sends the buyer to Stripe's payment page
-//   GET /api/checkout?plan=credits&key=ck_… -> buys more paints for an existing key
+//   GET /api/checkout?plan=credits10|credits30|credits100&key=ck_… -> adds credits to an existing key
 //   GET /api/checkout?redeem=<session id>   -> after paying: checks with Stripe that it's paid, then hands out the key (once)
 // Env: STRIPE_SECRET_KEY (required). Optional: PRICE_PAINTED / PRICE_CREDITS in cents to change prices.
 // Managed Payments is on by default: Stripe sells as merchant of record, so it calculates, collects and files sales
@@ -11,12 +11,13 @@ const TAX_CODE = process.env.STRIPE_TAX_CODE || 'txcd_10105002';
 import { readKey } from './_keys.js';
 import { stripe, fulfil } from './_stripe.js';
 
+const pack = (n, cents) => ({ cents, name: `Critterkit ${n} credits`, desc: `Adds ${n} credits to your Critterkit key. A custom pose uses 1, a new mascot uses 5.`, topup: true });
 const PRICES = {
   painted: { cents: Number(process.env.PRICE_PAINTED) || 1900, name: 'Critterkit painted mascot',
-    desc: 'One-time license for a custom animated mascot. Includes 6 paints to get it right.' },
-  credits: { cents: Number(process.env.PRICE_CREDITS) || 900, name: 'Critterkit 10 more paints',
-    desc: 'Adds 10 paints to your existing Critterkit key.' }
+    desc: 'One-time license for a custom animated mascot, plus 10 credits for custom poses or redos.' },
+  credits10: pack(10, 900), credits30: pack(30, 1900), credits100: pack(100, 4900)
 };
+PRICES.credits = PRICES.credits10;   // old links
 
 export default async function handler(req, res) {
   if (!process.env.STRIPE_SECRET_KEY) { res.status(500).json({ error: 'Checkout isn’t connected yet. Add STRIPE_SECRET_KEY in Vercel.' }); return; }
@@ -38,7 +39,7 @@ export default async function handler(req, res) {
     const plan = String(q.plan || 'painted'), p = PRICES[plan];
     if (!p) { res.status(400).json({ error: 'That one isn’t for sale yet.' }); return; }
     const topup = q.key && await readKey(String(q.key)) ? String(q.key) : '';
-    if (plan === 'credits' && !topup) { res.status(400).json({ error: 'Open this from the paint page so the paints go on your key.' }); return; }
+    if (p.topup && !topup) { res.status(400).json({ error: 'Open this from your mascot page so the credits go on your key.' }); return; }
     const origin = `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
     const form = {
       mode: 'payment',
@@ -48,8 +49,8 @@ export default async function handler(req, res) {
       'line_items[0][price_data][product_data][name]': p.name,
       'line_items[0][price_data][product_data][description]': p.desc,
       'line_items[0][price_data][product_data][tax_code]': TAX_CODE,
-      success_url: `${origin}/paint?checkout_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: plan === 'credits' ? `${origin}/paint` : `${origin}/`,
+      success_url: p.topup ? `${origin}/mascots?checkout_id={CHECKOUT_SESSION_ID}` : `${origin}/paint?checkout_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: p.topup ? `${origin}/mascots` : `${origin}/`,
       allow_promotion_codes: 'true',
       'metadata[plan]': plan,
       'payment_intent_data[metadata][plan]': plan,

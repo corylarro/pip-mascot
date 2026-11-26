@@ -59,6 +59,8 @@ play steps (each waits until done): jump, bigjump, flip, spin, shake, grow, poof
 
 Events: `ready`, `error` (painted mascot failed to load), `statechange` (detail.state), `pip:autopilot` (detail.action, detail.signal), `pip:hide`, `pip:show`.
 
+No-code moments: the mascot's owner can set rules on critterkit.com/mascots (visit a path, tap a button by its text, or words appearing on the page -> a moment, a line, pointing at a button, or a play sequence). critter.js runs them automatically; add `no-rules` to turn them off. If the user only wants simple celebrations on a website, this may be easier than code.
+
 ## iOS (SwiftUI / UIKit)
 
 Swift package: https://github.com/corylarro/CritterKit

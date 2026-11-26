@@ -122,7 +122,7 @@ details.guide ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--mut
     <h1>Critterkit painter</h1>
     <p>Describe a character, or start from a photo. Critterkit paints it in twelve poses and brings it to life in your app.</p>
     <a class="primary buy" href="/api/checkout?plan=painted">Create your mascot · $19</a>
-    <p class="fine">Launch price (normally $29). Includes 6 paints so you can get it just right. All sales are final; by buying you agree to the <a href="/terms">Terms</a>.</p>
+    <p class="fine">Launch price (normally $29). Includes 10 extra credits for custom poses or redos. All sales are final; by buying you agree to the <a href="/terms">Terms</a>.</p>
     <div class="err" id="gateErr" role="alert"></div>
     <details class="have" id="haveKey"><summary>Already bought? Enter your key</summary>
       <div class="field"><label for="gatePass">Critterkit key</label><input type="password" id="gatePass" autocomplete="current-password" placeholder="ck_…"></div>
@@ -187,7 +187,7 @@ details.guide ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--mut
     <div class="keybox" id="keyBox" hidden>
       <strong>Your Critterkit key</strong>
       <code id="keyText"></code>
-      <span class="credits">Save this key somewhere safe, like your password manager or notes. It's how you get back in on another device or browser, and it holds your paints. If you ever lose it, email hello@zerotobuild.dev from the address you paid with.</span>
+      <span class="credits">Save this key somewhere safe, like your password manager or notes. It's how you get back in on another device or browser, and it holds your credits. If you ever lose it, email hello@zerotobuild.dev from the address you paid with.</span>
       <div class="keyacts"><button type="button" class="ghost" id="copyKey">Copy key</button><a class="ghost" id="mailKey" href="#">Email it to myself</a></div>
     </div>
     <button type="button" class="primary" id="go">Paint it</button>
@@ -316,7 +316,7 @@ let current={},busy=false,prepared=null;
 // Lock screen: check the passcode with the server before showing the painter.
 let credits=null;
 function showCredits(n){if(n!==undefined)credits=n;const el=$('credits');if(credits===null||credits===undefined){el.hidden=true;return}
-  el.hidden=false;el.innerHTML=credits>0?`${credits} paint${credits===1?'':'s'} left · each paint uses one`:`You’re out of paints. <a href="/api/checkout?plan=credits&key=${encodeURIComponent($('pass').value.trim())}">Get 10 more for $9</a>`}
+  el.hidden=false;el.innerHTML=credits>=5?`${credits} credits left · a new mascot uses 5, a custom pose uses 1`:`${credits} credit${credits===1?'':'s'} left. A new mascot uses 5. <a href="/mascots#credits">Get more credits</a>`}
 let lockMsg='';
 async function checkPass(p){try{const r=await fetch('/api/paint?check=1',{method:'POST',headers:{'Content-Type':'application/json',...(p?{'x-pip-pass':p}:{})},body:'{}'});if(r.status===429){lockMsg=((await r.json().catch(()=>({}))).error)||'Too many wrong tries. Try again later.';return false}lockMsg='';if(!r.ok)return false;const j=await r.json().catch(()=>({}));showCredits(j.owner?null:j.credits);return true}catch(e){return false}}
 function unlock(p){$('pass').value=p;try{localStorage.setItem('pip-pass',p)}catch(e){}document.body.classList.remove('locked')}
@@ -340,13 +340,13 @@ try{const sp=localStorage.getItem('pip-pass');if(sp){$('pass').value=sp}}catch(e
 async function api(body){const pass=$('pass').value.trim();try{if(pass)localStorage.setItem('pip-pass',pass)}catch(e){}
   const r=await fetch('/api/paint',{method:'POST',headers:{'Content-Type':'application/json',...(pass?{'x-pip-pass':pass}:{})},body:JSON.stringify(body)});
   let j={};try{j=await r.json()}catch(e){}
-  if(r.status===402)showCredits(0);if(!r.ok)throw {status:r.status,msg:j.error||r.statusText||'Request failed'};if(typeof j.credits==='number')showCredits(j.credits);return j}
+  if(r.status===402)showCredits(typeof j.credits==='number'?j.credits:0);if(!r.ok)throw {status:r.status,msg:j.error||r.statusText||'Request failed'};if(typeof j.credits==='number')showCredits(j.credits);return j}
 async function withRetry(fn,label){for(let a=0;;a++){try{return await fn()}catch(e){
   if(e.status===429&&a<3){setStatus(`OpenAI asked us to slow down. Waiting a moment before ${label}…`,'');await new Promise(r=>setTimeout(r,20000*(a+1)));continue}throw e}}}
 function explain(e){const m=(e&&e.msg)||String(e);
   if(e&&e.status===401){$('passWrap').hidden=false;return 'Your key didn’t work. Enter it above and try again.'}
   if(e&&e.status===422)return m;
-  if(e&&e.status===402)return 'You’re out of paints. Get 10 more below, then try again.';
+  if(e&&e.status===402)return 'A new mascot uses 5 credits. Get more on your mascot page, then try again.';
   if(/verif/i.test(m))return 'OpenAI says your organization must be verified to use its image models. Verify it at platform.openai.com → Settings → Organization, then try again. ('+m+')';
   if(/billing|quota|credit|insufficient/i.test(m))return 'OpenAI says the account is out of credit or over its limit: '+m;
   if(/OPENAI_API_KEY/.test(m))return 'The OpenAI key isn’t set up on Vercel yet. Add OPENAI_API_KEY in the Vercel project settings, then redeploy.';

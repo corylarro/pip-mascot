@@ -77,7 +77,7 @@ ul.list{margin:0 0 8px;padding-left:20px;display:flex;flex-direction:column;gap:
   <div class="layout">
     <nav class="toc" aria-label="On this page">
       <a href="#install">Install</a><a href="#frameworks">React and Next.js</a><a href="#ios">iOS (Swift)</a><a href="#placement">Placement and size</a><a href="#autopilot">Autopilot</a>
-      <a href="#api">Make the mascot react</a><a href="#moments">Moments</a><a href="#play">Choreography</a><a href="#events">Events</a><a href="#hiding">Hiding</a><a href="#theming">Theming</a><a href="#reference">All options</a>
+      <a href="#api">Make the mascot react</a><a href="#moments">Moments</a><a href="#nocode">Without code</a><a href="#play">Choreography</a><a href="#events">Events</a><a href="#hiding">Hiding</a><a href="#theming">Theming</a><a href="#reference">All options</a>
     </nav>
 
     <main>
@@ -233,6 +233,16 @@ pip.moment(<span class="s">'milestone'</span>, { say: <span class="s">'100 notes
         <p>With <code>autopilot</code> on, the mascot also nudges people who start a form and then pause or head for another tab: it walks to the next empty field and says how many are left.</p>
       </section>
 
+      <section id="nocode" aria-labelledby="h-nocode">
+        <h2 id="h-nocode">Moments without code</h2>
+        <p>On websites, you can set up moments on your mascot’s page at <a href="/mascots">critterkit.com/mascots</a> instead of writing code. Pick when it happens and what the mascot does:</p>
+        <ul>
+          <li><strong>Someone visits a page</strong>, like <code>/thank-you</code>. Use <code>*</code> for any, like <code>/blog/*</code>.</li>
+          <li><strong>Someone taps a button or link</strong> whose text contains what you type, like <code>Upgrade</code>.</li>
+          <li><strong>Some words appear on the page</strong>, like <code>Order confirmed</code>.</li>
+        </ul>
+        <p>Then it plays a moment, says something, points at a button or link, or plays a custom moment from the studio. Each one can run once per visitor or every time. Changes reach your site within a minute. To turn them off on a page, add <code>no-rules</code> to the tag. Listen for <code>pip:rule</code> to see when one runs.</p>
+      </section>
       <section id="play" aria-labelledby="h-play">
         <h2 id="h-play">Choreography</h2>
         <p>String moves together with <code>play</code>. The easiest way is the <a href="/studio">custom moments studio</a>: tap moves, moods, effects and words together, watch your mascot play it, then copy the code.</p>

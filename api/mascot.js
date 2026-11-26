@@ -4,12 +4,31 @@
 //   GET  /api/mascot?id=ID&img=1     -> the painting itself
 import { put, list } from '@vercel/blob';
 import { whoIs, refuse, readKey, writeKey } from './_keys.js';
+import { sanitize, clean } from './_steps.js';
+
+// No-code moments: "when this happens on my site, do that". Saved on the mascot, read by critter.js.
+const MOMENT_NAMES = ['welcome', 'welcome-back', 'first-purchase', 'purchase', 'streak', 'level-up', 'goal', 'milestone', 'empty', 'oops'];
+function cleanRules(list) {
+  const out = [];
+  for (const r of Array.isArray(list) ? list.slice(0, 30) : []) {
+    const w = r && r.when || {}, t = r && r.then || {}, value = clean(w.value).slice(0, 80);
+    if (!['visit', 'click', 'text'].includes(w.type) || !value) continue;
+    let then = null;
+    if (t.type === 'moment' && MOMENT_NAMES.includes(t.name)) then = { type: 'moment', name: t.name, ...(clean(t.say) ? { say: clean(t.say).slice(0, 70) } : {}), ...(Number.isFinite(Number(t.count)) && t.count !== '' && t.count != null ? { count: Math.max(0, Math.min(100000, Math.round(Number(t.count)))) } : {}) };
+    else if (t.type === 'say' && clean(t.text)) then = { type: 'say', text: clean(t.text).slice(0, 70) };
+    else if (t.type === 'point' && clean(t.target)) then = { type: 'point', target: clean(t.target).slice(0, 80), text: clean(t.text).slice(0, 70) };
+    else if (t.type === 'play') { const steps = sanitize(t.steps); if (steps.length) then = { type: 'play', steps }; }
+    if (!then) continue;
+    out.push({ id: /^r_[a-z0-9]{4,12}$/.test(r.id) ? r.id : 'r_' + Math.random().toString(36).slice(2, 10), when: { type: w.type, value }, then, once: r.once !== false });
+  }
+  return out;
+}
 
 export const config = { maxDuration: 60 };
 
 const cors = res => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-pip-pass');
 };
 const ID = /^[a-z0-9]{6,24}$/;
@@ -19,7 +38,7 @@ async function findData(id) {
   const { blobs } = await list({ prefix: `mascots/${id}/` });
   const data = blobs.find(b => b.pathname.endsWith('/data.json'));
   if (!data) return null;
-  const r = await fetch(data.url, { cache: 'no-store' });
+  const r = await fetch(`${data.url}?t=${Date.now()}`, { cache: 'no-store' });   // skip the CDN copy: rules change
   return r.ok ? r.json() : null;
 }
 
@@ -74,6 +93,21 @@ export default async function handler(req, res) {
       res.json({ id, atlas: true }); return;
     }
 
+    if (req.method === 'PATCH') {
+      // Save the no-code moments. Only the key that saved the mascot (or the owner passcode) can change them.
+      const who = await whoIs(req);
+      if (refuse(res, who, 'Changing moments')) return;
+      const id = String(req.query.id || '');
+      if (!ID.test(id)) { res.status(400).json({ error: 'Unknown mascot id.' }); return; }
+      if (!who.owner && !(who.rec.mascots || []).some(m => m.id === id)) { res.status(403).json({ error: 'This mascot was saved with a different key.' }); return; }
+      const meta = await findData(id);
+      if (!meta) { res.status(404).json({ error: 'Mascot not found.' }); return; }
+      const b = (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body) || {};
+      meta.rules = cleanRules(b.rules);
+      await put(`mascots/${id}/data.json`, JSON.stringify(meta), { access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 });
+      res.json({ rules: meta.rules }); return;
+    }
+
     if (req.method === 'GET') {
       const id = String(req.query.id || '');
       if (!ID.test(id)) { res.status(400).json({ error: 'Unknown mascot id.' }); return; }
@@ -97,13 +131,13 @@ export default async function handler(req, res) {
       }
       const host = req.headers['x-forwarded-host'] || req.headers.host;
       res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=60, stale-while-revalidate=600');
-      const out = { id, mode: meta.mode, grid: meta.grid, face: meta.face, name: meta.name, greeting: meta.greeting,
+      const out = { id, mode: meta.mode, grid: meta.grid, face: meta.face, name: meta.name, greeting: meta.greeting, rules: meta.rules || [],
         image: `https://${host}/api/mascot?id=${id}&img=1` };
       if (meta.atlasUrl) Object.assign(out, { atlas: `https://${host}/api/mascot?id=${id}&img=atlas&v=${meta.atlasV}`, atlasMeta: meta.atlasMeta, atlasFace: meta.atlasFace });
       res.json(out);
       return;
     }
-    res.status(405).json({ error: 'Use GET, POST or PUT.' });
+    res.status(405).json({ error: 'Use GET, POST, PUT or PATCH.' });
   } catch (e) {
     res.status(500).json({ error: String((e && e.message) || e) });
   }
