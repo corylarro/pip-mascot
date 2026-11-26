@@ -220,6 +220,19 @@ pip.say(<span class="s">'Saved!'</span>, { hold: <span class="s">1500</span> })<
         <p style="margin-top:12px"><strong>Seasonal touches.</strong> Little effects drift around the mascot by date, without changing how it looks: falling leaves in November, snow in December, confetti on New Year's, hearts before Valentine's Day and bats the week before Halloween. Turn them off with <code>seasonal="off"</code>, or pick one with <code>seasonal="snow"</code> (also <code>leaves</code>, <code>confetti</code>, <code>hearts</code>, <code>bats</code>). In Swift, set <code>seasonal: false</code> in the configuration, or call <code>The mascot.season(.snow)</code>.</p>
       </section>
 
+      <section id="moments" aria-labelledby="h-moments">
+        <h2 id="h-moments">Moments</h2>
+        <p>Ready-made celebrations for the things that matter in your app. Each one picks the right animation, effects and words, and you can swap in your own line with <code>say</code>.</p>
+<pre><span class="t">const</span> pip = document.querySelector(<span class="s">'critter-mascot'</span>)
+
+pip.moment(<span class="s">'first-purchase'</span>)
+pip.moment(<span class="s">'streak'</span>, { count: 7 })
+pip.moment(<span class="s">'milestone'</span>, { say: <span class="s">'100 notes written!'</span>, at: <span class="s">'#notes'</span> })</pre>
+        <p>Available moments: <code>first-purchase</code>, <code>purchase</code>, <code>streak</code> (with <code>count</code>; bigger celebrations at 7, 30, 100 and other milestones), <code>milestone</code>, <code>level-up</code> (optional <code>count</code>), <code>goal</code>, <code>welcome</code>, <code>welcome-back</code>, <code>empty</code> and <code>oops</code>. Add <code>at</code> (an element or selector) to have the mascot walk over and celebrate right there.</p>
+        <p>On iOS: <code>Critter.moment(.firstPurchase)</code>, <code>Critter.moment(.streak(days: 7))</code>, <code>Critter.moment(.milestone, say: "100 notes!", at: "notes")</code>.</p>
+        <p>With <code>autopilot</code> on, the mascot also nudges people who start a form and then pause or head for another tab: it walks to the next empty field and says how many are left.</p>
+      </section>
+
       <section id="events" aria-labelledby="h-ev">
         <h2 id="h-ev">Events</h2>
 <pre>pip.addEventListener(<span class="s">'pip:autopilot'</span>, e =&gt; console.log(e.detail.action, e.detail.signal))</pre>
