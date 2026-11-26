@@ -889,12 +889,12 @@ function definePipElement(engine,defaultConfig,painted,origin){
     stopTour(){this._tour=(this._tour||0)+1;this._touring=false;return this.home()}
     // Choreography: play a list of steps. Motion steps wait for themselves to finish; react, say, emote and prop
     // start and carry on while the next step runs. Example:
-    //   pip.play([{do:'flip'},{do:'react',state:'dance',ms:2500},{do:'say',text:'Level 5!'},{do:'emote',kind:'spark'}])
-    async play(steps){const id=this._play=(this._play||0)+1,m=()=>this._m,W=ms=>wait(Math.max(0,Number(ms)||0));let moved=false;
+    //   pip.play([{do:'flip'},{do:'say',text:'Level {level}!'}], {level: 5})   // {placeholders} are filled from values
+    async play(steps,values){const fill=t=>String(t==null?'':t).replace(/\{(\w+)\}/g,(m,k)=>values&&values[k]!=null?String(values[k]):m);const id=this._play=(this._play||0)+1,m=()=>this._m,W=ms=>wait(Math.max(0,Number(ms)||0));let moved=false;
       for(const st of Array.isArray(steps)?steps.slice(0,24):[]){if(id!==this._play||!m()||this._hiddenByUser)return;const M=m(),d=String(st&&st.do||'').toLowerCase();
         try{
           if(d==='react'||d==='dance'){M.react(d==='dance'?'dance':st.state||'success',clamp(Number(st.ms)||2400,600,8000))}
-          else if(d==='say'){M.say(String(st.text||'').slice(0,90),{hold:clamp(Number(st.ms)||String(st.text||'').length*60+900,900,6000)})}
+          else if(d==='say'){const tx=fill(st.text).slice(0,90);M.say(tx,{hold:clamp(Number(st.ms)||tx.length*60+900,900,6000)})}
           else if(d==='emote'){const k=st.kind;if(k==='confetti'||k==='hearts')M.burst&&M.burst(k);else M.emote&&M.emote(k,st.count)}
           else if(d==='prop'){M.prop?M.prop(st.emoji,clamp(Number(st.ms)||2600,800,8000)):0}
           else if(d==='jump'){M.hop&&M.hop(420);await W(650)}
@@ -905,7 +905,7 @@ function definePipElement(engine,defaultConfig,painted,origin){
           else if(d==='grow'){await W(M.growPop?M.growPop(1.38,clamp(Number(st.ms)||900,400,3000)):600)}
           else if(d==='poof'){await this._poof(st.to||'random');moved=true}
           else if(d==='goto'){const el=typeof st.target==='string'?document.querySelector(st.target):null;if(el&&this._float){await this.goTo(el,{mode:st.mode||'point',text:st.text,stay:true});moved=true}}
-          else if(d==='moment'){this.moment(st.name,{count:st.count,say:st.text});await W(2400)}
+          else if(d==='moment'){this.moment(st.name,{count:fill(st.count)||undefined,say:st.text?fill(st.text):undefined});await W(2400)}
           else if(d==='wait'){await W(clamp(Number(st.ms)||600,0,5000))}
         }catch(e){}
       }

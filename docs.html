@@ -243,7 +243,8 @@ pip.moment(<span class="s">'milestone'</span>, { say: <span class="s">'100 notes
   { <span class="t">do</span>: <span class="s">'emote'</span>, kind: <span class="s">'spark'</span> }
 ])</pre>
         <p>Moves (each waits until it's done): <code>jump</code>, <code>bigjump</code>, <code>flip</code>, <code>spin</code>, <code>shake</code>, <code>grow</code>, <code>poof</code> (vanish and reappear, with <code>to</code>: home, center, left, right, random or a selector), <code>goto</code> (with <code>target</code>), <code>moment</code> and <code>wait</code>. These start and keep going while the next step runs: <code>react</code> (a mood, with <code>state</code> and <code>ms</code>), <code>say</code>, <code>emote</code> (spark, note, dust, bang, sweat, smoke, drops, confetti, hearts) and <code>prop</code> (hold up any emoji, like <code>{ do: 'prop', emoji: '🍕' }</code>).</p>
-        <p>On iOS: <code>Critter.play([["do": "flip"], ["do": "say", "text": "Level 5!"]])</code>.</p>
+        <p>Fill in values that change each time with <code>{placeholders}</code> in what it says: <code>pip.play([{ do: 'say', text: 'Level {level}!' }], { level: user.level })</code>.</p>
+        <p>On iOS: <code>Critter.play([["do": "flip"], ["do": "say", "text": "Level {level}!"]], values: ["level": level])</code>.</p>
       </section>
 
       <section id="events" aria-labelledby="h-ev">

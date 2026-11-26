@@ -22,8 +22,9 @@ Steps (JSON objects):
 - {"do":"poof","to":T}  vanish in smoke and reappear. T is one of: ${POOF.join(', ')}. If it poofs away, end with a poof home.
 - {"do":"wait","ms":N}  pause, 200-3000.
 react, say, emote and prop start and keep going while the next step runs; moves, poof and wait take their time.
+If the request includes a value that changes each time (a level, a name, a streak length, a score, an item), write it as a placeholder in curly braces in the say text, like {level} or {name}, and give a realistic example for each in "values".
 Keep it playful and all-ages. Interpret creatively and use props for things you can't animate. If the request is inappropriate, hurtful or not something a mascot should do, return a short confused reaction saying it can't do that one.
-Reply with ONLY JSON: {"steps":[...]}`;
+Reply with ONLY JSON: {"steps":[...],"values":{}}`;
 
 const clampN = (v, a, b, d) => { const n = Number(v); return Number.isFinite(n) ? Math.max(a, Math.min(b, Math.round(n))) : d; };
 const clean = s => String(s || '').replace(/[<>]/g, '').trim();
@@ -33,7 +34,7 @@ function sanitize(steps) {
   for (const st of Array.isArray(steps) ? steps.slice(0, 10) : []) {
     const d = String(st && st.do || '').toLowerCase();
     if (d === 'react' && STATES.includes(st.state)) out.push({ do: 'react', state: st.state, ms: clampN(st.ms, 800, 5000, 2400) });
-    else if (d === 'say' && clean(st.text)) out.push({ do: 'say', text: clean(st.text).slice(0, 60) });
+    else if (d === 'say' && clean(st.text)) out.push({ do: 'say', text: clean(st.text).slice(0, 70) });
     else if (MOVES.includes(d)) out.push({ do: d });
     else if (d === 'backflip') out.push({ do: 'flip' });
     else if (d === 'emote' && EMOTES.includes(st.kind)) out.push({ do: 'emote', kind: st.kind });
@@ -82,7 +83,11 @@ export default async function handler(req, res) {
       const t = textOf(await r.json());
       const j = JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1));
       const steps = sanitize(j.steps);
-      if (steps.length) { res.json({ steps }); return; }
+      // example values for any {placeholders} the steps use
+      const used = new Set(steps.flatMap(s => [...String(s.text || '').matchAll(/\{(\w{1,20})\}/g)].map(m => m[1])));
+      const values = {};
+      for (const k of used) { const v = j.values && j.values[k]; values[k] = typeof v === 'number' ? v : String(v == null ? (k === 'name' ? 'Sam' : 5) : v).slice(0, 24); }
+      if (steps.length) { res.json({ steps, values }); return; }
     } catch (e) {}
   }
   res.status(502).json({ error: 'Couldn’t dream that one up right now. Try again?' });

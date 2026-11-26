@@ -45,6 +45,9 @@ pre{margin:0;background:var(--ink);color:#F2F0FF;border-radius:18px;padding:16px
 .row{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
 .ghost{font:600 .95rem var(--body);padding:9px 16px;border-radius:999px;border:2px solid var(--ink);background:var(--white);color:var(--ink);cursor:pointer}
 .note{color:var(--ink-2);font-size:.9rem}
+.vals{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 10px;font-weight:600}
+.vals label{display:flex;gap:6px;align-items:center;font:500 .95rem var(--body)}
+.vals input{width:110px;font:500 1rem var(--body);padding:7px 10px;border-radius:12px;border:2px solid var(--ink);background:var(--white);color:var(--ink)}
 .note a{color:var(--ink)}
 </style>
 <script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};</script>
@@ -60,7 +63,7 @@ pre{margin:0;background:var(--ink);color:#F2F0FF;border-radius:18px;padding:16px
       <label for="text">When…</label>
       <textarea id="text" maxlength="200" placeholder="the user levels up, jump, do a backflip, dance and say Level 5!"></textarea>
       <div class="ideas" aria-label="Ideas to try">
-        <button type="button">someone finishes their first workout</button>
+        <button type="button">the user levels up, backflip, dance and say you reached level {level}</button>
         <button type="button">the order ships, celebrate with a pizza</button>
         <button type="button">the payment fails, look worried and shake it off</button>
         <button type="button">it's Friday, poof to the middle and dance</button>
@@ -71,6 +74,7 @@ pre{margin:0;background:var(--ink);color:#F2F0FF;border-radius:18px;padding:16px
     </div>
     <div class="code" id="codeBox" hidden>
       <div class="tabs" role="group" aria-label="Code for"><button type="button" data-k="web" aria-pressed="true">Website</button><button type="button" data-k="ios" aria-pressed="false">iPhone app (Swift)</button></div>
+      <div class="vals" id="vals" hidden><span>Try it with</span></div>
       <pre id="code"></pre>
       <div class="row"><button class="ghost" id="copy" type="button">Copy code</button><button class="ghost" id="again" type="button">Play it again</button>
         <span class="note">Call it whenever that moment happens in your app. <a href="/docs#play">How it works</a></span></div>
@@ -83,23 +87,29 @@ pre{margin:0;background:var(--ink);color:#F2F0FF;border-radius:18px;padding:16px
 <script src="/critter.js"></script>
 <script>
 const $=id=>document.getElementById(id),pip=$('pip');
-let steps=null,kind='web';
+let steps=null,kind='web',values={};
 const jsVal=v=>typeof v==='number'?String(v):"'"+String(v).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+"'";
-const js=s=>'pip.play([\n'+s.map(o=>'  { '+Object.entries(o).map(([k,v])=>k+': '+jsVal(v)).join(', ')+' }').join(',\n')+'\n])';
+const js=s=>'pip.play([\n'+s.map(o=>'  '+jsObj(o)).join(',\n')+'\n]'+(hasVals()?', '+jsObj(values)+')  // use your real values':')');
 const swiftVal=v=>typeof v==='number'?String(v):'"'+String(v).replace(/"/g,'\\"')+'"';
-const swift=s=>'Critter.play([\n'+s.map(o=>'  ['+Object.entries(o).map(([k,v])=>'"'+k+'": '+swiftVal(v)).join(', ')+']').join(',\n')+'\n])';
+const hasVals=()=>Object.keys(values).length>0;
+const jsObj=o=>'{ '+Object.entries(o).map(([k,v])=>k+': '+jsVal(v)).join(', ')+' }';
+const swiftDict=o=>'['+Object.entries(o).map(([k,v])=>'"'+k+'": '+swiftVal(v)).join(', ')+']';
+const swift=s=>'Critter.play([\n'+s.map(o=>'  '+swiftDict(o)).join(',\n')+'\n]'+(hasVals()?', values: '+swiftDict(values)+')  // use your real values':')');
+function renderVals(){const box=$('vals');box.querySelectorAll('label').forEach(l=>l.remove());box.hidden=!hasVals();
+  for(const k of Object.keys(values)){const l=document.createElement('label'),i=document.createElement('input');l.textContent=k;i.value=values[k];i.setAttribute('aria-label',k);
+    i.addEventListener('input',()=>{const n=Number(i.value);values[k]=i.value!==''&&!isNaN(n)?n:i.value;show()});i.addEventListener('change',()=>steps&&pip.play(steps,values));l.appendChild(i);box.appendChild(l)}}
 function show(){if(!steps)return;$('code').textContent=kind==='ios'?swift(steps):'const pip = document.querySelector(\'critter-mascot\')\n'+js(steps);$('codeBox').hidden=false}
 document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{kind=b.dataset.k;document.querySelectorAll('.tabs button').forEach(o=>o.setAttribute('aria-pressed',String(o===b)));show()}));
 document.querySelectorAll('.ideas button').forEach(b=>b.addEventListener('click',()=>{$('text').value=b.textContent;make()}));
 $('go').addEventListener('click',make);
 $('text').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();make()}});
-$('again').addEventListener('click',()=>steps&&pip.play(steps));
+$('again').addEventListener('click',()=>steps&&pip.play(steps,values));
 $('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('code').textContent);$('copy').textContent='Copied!';setTimeout(()=>$('copy').textContent='Copy code',1400)}catch(e){}});
 async function make(){const text=$('text').value.trim();if(text.length<3){$('msg').textContent='Describe what Pip should do first.';$('text').focus();return}
   $('go').disabled=true;$('msg').textContent='Choreographing…';pip.react&&pip.setState('thinking');
   try{const r=await fetch('/api/choreo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const j=await r.json().catch(()=>({}));
     pip.setState('idle');if(!r.ok||!j.steps){$('msg').textContent=j.error||'Something went wrong. Try again?';return}
-    steps=j.steps;$('msg').textContent='';show();pip.play(steps)}
+    steps=j.steps;values=j.values||{};$('msg').textContent='';renderVals();show();pip.play(steps,values)}
   catch(e){pip.setState('idle');$('msg').textContent='Couldn’t reach the studio. Check your connection and try again.'}
   finally{$('go').disabled=false}}
 </script>
