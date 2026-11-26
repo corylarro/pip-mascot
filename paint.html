@@ -92,6 +92,7 @@ body.locked .gate{display:flex}
 .gate details.have{display:flex;flex-direction:column;gap:10px}.gate details.have summary{cursor:pointer;font-size:14px;font-weight:500;color:var(--ink)}
 .gate details.have[open]{gap:10px}.gate details.have>*:not(summary){margin-top:10px}
 .keybox{display:flex;flex-direction:column;gap:8px;background:var(--bg);border:1.5px solid var(--accent);border-radius:12px;padding:12px}
+.keybox .keyacts{display:flex;gap:8px;flex-wrap:wrap}.keybox .keyacts>*{flex:1 1 140px;text-align:center;text-decoration:none}
 .keybox code{font:500 14px var(--font-mono);word-break:break-all}
 .credits{font-size:13px;color:var(--muted)}
 
@@ -185,8 +186,8 @@ details.guide ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--mut
     <div class="keybox" id="keyBox" hidden>
       <strong>Your Critterkit key</strong>
       <code id="keyText"></code>
-      <span class="credits">Save it somewhere safe: it unlocks painting on any device and holds your credits.</span>
-      <button type="button" class="ghost" id="copyKey">Copy key</button>
+      <span class="credits">Save this key somewhere safe, like your password manager or notes. It's how you get back in on another device or browser, and it holds your paints. If you ever lose it, email hello@zerotobuild.dev from the address you paid with.</span>
+      <div class="keyacts"><button type="button" class="ghost" id="copyKey">Copy key</button><a class="ghost" id="mailKey" href="#">Email it to myself</a></div>
     </div>
     <button type="button" class="primary" id="go">Paint it</button>
     <p class="credits" id="credits" hidden></p>
@@ -385,6 +386,9 @@ async function paint(){
   finally{clearInterval(tick);busy=false;$('go').disabled=false;$('go').textContent='Paint it'}}
 $('go').addEventListener('click',paint);
 $('copyKey').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('keyText').textContent);$('copyKey').textContent='Copied'}catch(e){}});
+// Opens their own mail app with the key filled in. Nothing is sent by us.
+$('mailKey').addEventListener('click',e=>{e.preventDefault();const k=$('keyText').textContent;
+  location.href='mailto:?subject='+encodeURIComponent('My Critterkit key')+'&body='+encodeURIComponent(`My Critterkit key: ${k}\n\nTo paint on another device, go to ${location.origin}/paint and enter this key.`)});
 /* ---------- your own art: build the same 4x3 pose sheet the painter makes ---------- */
 const POSES=[['Neutral',/neutral|idle|default|base/],['Blink',/blink|closed/],['Happy',/happy|joy|smile|cheer/],['Talk ah',/talk.?ah|\bah\b|talk(?!.*ee)/],
   ['Worried',/worr|sad|concern/],['Surprised',/surpris|shock|wow/],['Confused',/confus|puzzl/],['Wave',/wave(?!.?2)/],
