@@ -119,7 +119,7 @@ details.guide ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--mut
   <form id="gateForm" autocomplete="off">
     <h1>Critterkit painter</h1>
     <p>Describe a character, or start from a photo. Critterkit paints it in twelve poses and brings it to life in your app.</p>
-    <a class="primary buy" href="/api/checkout?plan=painted">Get a painted mascot · $19</a>
+    <a class="primary buy" href="/api/checkout?plan=painted">Create your mascot · $19</a>
     <p class="fine">Launch price (normally $29). Includes 6 paints so you can get it just right. All sales are final; by buying you agree to the <a href="/terms">Terms</a>.</p>
     <div class="err" id="gateErr" role="alert"></div>
     <details class="have" id="haveKey"><summary>Already bought? Enter your key</summary>
@@ -226,7 +226,7 @@ details.guide ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--mut
     <p class="hint" id="saveMsg"></p>
     <div class="kind" id="snipKind" role="group" aria-label="Where it goes" hidden><button type="button" data-kind="web" aria-pressed="true">Website</button><button type="button" data-kind="ios" aria-pressed="false">iPhone app (Swift)</button></div>
     <pre class="snippet" id="snippet" hidden></pre>
-    <div class="row" id="useActions" hidden><button type="button" class="ghost" id="copySnip">Copy code</button><a class="ghost" href="/builder#live" id="tryLive">See it in the Taskly demo</a><a class="ghost" href="/embed-test" id="tryPlain" target="_blank" rel="noopener">Try it on a plain page</a></div>
+    <div class="row" id="useActions" hidden><button type="button" class="ghost" id="copySnip">Copy code</button><button type="button" class="ghost" id="copyAI">Copy prompt for your AI builder</button><a class="ghost" href="/builder#live" id="tryLive">See it in the Taskly demo</a><a class="ghost" href="/embed-test" id="tryPlain" target="_blank" rel="noopener">Try it on a plain page</a></div>
   </section>
 
   <section class="card" aria-labelledby="ctl">
@@ -484,6 +484,11 @@ function snipCode(id,kind){return kind==='ios'
 document.querySelectorAll('#snipKind button').forEach(b=>b.addEventListener('click',()=>{snipKind=b.dataset.kind;
   document.querySelectorAll('#snipKind button').forEach(o=>o.setAttribute('aria-pressed',String(o===b)));
   if(snipId){$('snippet').textContent=snipCode(snipId,snipKind);$('saveMsg').textContent=SNIP_HINT[snipKind]}}));
+function aiPrompt(id,kind){const name=($('mname').value||'').trim()||'our mascot',o=location.origin;
+  const common=`\n\nAdd it to the places that matter in this app, using moments (pick whichever fit):\n- After a first purchase or upgrade: first-purchase\n- Daily streaks: streak with the day count\n- Finishing a goal or hitting a milestone: goal / milestone with a short line\n- Levelling up: level-up with the level\n- First visit: welcome. Returning after a while: welcome-back\n- Empty lists: empty. Failed saves or requests: oops\n\nFor something custom, chain moves with play, e.g. a flip, a dance and a line with {placeholders} filled from real values.\nKeep the lines short, friendly and in the app's voice. Don't add the mascot to every button, only real moments.\nFull API reference: ${o}/llms.txt`;
+  return kind==='ios'
+  ?`Add ${name}, our animated mascot from Critterkit, to this SwiftUI app.\n\n1. Add the Swift package https://github.com/corylarro/CritterKit (File → Add Package Dependencies…).\n2. import CritterKit, and on the root view add: .critterMascot(.init(mascotID: "${id}"))\n3. Tag views the mascot can walk to with .critterTarget("name").\n4. Call it from app code: Critter.moment(.firstPurchase), Critter.moment(.streak(days: n)), Critter.moment(.levelUp(level)), Critter.moment(.milestone, say: "…", at: "target"), Critter.point(at: "email", say: "…"), try await Critter.watch(success: "Saved!") { … } around saves, Critter.play([["do": "flip"], ["do": "say", "text": "Level {level}!"]], values: ["level": level]).`+common
+  :`Add ${name}, our animated mascot from Critterkit, to this web app.\n\n1. Load the script once on every page: <script src="${o}/critter.js"><\/script>\n   (Next.js: next/script with strategy="afterInteractive" in the root layout.)\n2. Render once, near the end of <body>: <critter-mascot mascot="${id}" autopilot greet></critter-mascot>\n   In React/JSX write autopilot="" greet="" and declare 'critter-mascot' in JSX.IntrinsicElements if using TypeScript.\n3. Autopilot already reacts to typing, invalid forms, slow/failed/successful requests and errors. Don't rebuild that.\n4. Call it from app code with const pip = document.querySelector('critter-mascot'):\n   pip.moment('first-purchase'), pip.moment('streak', { count: n }), pip.moment('level-up', { count: level }), pip.moment('milestone', { say: '…', at: '#selector' }), pip.point(el, 'text'), pip.say('text'), pip.react('love', 2000),\n   pip.play([{ do: 'flip' }, { do: 'react', state: 'dance', ms: 2500 }, { do: 'say', text: 'Level {level}!' }], { level }).`+common}
 function showSnippet(id){snipId=id;const code=snipCode(id,snipKind);$('snipKind').hidden=false;
   $('snippet').textContent=code;$('snippet').hidden=false;$('tryPlain').href='/embed-test?mascot='+encodeURIComponent(id);$('useActions').hidden=false;$('save').textContent='Save again as a new copy';
   try{localStorage.setItem('pip-painted-id',id);localStorage.setItem('pip-painted-name',$('mname').value.trim()||'Painted mascot')}catch(e){}}
@@ -505,6 +510,9 @@ $('save').addEventListener('click',async()=>{if(!current||!(current.sheet||curre
       if(!r2||!r2.ok)console.warn('Poses were not saved; the mascot still works, it just prepares them when it loads.')}
     current.savedId=j.id;current.name=name;DB.put(current);showSnippet(j.id);$('saveMsg').textContent=SNIP_HINT[snipKind];rig.react('success',1600)}
   catch(e){$('saveMsg').textContent='Couldn’t save: '+(e.message||e);btn.textContent='Save and get the code'}finally{btn.disabled=false}});
+$('copyAI').addEventListener('click',async()=>{if(!snipId)return;const t=aiPrompt(snipId,snipKind),b=$('copyAI');
+  try{await navigator.clipboard.writeText(t);b.textContent='Copied. Paste it into Cursor, Lovable, Bolt or Claude'}catch(e){$('snippet').textContent=t}
+  setTimeout(()=>{b.textContent='Copy prompt for your AI builder'},2600)});
 $('copySnip').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('snippet').textContent);$('copySnip').textContent='Copied'}catch(e){
   const r=document.createRange();r.selectNodeContents($('snippet'));const sel=getSelection();sel.removeAllRanges();sel.addRange(r)}setTimeout(()=>{$('copySnip').textContent='Copy code'},1600)});
 
