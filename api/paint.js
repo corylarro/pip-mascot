@@ -135,6 +135,17 @@ Rules:
 - Each frame is under 14 words and describes the character's exact pose in that moment, and any prop it holds, wears or rides. Frame 1 names every prop so later frames match.
 - air[i] is true only when the character is off the ground in that frame. Same length as frames.
 - Never change who the character is. Never add other characters.`;
+// A whole short move painted at once, as panels in one image, so every frame matches.
+const MOVE_COST = 2;
+const MOVE_LAYOUT = n => n === 4 ? { cols: 2, rows: 2, size: '1024x1024', text: 'a 2 by 2 grid of 4 equal panels, read left to right then top to bottom' }
+  : { cols: n, rows: 1, size: '1536x1024', text: `${n} equal panels side by side, read left to right` };
+const MOVE_PROMPT = (desc, frames, transparent) => `The image shows a cartoon mascot character. Paint an animation strip of this SAME character: identical design, colours, proportions, face, materials and art style in every panel.
+Do not add any hat, clothing or accessory the character isn't already wearing, unless the action below needs it.
+The action: ${desc}.
+Layout: ${MOVE_LAYOUT(frames.length).text}. Leave plenty of empty space around the character in each panel so nothing touches or crosses a panel edge. The character is the same size in every panel, whole body visible.
+${frames.map((f, i) => `Panel ${i + 1}: ${f}.`).join('\n')}
+Each panel is a clearly different moment, so the action reads when the panels play in order. Any prop (a skateboard, a ball) is the exact same object in every panel, and its own motion is clearly visible (a board doing a flip is visibly rotated differently in each panel).
+${transparent ? 'Transparent background.' : 'Plain flat light grey background, the same colour everywhere.'} No text, no numbers, no panel borders or dividing lines, no motion lines, no ground shadow.`;
 async function poseReference(id) {
   const meta = await readJson(`mascots/${id}/data.json`);
   if (!meta) return null;
@@ -231,6 +242,62 @@ export default async function handler(req, res) {
       }
       // the planner couldn't run: fall back to a simple two-frame loop
       res.json({ frames: [desc, `${desc}, the next moment of the motion`], once: false, air: [false, false], name: '', fallback: true }); return;
+    } catch (e) { res.status(500).json({ error: String((e && e.message) || e) }); return; }
+  }
+
+  if (b.step === 'move') {
+    if (who.rec && !(who.rec.credits >= MOVE_COST)) { res.status(402).json({ error: `A short move uses ${MOVE_COST} credits and you have ${who.rec.credits || 0}.`, credits: who.rec.credits || 0 }); return; }
+    const id = String(b.id || ''), desc = String(b.desc || '').trim().slice(0, 160);
+    const frames = (Array.isArray(b.frames) ? b.frames : []).map(f => String(f || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 110)).filter(f => f.length > 2).slice(0, 4);
+    if (!/^[a-z0-9]{6,24}$/.test(id)) { res.status(400).json({ error: 'Unknown mascot.' }); return; }
+    if (desc.length < 3 || frames.length < 2) { res.status(400).json({ error: 'Describe the move and give it at least 2 frames.' }); return; }
+    if (!who.owner && !(who.rec.mascots || []).some(m => m.id === id)) { res.status(403).json({ error: 'This mascot was saved with a different key.' }); return; }
+    try {
+      const block = await moderate({ key, desc: `${desc}. ${frames.join('. ')}`, photo: null, visionModels: VISION_MODELS() });
+      if (block) { res.status(422).json({ error: block.message, blocked: block.reason }); return; }
+      const stop = await guard(who, 'pose');
+      if (stop) { res.status(429).json({ error: stop }); return; }
+      const ref = await poseReference(id);
+      if (!ref) { res.status(404).json({ error: 'Mascot not found.' }); return; }
+      if (!ref.png) { res.status(409).json({ error: 'Open this mascot on the paint page and save it again first, so its poses are prepared.' }); return; }
+      const L = MOVE_LAYOUT(frames.length), sharp = (await import('sharp')).default;
+      let last = null, miss = null;
+      const paintOnce = async () => {
+        for (const model of IMAGE_MODELS()) {
+          let noTransparent = false, noHiFi = false;
+          for (const [transparent, hiFi] of [[true, true], [true, false], [false, true], [false, false]]) {
+            if ((transparent && noTransparent) || (hiFi && noHiFi)) continue;
+            const fd = new FormData();
+            fd.append('model', model); fd.append('prompt', MOVE_PROMPT(desc, frames, transparent));
+            fd.append('image', new Blob([ref.png], { type: 'image/png' }), 'mascot.png');
+            fd.append('size', L.size); fd.append('quality', 'medium'); fd.append('output_format', 'png'); fd.append('n', '1');
+            if (transparent) fd.append('background', 'transparent');
+            if (hiFi) fd.append('input_fidelity', 'high');
+            const r = await call(`${API}/images/edits`, { method: 'POST', headers: auth, body: fd });
+            if (r.ok && r.json && r.json.data && r.json.data[0]) { await counted(who, 'pose'); return { image: r.json.data[0].b64_json, model }; }
+            last = r;
+            if (/fidelity/i.test(r.msg || '')) { noHiFi = true; continue; }
+            if (/background|transparen/i.test(r.msg || '')) { noTransparent = true; continue; }
+            if (tryNext(r.status, r.msg)) break;
+            return null;
+          }
+        }
+        return null;
+      };
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (attempt && await guard(who, 'pose')) break;
+        const out = await paintOnce();
+        if (!out) break;
+        // cut the sheet into its panels
+        const sheet = sharp(Buffer.from(out.image, 'base64')), meta = await sheet.metadata(), cw = Math.floor(meta.width / L.cols), ch = Math.floor(meta.height / L.rows);
+        const panels = [];
+        for (let i = 0; i < frames.length; i++) panels.push((await sharp(Buffer.from(out.image, 'base64')).extract({ left: (i % L.cols) * cw, top: Math.floor(i / L.cols) * ch, width: cw, height: ch }).png().toBuffer()).toString('base64'));
+        const same = await looksSame(key, ref.png, panels[0]);
+        if (same.ok) { const credits = await spend(who, MOVE_COST).catch(() => null); res.json({ images: panels, mime: 'image/png', model: out.model, credits, body: same.body || null }); return; }
+        miss = same; console.log('move off-model', attempt, same.score, same.why);
+      }
+      if (miss) { res.status(422).json({ error: 'It didn’t come out looking like your mascot, so we didn’t keep it and your credits weren’t used. Try describing the move a different way.', offModel: true }); return; }
+      res.status((last && last.status) || 500).json({ error: (last && last.msg) || 'Painting failed. Your credits weren’t used.' }); return;
     } catch (e) { res.status(500).json({ error: String((e && e.message) || e) }); return; }
   }
 

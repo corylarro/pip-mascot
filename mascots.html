@@ -85,11 +85,12 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
 .warn{color:#8A4B00;background:#FFF4DC;border-radius:10px;padding:8px 12px}
 .ideas{display:flex;flex-wrap:wrap;gap:6px}.ideas button{font:600 .84rem var(--body);padding:5px 11px;border-radius:999px;border:1.5px solid var(--ink);background:var(--butter);color:var(--ink);cursor:pointer;text-align:left}
 .animate{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:12px}
-.mvsteps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;counter-reset:f}
-.mvsteps li{display:flex;gap:6px;align-items:center;counter-increment:f}.mvsteps li::before{content:counter(f);font-weight:700;min-width:1.2em}
-.mvsteps input{flex:1;min-width:0;font:500 .95rem var(--body);padding:8px 10px;border-radius:10px;border:2px solid var(--ink)}
-.mvsteps li.done input{border-color:var(--line)}.mvsteps button{font-size:.8rem;padding:6px 8px}
-.mvsteps .air{font-size:.75rem;white-space:nowrap}.animate label{font-weight:600}
+.mvsteps{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:10px;counter-reset:f}
+.mvsteps li{display:grid;grid-template-columns:1.3em minmax(0,1fr) auto;gap:4px 8px;align-items:center;counter-increment:f}.mvsteps li::before{content:counter(f);font-weight:700}
+.mvsteps input[type=text]{font:500 .95rem var(--body);padding:8px 10px;border-radius:10px;border:2px solid var(--ink);width:100%}
+.mvsteps .x{font-size:.8rem;padding:4px 9px}.mvsteps .air{grid-column:2;font-size:.8rem;display:flex;gap:6px;align-items:center}
+.mvframes summary{cursor:pointer;font-weight:600}.movepanel.busy :is(button,input,summary){pointer-events:none;opacity:.55}
+.movepanel{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)}.animate label{font-weight:600}
 .animate input{font:500 1rem var(--body);padding:9px 12px;border-radius:12px;border:2px solid var(--ink)}
 .busy{opacity:.6;pointer-events:none}
 @media (max-width:560px){.posepreview{grid-template-columns:1fr}}
@@ -203,21 +204,21 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
             <label for="moveDesc">Or paint a short move <span class="tag">up to 4 frames</span></label>
             <input id="moveDesc" maxlength="160" placeholder="does a kickflip on a skateboard" required>
             <div class="row"><button class="ghost" type="submit" id="movePlan">Plan the frames · free</button></div>
-            <p class="hint" style="margin-top:0">We suggest the frames first. Each frame you paint uses 1 credit.</p>
+            <p class="hint" style="margin-top:0">We plan the frames first, for free. Painting the move uses 2 credits.</p>
           </form>
-          <div class="posepreview" id="movePanel" hidden>
+          <div class="posepreview movepanel" id="movePanel" hidden>
             <div class="checker"><img id="moveImg" alt="The move, frame by frame" hidden></div>
             <div class="pp-side">
               <b id="moveTitle">The frames</b>
-              <ol class="mvsteps" id="moveSteps"></ol>
-              <div class="row"><button class="ghost" type="button" id="moveAdd">Add a frame</button></div>
+              <details class="mvframes" id="moveFrames"><summary>Edit the frames</summary><ol class="mvsteps" id="moveSteps"></ol>
+                <div class="row" style="margin-top:8px"><button class="ghost" type="button" id="moveAdd">Add a frame</button></div></details>
               <label class="check"><input type="checkbox" id="moveOnce"> Play once, then hold the last frame</label>
-              <div class="row"><button class="btn" type="button" id="moveGo">Paint</button><button class="ghost" type="button" id="moveClose">Cancel</button></div>
+              <div class="row"><button class="btn" type="button" id="moveGo">Paint it · 2 credits</button><button class="ghost" type="button" id="moveClose">Cancel</button></div>
               <div id="moveDone" hidden>
                 <label for="moveName">Name <input id="moveName" maxlength="24" pattern="[a-z0-9-]{1,24}"></label>
                 <div class="row"><button class="btn" type="button" id="moveKeep">Keep it</button><button class="ghost" type="button" id="moveShow">Show me</button></div>
               </div>
-              <p class="hint" id="moveHint" style="margin:0">Change any frame, or remove one to save a credit.</p>
+              <p class="hint" id="moveHint" style="margin:0">All the frames are painted together in one go, so they match.</p>
             </div>
           </div>
           <div class="posepreview" id="posePrev" hidden>
@@ -582,32 +583,29 @@ $('apKeep').addEventListener('click', async () => {
   } catch (e) { $('poseErr').textContent = e.message; }
   finally { $('apKeep').disabled = false; }
 });
-// Short moves: describe it, get a frame plan for free, then paint each frame from the one before it
-let mv = null;   // { desc, steps:[{text, air}], once, raw:[b64], keyed:[], frames:[], body, flip }
+// Short moves: describe it, get a frame plan for free, then paint every frame together in one image
+let mv = null;   // { desc, steps:[{text, air}], once, keyed:[], frames:[], body, flip, busy }
 const credText = j => { if (typeof j.credits === 'number') $('credits').textContent = `${j.credits} credit${j.credits === 1 ? '' : 's'}. A custom pose uses 1, a new mascot uses 5.`; };
 function mvRender() {
   if (!mv) return;
-  $('moveSteps').innerHTML = mv.steps.map((st, i) => `<li class="${mv.frames[i] ? 'done' : ''}"><input data-i="${i}" maxlength="110" value="${esc(st.text)}" aria-label="Frame ${i + 1}"><label class="air"><input type="checkbox" data-air="${i}"${st.air ? ' checked' : ''}> in the air</label>${mv.frames[i] ? `<button type="button" class="ghost" data-redo="${i}">Repaint · 1</button>` : ''}${mv.steps.length > 2 ? `<button type="button" class="ghost" data-del="${i}" aria-label="Remove frame ${i + 1}">✕</button>` : ''}</li>`).join('');
-  $('moveSteps').querySelectorAll('input[data-i]').forEach(el => el.addEventListener('input', () => { mv.steps[+el.dataset.i].text = el.value; }));
+  $('moveSteps').innerHTML = mv.steps.map((st, i) => `<li><input type="text" data-i="${i}" maxlength="110" value="${esc(st.text)}" aria-label="Frame ${i + 1}">${mv.steps.length > 2 ? `<button type="button" class="ghost x" data-del="${i}" aria-label="Remove frame ${i + 1}">✕</button>` : '<span></span>'}<label class="air"><input type="checkbox" data-air="${i}"${st.air ? ' checked' : ''}> in the air</label></li>`).join('');
+  $('moveSteps').querySelectorAll('input[data-i]').forEach(el => el.addEventListener('input', () => { mv.steps[+el.dataset.i].text = el.value; mvStale(); }));
   $('moveSteps').querySelectorAll('[data-air]').forEach(el => el.addEventListener('change', () => { mv.steps[+el.dataset.air].air = el.checked; mvPreview(); }));
-  $('moveSteps').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => { const i = +b.dataset.del; mv.steps.splice(i, 1); mv.raw.splice(i, 1); mv.keyed.splice(i, 1); mv.frames.splice(i, 1); if (i === 0) { mv.body = null; mvRealign(); } mvRender(); mvPreview(); }));
-  $('moveSteps').querySelectorAll('[data-redo]').forEach(b => b.addEventListener('click', () => mvPaint(+b.dataset.redo)));
+  $('moveSteps').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => { mv.steps.splice(+b.dataset.del, 1); mvStale(); mvRender(); }));
   $('moveAdd').hidden = mv.steps.length >= 4;
-  const left = mv.steps.filter((_, i) => !mv.frames[i]).length, all = mv.frames.filter(Boolean).length;
-  $('moveGo').hidden = !left; $('moveGo').textContent = all ? `Paint the rest · ${left} credit${left === 1 ? '' : 's'}` : `Paint ${left} frames · ${left} credits`;
-  $('moveDone').hidden = !!left || !all;
+  $('moveTitle').textContent = `${mv.steps.length} frames, ${mv.once ? 'plays once' : 'loops'}`;
+  const done = mv.frames.length >= 2;
+  $('moveGo').textContent = done ? 'Try again · 2 credits' : 'Paint it · 2 credits';
+  $('moveDone').hidden = !done;
 }
-function mvRealign() {   // every frame is placed at frame 1's size, standing on the same spot
-  if (!mv.keyed[0] || !data) return; const m = data.atlasMeta;
-  mv.frames[0] = PE.poseFrame(mv.keyed[0], m.size, m.boxes[0], 1, mv.body);
-  for (let i = 1; i < mv.keyed.length; i++) if (mv.keyed[i]) mv.frames[i] = PE.poseFrameSeq(mv.keyed[0], mv.keyed[i], mv.frames[0]);
-}
+function mvStale() { if (mv && mv.frames.length && mv.frames.length !== mv.steps.length) { mv.frames = []; mv.keyed = []; clearInterval(mv.flip); $('moveImg').hidden = true; mvRender(); } }
+function mvBusy(on) { mv && (mv.busy = on); $('movePanel').classList.toggle('busy', on); [$('moveGo'), $('moveKeep'), $('moveAdd'), $('moveClose'), $('moveShow'), $('movePlan')].forEach(b => { b.disabled = on; }); }
 function mvPreview() {
-  if (!mv) return; clearInterval(mv.flip); const urls = mv.frames.filter(Boolean).map(c => c.toDataURL('image/png'));
+  if (!mv) return; clearInterval(mv.flip); const urls = mv.frames.map(c => c.toDataURL('image/png'));
   $('moveImg').hidden = !urls.length; if (!urls.length) return;
-  let i = 0; $('moveImg').src = urls[0]; mv.flip = setInterval(() => { i = (i + 1) % (urls.length + (mv.once ? 2 : 0)); $('moveImg').src = urls[Math.min(i, urls.length - 1)]; }, 420);
-  const rig = pip && pip._m && pip._m.rig, done = mv.frames.length === mv.steps.length && mv.frames.every(Boolean);
-  if (rig && data && done && mv.frames.length >= 2) { const L = rig.base.canvas.width, R = mv.frames[0].width / data.atlasMeta.size, mk = cv => { const k = document.createElement('canvas'); k.width = k.height = Math.round(L * R); k.getContext('2d').drawImage(cv, 0, 0, k.width, k.height); return k; };
+  let i = 0; $('moveImg').src = urls[0]; mv.flip = setInterval(() => { i = (i + 1) % (urls.length + (mv.once ? 2 : 0)); $('moveImg').src = urls[Math.min(i, urls.length - 1)]; }, 380);
+  const rig = pip && pip._m && pip._m.rig;
+  if (rig && data && mv.frames.length >= 2) { const L = rig.base.canvas.width, R = mv.frames[0].width / data.atlasMeta.size, mk = cv => { const k = document.createElement('canvas'); k.width = k.height = Math.round(L * R); k.getContext('2d').drawImage(cv, 0, 0, k.width, k.height); return k; };
     const fs = mv.frames.map(mk); rig.addPose('__move', fs[0], fs[1], { more: fs.slice(2), once: mv.once, air: mv.steps.map(s => s.air) }); pip.pose('__move', mv.once ? 2600 : 5200); toStage(); }
 }
 async function mvPlan() {
@@ -621,60 +619,53 @@ async function mvPlan() {
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !Array.isArray(j.frames)) throw new Error(j.error || 'Couldn’t plan that move. Try describing it another way.');
     if (mv) clearInterval(mv.flip);
-    mv = { desc, steps: j.frames.map((t, i) => ({ text: t, air: !!(j.air && j.air[i]) })), once: !!j.once, raw: [], keyed: [], frames: [], body: null };
-    $('moveOnce').checked = mv.once; $('moveName').value = j.name || slug(desc);
-    $('moveTitle').textContent = `${mv.steps.length} frames${mv.once ? ', plays once' : ', loops'}`;
-    $('moveHint').textContent = 'Change any frame, or remove one to save a credit.'; $('moveImg').hidden = true;
+    mv = { desc, steps: j.frames.map((t, i) => ({ text: t, air: !!(j.air && j.air[i]) })), once: !!j.once, keyed: [], frames: [], body: null };
+    $('moveOnce').checked = mv.once; $('moveName').value = j.name || slug(desc); $('moveFrames').open = false;
+    $('moveHint').textContent = 'All the frames are painted together in one go, so they match.'; $('moveImg').hidden = true;
     $('movePanel').hidden = false; mvRender(); $('movePanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
   } catch (e) { $('poseErr').textContent = e.message; }
   finally { btn.disabled = false; btn.textContent = was; }
 }
-async function mvPaint(only) {
-  if (!mv) return; $('poseErr').textContent = '';
-  if (mv.steps.some(s => s.text.trim().length < 3)) { $('poseErr').textContent = 'Every frame needs a few words.'; return; }
-  const todo = only != null ? [only] : mv.steps.map((_, i) => i).filter(i => !mv.frames[i]);
-  const btns = [$('moveGo'), $('moveKeep'), $('moveAdd')]; btns.forEach(b => { b.disabled = true; });
+async function mvPaint() {
+  if (!mv || mv.busy) return; $('poseErr').textContent = '';
+  if (mv.steps.some(s => s.text.trim().length < 3)) { $('poseErr').textContent = 'Every frame needs a few words.'; $('moveFrames').open = true; return; }
+  mvBusy(true); const was = $('moveGo').textContent; $('moveGo').textContent = 'Painting… about a minute';
+  $('moveHint').textContent = `Painting all ${mv.steps.length} frames together…`;
   if (pip && pip.setState) pip.setState('thinking');
   try {
-    for (const i of todo) {
-      if (i > 0 && !mv.raw[i - 1]) throw new Error(`Paint frame ${i} first.`);
-      $('moveHint').textContent = `Painting frame ${i + 1} of ${mv.steps.length}… about a minute each`;
-      const n = mv.steps.length, text = mv.steps[i].text.trim();
-      const body = i === 0 ? { step: 'pose', id: cur.id, desc: `${mv.desc}: ${text}` } : { step: 'pose2', id: cur.id, change: text, image: mv.raw[i - 1], seq: { desc: mv.desc, i: i + 1, n } };
-      const r = await fetch('/api/paint', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-pip-pass': key }, body: JSON.stringify(body) });
-      const j = await r.json().catch(() => ({})); credText(j);
-      if (!r.ok || !j.image) throw new Error(`${j.error || 'That frame didn’t come through.'} Frames you already painted are kept.`);
-      mv.raw[i] = j.image; mv.keyed[i] = PE.keyOut(await loadImgEl(`data:${j.mime || 'image/png'};base64,${j.image}`));
-      if (i === 0) mv.body = Array.isArray(j.body) ? j.body : null;
-      if (i === 0) mvRealign(); else mv.frames[i] = PE.poseFrameSeq(mv.keyed[0], mv.keyed[i], mv.frames[0]);
-      mvRender(); mvPreview();
-    }
-    $('moveHint').textContent = 'Here it is. Repaint any frame that looks off, or keep it.';
-  } catch (e) { $('poseErr').textContent = e.message; $('moveHint').textContent = ''; }
-  finally { btns.forEach(b => { b.disabled = false; }); if (pip && pip.setState) pip.setState('idle'); mvRender(); mvPreview(); }
+    const r = await fetch('/api/paint', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-pip-pass': key }, body: JSON.stringify({ step: 'move', id: cur.id, desc: mv.desc, frames: mv.steps.map(s => s.text.trim()) }) });
+    const j = await r.json().catch(() => ({})); credText(j);
+    if (!r.ok || !Array.isArray(j.images)) throw new Error(j.error || 'The move didn’t come through. Your credits weren’t used.');
+    mv.keyed = []; for (const im of j.images) mv.keyed.push(PE.keyOut(await loadImgEl(`data:${j.mime || 'image/png'};base64,${im}`)));
+    mv.body = Array.isArray(j.body) ? j.body : null; const m = data.atlasMeta;
+    mv.frames = [PE.poseFrame(mv.keyed[0], m.size, m.boxes[0], 1, mv.body)];
+    for (let i = 1; i < mv.keyed.length; i++) mv.frames.push(PE.poseFrameSeq(mv.keyed[0], mv.keyed[i], mv.frames[0]));
+    $('moveHint').textContent = 'Here it is. Keep it, or change a frame and try again.';
+  } catch (e) { $('poseErr').textContent = e.message; $('moveHint').textContent = ''; $('moveGo').textContent = was; }
+  finally { if (pip && pip.setState) pip.setState('idle'); mvBusy(false); mvRender(); mvPreview(); }
 }
 $('moveForm').addEventListener('submit', e => { e.preventDefault(); mvPlan(); });
-$('moveGo').addEventListener('click', () => mvPaint());
-$('moveAdd').addEventListener('click', () => { if (mv && mv.steps.length < 4) { mv.steps.push({ text: '', air: false }); mvRender(); const ins = $('moveSteps').querySelectorAll('input[data-i]'); ins[ins.length - 1].focus(); } });
-$('moveOnce').addEventListener('change', () => { if (mv) { mv.once = $('moveOnce').checked; mvPreview(); } });
+$('moveGo').addEventListener('click', mvPaint);
+$('moveAdd').addEventListener('click', () => { if (mv && mv.steps.length < 4) { mv.steps.push({ text: '', air: false }); mvStale(); mvRender(); const ins = $('moveSteps').querySelectorAll('input[data-i]'); ins[ins.length - 1].focus(); } });
+$('moveOnce').addEventListener('change', () => { if (mv) { mv.once = $('moveOnce').checked; mvRender(); mvPreview(); } });
 $('moveShow').addEventListener('click', mvPreview);
 $('moveClose').addEventListener('click', () => { if (mv) clearInterval(mv.flip); mv = null; $('movePanel').hidden = true; });
 $('moveKeep').addEventListener('click', async () => {
-  if (!mv || mv.frames.length < 2 || !mv.frames.every(Boolean)) return;
+  if (!mv || mv.frames.length < 2 || mv.busy) return;
   const name = $('moveName').value.trim().toLowerCase();
   if (!/^[a-z0-9-]{1,24}$/.test(name)) { $('poseErr').textContent = 'Name it with lowercase letters, numbers and dashes, like kickflip.'; return; }
-  $('moveKeep').disabled = true; $('poseErr').textContent = '';
+  mvBusy(true); $('poseErr').textContent = '';
   try {
     const enc = async cv => { let bl = await new Promise(r => cv.toBlob(r, 'image/webp', .9)); if (!bl || bl.type !== 'image/webp') bl = await new Promise(r => cv.toBlob(r, 'image/png')); return { b64: await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(',')[1]); fr.readAsDataURL(bl); }), mime: bl.type }; };
     const fs = []; for (const c of mv.frames) fs.push(await enc(c));
     const r = await fetch(`/api/mascot?id=${cur.id}&pose=1`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-pip-pass': key }, body: JSON.stringify({ name, image: fs[0].b64, mime: fs[0].mime, image2: fs[1].b64, mime2: fs[1].mime, more: fs.slice(2).map(f => ({ image: f.b64, mime: f.mime })), once: mv.once, air: mv.steps.map(s => s.air), desc: mv.desc }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || 'Couldn’t save it. Try again.');
-    const rig = pip && pip._m && pip._m.rig; if (rig && rig.poses && rig.poses.__move) rig.addPose(name, rig.poses.__move, rig.poses2.__move, rig.poseSeq.__move ? { more: rig.poseSeq.__move.frames.slice(2), once: rig.poseSeq.__move.once, air: rig.poseSeq.__move.air } : null);
+    const rig = pip && pip._m && pip._m.rig, sq = rig && rig.poseSeq && rig.poseSeq.__move; if (rig && rig.poses && rig.poses.__move) rig.addPose(name, rig.poses.__move, rig.poses2.__move, sq ? { more: sq.frames.slice(2), once: sq.once, air: sq.air } : null);
     clearInterval(mv.flip); mv = null; $('movePanel').hidden = true; $('moveDesc').value = '';
     freshP = fresh(); await loadPoses(); pip && pip.pose && pip.pose(name, 3000);
   } catch (e) { $('poseErr').textContent = e.message; }
-  finally { $('moveKeep').disabled = false; }
+  finally { mvBusy(false); }
 });
 // a second tap confirms, instead of a browser dialog
 function confirmRemove(b) { if (b.dataset.sure) return true; b.dataset.sure = '1'; b.textContent = 'Tap again to remove'; setTimeout(() => { delete b.dataset.sure; b.textContent = 'Remove'; }, 3000); return false; }
