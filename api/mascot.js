@@ -165,7 +165,7 @@ export default async function handler(req, res) {
         res.send(bytes); return;
       }
       const host = req.headers['x-forwarded-host'] || req.headers.host;
-      res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=60, stale-while-revalidate=600');
+      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=30, stale-while-revalidate=300');   // browsers always ask; changes (moments, poses) show within ~30s
       const out = { id, mode: meta.mode, grid: meta.grid, face: meta.face, name: meta.name, greeting: meta.greeting, rules: meta.rules || [],
         poses: (meta.poses || []).map(p => ({ name: p.name, desc: p.desc, image: `https://${host}/api/mascot?id=${id}&img=pose&name=${p.name}&v=${p.v}` })),
         image: `https://${host}/api/mascot?id=${id}&img=1` };

@@ -274,7 +274,7 @@ public struct CritterConfiguration: Sendable {
                 autopilot: Bool = true,
                 hideable: Bool = true,
                 sleepAfter: TimeInterval = 30,
-                seasonal: Bool = true) {
+                seasonal: Bool = false) {
         self.mascotID = mascotID
         self.corner = corner
         self.offset = offset

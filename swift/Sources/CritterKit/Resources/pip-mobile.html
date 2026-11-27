@@ -925,7 +925,7 @@ var paintedEngine=PipPaintedEngine();
       inp.addEventListener('input',()=>{rig.lookAtCaret(inp);rig.bump()});inp.addEventListener('blur',()=>{rig.focusEl=null;if(secret)rig.cover=false})}});
   const RM=engine.RM,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),wait=ms=>new Promise(r=>setTimeout(r,ms)),pick=a=>a[Math.floor(Math.random()*a.length)];
   const RATIO=254/240;
-  // Seasonal touches that drift around the mascot without changing how it looks. Picked by date; seasonal="off" turns them off.
+  // Seasonal touches that drift around the mascot without changing how it looks. Off by default; the seasonal attribute picks them by date.
   const SEASONS=['snow','leaves','confetti','hearts','bats'];
   const seasonFor=d=>{const m=d.getMonth()+1,day=d.getDate(),h=d.getHours();
     if(m===10&&day>=24)return 'bats';if(m===11)return 'leaves';if((m===12&&day===31&&h>=18)||(m===1&&day===1))return 'confetti';
@@ -1033,7 +1033,8 @@ var paintedEngine=PipPaintedEngine();
     disconnectedCallback(){if(this._rulesStop){this._rulesStop();this._rulesStop=null}if(this._seasonStop){this._seasonStop();this._seasonStop=null}if(this._ap){this._ap();this._ap=null}if(this._m){this._m.destroy();this._m=null}
       clearInterval(this._avT);if(this._onResize){removeEventListener('resize',this._onResize);removeEventListener('scroll',this._onResize)}if(this._aro)this._aro.disconnect();clearTimeout(this._homeT);this._walkTok=(this._walkTok||0)+1}
     _season(){if(this._seasonStop){this._seasonStop();this._seasonStop=null}const cv=this.shadowRoot&&this.shadowRoot.querySelector('.season');if(!cv)return;
-      const a=(this.getAttribute('seasonal')||'auto').trim().toLowerCase();if(['off','false','none','no'].includes(a)||RM<1)return;
+      // off unless asked for: seasonal (or seasonal="auto") picks by date, seasonal="snow" etc. forces one
+      const raw=this.getAttribute('seasonal'),a=(raw===null?'off':raw===''?'auto':raw).trim().toLowerCase();if(['off','false','none','no'].includes(a)||RM<1)return;
       const kind=a==='auto'||a==='on'||a==='true'?seasonFor(new Date()):a;if(SEASONS.includes(kind))this._seasonStop=runSeason(cv,kind,this)}
     attributeChangedCallback(n,o,v){if(n==='seasonal'){if(this._m)this._season();return}if(this._m&&n==='state'&&v)return this._m.setState(v);
       if(!this._m||o===v)return;if(n==='size'||n==='mobile-size')this._applySize();if(n==='position')this.toggleAttribute('data-left',this._place().h==='left');
