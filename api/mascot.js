@@ -3,7 +3,7 @@
 //   GET  /api/mascot?id=ID           -> mascot JSON (with an image URL that has CORS enabled)
 //   GET  /api/mascot?id=ID&img=1     -> the painting itself
 import { put, list } from '@vercel/blob';
-import { whoIs, refuse, readKey, writeKey, readJson } from './_keys.js';
+import { whoIs, refuse, readKey, writeKey, readJson, writeJson } from './_keys.js';
 import { sanitize, clean } from './_steps.js';
 
 // No-code moments: "when this happens on my site, do that". Saved on the mascot, read by critter.js.
@@ -41,8 +41,8 @@ async function findData(id) {
 
 async function saveAtlas(id, b) {
   const mime = /^image\/(webp|png)$/.test(b.atlasMime) ? b.atlasMime : 'image/webp';
-  const blob = await put(`mascots/${id}/atlas.${mime.split('/')[1]}`, Buffer.from(b.atlas, 'base64'), { access: 'public', contentType: mime, addRandomSuffix: false, allowOverwrite: true });
-  return { atlasUrl: blob.url, atlasMime: mime, atlasMeta: b.atlasMeta || null, atlasFace: b.atlasFace || null, atlasV: Date.now().toString(36) };
+  const v = Date.now().toString(36), blob = await put(`mascots/${id}/atlas-${v}.${mime.split('/')[1]}`, Buffer.from(b.atlas, 'base64'), { access: 'public', contentType: mime, addRandomSuffix: false, allowOverwrite: true });   // new address per save: never stale
+  return { atlasUrl: blob.url, atlasMime: mime, atlasMeta: b.atlasMeta || null, atlasFace: b.atlasFace || null, atlasV: v };
 }
 
 export default async function handler(req, res) {
@@ -67,7 +67,7 @@ export default async function handler(req, res) {
         imageUrl: img.url, mime, created: new Date().toISOString()
       };
       if (b.atlas) Object.assign(meta, await saveAtlas(id, b));
-      await put(`mascots/${id}/data.json`, JSON.stringify(meta), { access: 'public', contentType: 'application/json', addRandomSuffix: false });
+      await writeJson(`mascots/${id}/data.json`, meta);
       // remember it on the buyer's key, so "My mascots" can list it on any device
       if (who && who.key) {
         try { const rec = (await readKey(who.key)) || who.rec; rec.mascots = [{ id, name: meta.name, created: meta.created }, ...(rec.mascots || [])].slice(0, 50); await writeKey(who.key, rec); }
@@ -92,15 +92,15 @@ export default async function handler(req, res) {
       if (!b.remove) {
         if (!b.image) { res.status(400).json({ error: 'Missing pose image.' }); return; }
         if (poses.length >= 40) { res.status(400).json({ error: 'That’s 40 poses, the most a mascot can have. Remove one first.' }); return; }
-        const mime = /^image\/(webp|png)$/.test(b.mime) ? b.mime : 'image/png';
-        const blob = await put(`mascots/${id}/poses/${name}.${mime.split('/')[1]}`, Buffer.from(b.image, 'base64'), { access: 'public', contentType: mime, addRandomSuffix: false, allowOverwrite: true });
+        const mime = /^image\/(webp|png)$/.test(b.mime) ? b.mime : 'image/png', pv = Date.now().toString(36);
+        const blob = await put(`mascots/${id}/poses/${name}-${pv}.${mime.split('/')[1]}`, Buffer.from(b.image, 'base64'), { access: 'public', contentType: mime, addRandomSuffix: false, allowOverwrite: true });
         let url2 = null;
         if (b.image2) { const m2 = /^image\/(webp|png)$/.test(b.mime2) ? b.mime2 : 'image/png';
-          url2 = (await put(`mascots/${id}/poses/${name}-2.${m2.split('/')[1]}`, Buffer.from(b.image2, 'base64'), { access: 'public', contentType: m2, addRandomSuffix: false, allowOverwrite: true })).url; }
-        poses = [...poses, { name, url: blob.url, mime, ...(url2 ? { url2, mime2: /^image\/(webp|png)$/.test(b.mime2) ? b.mime2 : 'image/png' } : {}), desc: String(b.desc || '').slice(0, 200), v: Date.now().toString(36), created: new Date().toISOString() }];
+          url2 = (await put(`mascots/${id}/poses/${name}-${pv}-2.${m2.split('/')[1]}`, Buffer.from(b.image2, 'base64'), { access: 'public', contentType: m2, addRandomSuffix: false, allowOverwrite: true })).url; }
+        poses = [...poses, { name, url: blob.url, mime, ...(url2 ? { url2, mime2: /^image\/(webp|png)$/.test(b.mime2) ? b.mime2 : 'image/png' } : {}), desc: String(b.desc || '').slice(0, 200), v: pv, created: new Date().toISOString() }];
       }
       meta.poses = poses;
-      await put(`mascots/${id}/data.json`, JSON.stringify(meta), { access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 });
+      await writeJson(`mascots/${id}/data.json`, meta);
       res.json({ poses: poses.map(p => ({ name: p.name, desc: p.desc })) }); return;
     }
 
@@ -114,7 +114,7 @@ export default async function handler(req, res) {
       const b = (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body) || {};
       if (!b.atlas) { res.status(400).json({ error: 'Missing prepared poses.' }); return; }
       Object.assign(meta, await saveAtlas(id, b));
-      await put(`mascots/${id}/data.json`, JSON.stringify(meta), { access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true });
+      await writeJson(`mascots/${id}/data.json`, meta);
       res.json({ id, atlas: true }); return;
     }
 
@@ -129,7 +129,7 @@ export default async function handler(req, res) {
       if (!meta) { res.status(404).json({ error: 'Mascot not found.' }); return; }
       const b = (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body) || {};
       meta.rules = cleanRules(b.rules);
-      await put(`mascots/${id}/data.json`, JSON.stringify(meta), { access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 });
+      await writeJson(`mascots/${id}/data.json`, meta);
       res.json({ rules: meta.rules }); return;
     }
 
