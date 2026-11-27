@@ -824,7 +824,7 @@ function definePipElement(engine,defaultConfig,painted,origin){
       fetch(`${this.getAttribute('api')||origin}/api/seen?id=${encodeURIComponent(mid)}`,{method:'POST',mode:'no-cors',keepalive:true}).catch(()=>{})}catch(e){}}
     // No-code moments set up on the mascot's page: "when someone visits /thank-you, play first-purchase".
     // Triggers: visit (a path, * wildcards), click (button or link text), text (words that appear on the page). Opt out with no-rules.
-    _startRules(mid){const rules=this._rules||[];if(!rules.length||this.hasAttribute('no-rules'))return;
+    _startRules(mid){if(this.hasAttribute('no-rules'))return;const R=()=>this._rules||[];
       const norm=t=>String(t||'').replace(/\s+/g,' ').trim().toLowerCase();
       const KEY=id=>'ck-rule:'+mid+':'+id,done=id=>{try{return localStorage.getItem(KEY(id))==='1'}catch(e){return false}},mark=id=>{try{localStorage.setItem(KEY(id),'1')}catch(e){}};
       const findByText=txt=>{const n=norm(txt);for(const el of document.querySelectorAll('button,a,[role=button],input[type=submit],input[type=button],label,h1,h2,h3')){
@@ -839,17 +839,23 @@ function definePipElement(engine,defaultConfig,painted,origin){
       const pathOk=pat=>{const p=(location.pathname.replace(/\/+$/,'')||'/').toLowerCase();pat=String(pat||'').trim();try{if(/^https?:/i.test(pat))pat=new URL(pat).pathname}catch(e){}
         pat=(pat.split(/[?#]/)[0].replace(/\/+$/,'')||'/').toLowerCase();if(pat[0]!=='/')pat='/'+pat;
         if(pat.includes('*'))return new RegExp('^'+pat.split('*').map(x=>x.replace(/[.+?^${}()|[\]\\]/g,'\\$&')).join('.*')+'$').test(p);return p===pat};
-      const textRules=rules.filter(r=>r.when.type==='text'),seenText=new Set();let lastPath=null,q=0;
-      const scan=()=>{q=0;if(!textRules.length||!document.body)return;const body=norm(document.body.innerText);
+      const seenText=new Set();let lastPath=null,q=0;
+      const scan=()=>{q=0;const textRules=R().filter(r=>r.when.type==='text');if(!textRules.length||!document.body)return;const body=norm(document.body.innerText);
         for(const r of textRules)if(!seenText.has(r.id)&&body.includes(norm(r.when.value))){seenText.add(r.id);fire(r)}};
       const visit=()=>{const p=location.pathname;if(p===lastPath)return;lastPath=p;seenText.clear();
-        for(const r of rules)if(r.when.type==='visit'&&pathOk(r.when.value))setTimeout(()=>fire(r),900);if(textRules.length)setTimeout(scan,1300)};
+        for(const r of R())if(r.when.type==='visit'&&pathOk(r.when.value))setTimeout(()=>fire(r),900);setTimeout(scan,1300)};
       const click=e=>{const el=e.target&&e.target.closest&&e.target.closest('button,a,[role=button],input[type=submit],input[type=button]');if(!el||el===this)return;
-        const v=norm(el.innerText||el.value||el.getAttribute('aria-label'));if(!v)return;for(const r of rules)if(r.when.type==='click'&&v.includes(norm(r.when.value)))fire(r)};
+        const v=norm(el.innerText||el.value||el.getAttribute('aria-label'));if(!v)return;for(const r of R())if(r.when.type==='click'&&v.includes(norm(r.when.value)))fire(r)};
       visit();const iv=setInterval(visit,700);document.addEventListener('click',click,true);
-      const mo=textRules.length&&typeof MutationObserver!=='undefined'?new MutationObserver(()=>{if(!q)q=setTimeout(scan,600)}):null;
+      const mo=typeof MutationObserver!=='undefined'?new MutationObserver(()=>{if(!q&&R().some(r=>r.when.type==='text'))q=setTimeout(scan,600)}):null;
       if(mo&&document.body)mo.observe(document.body,{childList:true,subtree:true,characterData:true});
-      this._rulesStop=()=>{clearInterval(iv);clearTimeout(q);document.removeEventListener('click',click,true);mo&&mo.disconnect()}}
+      // pick up moments (and poses) added on the mascot's page when someone comes back to the tab, at most once every 20s
+      let lastFetch=Date.now();const api=this.getAttribute('api')||origin;
+      const refresh=()=>{if(document.hidden||Date.now()-lastFetch<20000)return;lastFetch=Date.now();
+        fetch(`${api}/api/mascot?id=${encodeURIComponent(mid)}`).then(r=>r.ok?r.json():null).then(d=>{if(!d)return;if(Array.isArray(d.rules))this._rules=d.rules;
+          const rig=this._m&&this._m.rig,have=rig&&rig.poses||{};if(rig&&painted&&painted.loadPoses&&Array.isArray(d.poses))painted.loadPoses(rig,{poses:d.poses.filter(p=>!have[p.name])})}).catch(()=>{})};
+      document.addEventListener('visibilitychange',refresh);addEventListener('focus',refresh);
+      this._rulesStop=()=>{clearInterval(iv);clearTimeout(q);document.removeEventListener('click',click,true);mo&&mo.disconnect();document.removeEventListener('visibilitychange',refresh);removeEventListener('focus',refresh)}}
     // Show one of the mascot's custom poses (painted on its page) for ms milliseconds. Returns 0 if it doesn't have that pose.
     pose(name,ms=2600){return this._m&&this._m.pose?this._m.pose(String(name),ms)||0:0}
     _drop(x,y){const m=this._m,y0=-this._size()[1]-30,ms=RM<1?260:560,tok=this._walkTok=(this._walkTok||0)+1;this._setPos(x,y0);

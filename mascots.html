@@ -426,10 +426,12 @@ $('ruleForm').addEventListener('submit', async e => {
   e.preventDefault(); const then = formThen(), value = $('rWhenVal').value.trim();
   if (!value) { $('rErr').textContent = 'Say which page, button or words.'; return; }
   if (!then) { $('rErr').textContent = $('rThen').value === 'play' ? 'Build a custom moment in the studio first.' : 'Fill in what it should do.'; return; }
-  $('rAdd').disabled = true;
+  const sig = JSON.stringify([$('rWhen').value, value.toLowerCase(), then]);
+  if (rules.some(r => JSON.stringify([r.when.type, String(r.when.value).toLowerCase(), r.then]) === sig)) { $('rErr').textContent = 'That moment is already on the list.'; return; }
+  $('rAdd').disabled = true; $('rAdd').textContent = 'Adding…';
   const ok = await saveRules([...rules, { when: { type: $('rWhen').value, value }, then, once: $('rOnce').checked }]);
-  $('rAdd').disabled = false;
-  if (ok) { $('rWhenVal').value = ''; $('rSay').value = ''; $('rText').value = ''; $('rTarget').value = ''; $('rPointSay').value = ''; $('rCount').value = ''; }
+  $('rAdd').disabled = false; $('rAdd').textContent = 'Add this moment';
+  if (ok) { $('rulesHint').textContent = 'Added. Open or switch back to your site in about 30 seconds and it’s there.'; $('rWhenVal').value = ''; $('rSay').value = ''; $('rText').value = ''; $('rTarget').value = ''; $('rPointSay').value = ''; $('rCount').value = ''; }
 });
 syncForm();
 if (location.hash === '#rules') setTimeout(() => $('rules-step').scrollIntoView({ behavior: 'smooth' }), 800);
