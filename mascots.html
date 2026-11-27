@@ -73,7 +73,7 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
 .poses{list-style:none;margin:0 0 14px;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .poses li{border:2px solid var(--line);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:6px;background:var(--white)}
 .poses img{width:100%;aspect-ratio:1;object-fit:contain;background:var(--haze);border-radius:10px}
-.poses b{font-size:.95rem}.poses .row{gap:6px}
+.poses b{font-size:.95rem}.poses select.role{font:500 .82rem var(--body);padding:6px 8px;border-radius:10px;border:1.5px solid var(--ink);background:var(--white);color:var(--ink);max-width:100%}.poses .row{gap:6px}
 .poses button{font:600 .82rem var(--body);padding:4px 10px;border-radius:999px;border:1.5px solid var(--ink);background:var(--white);color:var(--ink);cursor:pointer}
 .poseform{display:flex;flex-direction:column;gap:8px}.poseform label{font-weight:600}
 .poseform input{font:500 1rem var(--body);padding:11px 14px;border-radius:12px;border:2px solid var(--ink);background:var(--white);color:var(--ink)}
@@ -175,6 +175,7 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
         <section class="step" id="poses-step" aria-labelledby="sp">
           <h2 id="sp">Custom poses <span class="tag">1 credit each</span></h2>
           <p class="sub" id="poseIntro">Paint your mascot doing anything: riding a skateboard, holding a trophy, wearing a graduation cap. Keep the ones you like and use them in custom moments.</p>
+          <p class="hint" style="margin:6px 0 12px">Tip: a pose can stand in for a built-in reaction. Pick “Instead of pointing” and your mascot uses it every time it shows someone a missed field.</p>
           <ul class="poses" id="poseList"></ul>
           <div class="posepreview animpanel" id="animPanel" hidden>
             <div class="checker"><img id="apImg" alt="The animated pose"></div>
@@ -472,6 +473,8 @@ if (params.get('rule') === 'custom') setTimeout(() => { $('rThen').value = 'play
 const PE = typeof PipPaintedEngine === 'function' ? PipPaintedEngine() : null;
 let posePainting = null, poseCanvas = null, poseBody = null, poseRaw = null, poseB = null, poseCanvas2 = null, flipT = 0;
 const slug = t => String(t || '').toLowerCase().replace(/\b(a|an|the|and|with|on|in|of|while|his|her|its|their)\b/g, ' ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').split('-').slice(0, 3).join('-').slice(0, 24) || 'pose';
+const ROLE_OPTS = [['', 'Only when asked for'], ['point', 'Instead of pointing (missed fields, buttons)'], ['thinking', 'While thinking (loading)'], ['success', 'When celebrating'], ['error', 'When worried (errors)'], ['wave', 'When waving hello'], ['dance', 'When dancing'], ['sleeping', 'When napping'], ['love', 'When in love'], ['surprised', 'When surprised'], ['confused', 'When confused'], ['sad', 'When sad']];
+const ROLE_TXT = Object.fromEntries(ROLE_OPTS.filter(o => o[0]).map(([v, t]) => [v, t]));
 const poseCode = n => plat === 'ios' ? `["do": "pose", "name": "${n}"]` : `{ do: 'pose', name: '${n}' }`;
 async function loadPoses() {
   const d = await freshP; const list = (d && d.poses) || [];
@@ -482,8 +485,20 @@ async function loadPoses() {
   mm.innerHTML = list.map(p => `<li><b>${esc(p.name)}</b><span>${esc(p.desc || 'Your custom pose')}</span><button type="button" data-pp="${esc(p.name)}">Preview</button><code>${esc(plat === 'ios' ? `Critter.play([["do": "pose", "name": "${p.name}"]])` : `pip.pose('${p.name}')`)}</code></li>`).join('');
   mm.querySelectorAll('[data-pp]').forEach(b => b.addEventListener('click', () => { pip && pip.pose && pip.pose(b.dataset.pp, 3000); toStage(); }));
   $('rPose').innerHTML = list.length ? list.map(p => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('') : '<option value="">Paint a pose first</option>';
-  $('poseList').innerHTML = list.map(p => `<li><img src="${esc(p.image)}" alt="${esc(p.desc || p.name)}" loading="lazy"><b>${esc(p.name)}</b><code style="font-size:.75rem;word-break:break-all">${esc(poseCode(p.name))}</code><div class="row"><button type="button" data-play="${esc(p.name)}">Play</button>${canEdit && !p.image2 ? `<button type="button" data-anim="${esc(p.name)}">Animate</button>` : ''}${p.image2 ? '<span class="tag">animated</span>' : ''}${canEdit ? `<button type="button" data-rm="${esc(p.name)}">Remove</button>` : ''}</div></li>`).join('');
+  $('poseList').innerHTML = list.map(p => `<li><img src="${esc(p.image)}" alt="${esc(p.desc || p.name)}" loading="lazy"><b>${esc(p.name)}</b>${canEdit ? `<select class="role" data-role="${esc(p.name)}" aria-label="Use this pose">${ROLE_OPTS.map(([v, t]) => `<option value="${v}"${(p.role || '') === v ? ' selected' : ''}>${t}</option>`).join('')}</select>` : (p.role ? `<span class="hint" style="margin:0">${esc(ROLE_TXT[p.role] || '')}</span>` : '')}<code style="font-size:.75rem;word-break:break-all">${esc(poseCode(p.name))}</code><div class="row"><button type="button" data-play="${esc(p.name)}">Play</button>${canEdit && !p.image2 ? `<button type="button" data-anim="${esc(p.name)}">Animate</button>` : ''}${p.image2 ? '<span class="tag">animated</span>' : ''}${canEdit ? `<button type="button" data-rm="${esc(p.name)}">Remove</button>` : ''}</div></li>`).join('');
   $('poseList').querySelectorAll('[data-play]').forEach(b => b.addEventListener('click', () => { pip && pip.pose && pip.pose(b.dataset.play, 3000); toStage(); }));
+  $('poseList').querySelectorAll('[data-role]').forEach(sel => sel.addEventListener('change', async () => {
+    const name = sel.dataset.role, role = sel.value || null; sel.disabled = true; $('poseErr').textContent = '';
+    try {
+      const r = await fetch(`/api/mascot?id=${cur.id}&pose=1`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-pip-pass': key }, body: JSON.stringify({ name, role }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || 'Couldn’t save that. Try again.');
+      const rig = pip && pip._m && pip._m.rig; if (rig) rig.poseRoles = Object.fromEntries((j.poses || []).filter(p => p.role).map(p => [p.role, p.name]));
+      freshP = fresh(); await loadPoses();
+      // show it standing in for the reaction
+      if (role && pip) { if (role === 'point') pip.pose(name, 2600); else pip.react(role, 2600); toStage(); }
+    } catch (e) { $('poseErr').textContent = e.message; sel.disabled = false; }
+  }));
   $('poseList').querySelectorAll('[data-anim]').forEach(b => b.addEventListener('click', () => openAnim(list.find(p => p.name === b.dataset.anim))));
   $('poseList').querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', async () => {
     if (!confirmRemove(b)) return;

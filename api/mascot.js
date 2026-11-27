@@ -89,6 +89,16 @@ export default async function handler(req, res) {
       const b = (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body) || {};
       const name = String(b.name || '').toLowerCase();
       if (!/^[a-z0-9-]{1,24}$/.test(name)) { res.status(400).json({ error: 'Pose names use lowercase letters, numbers and dashes.' }); return; }
+      // a pose can stand in for one of the built-in reactions ("use this pose when it points at something")
+      const ROLES = ['point', 'thinking', 'success', 'error', 'wave', 'dance', 'sleeping', 'love', 'surprised', 'confused', 'sad'];
+      if (b.role !== undefined && !b.image && !b.remove) {
+        const role = ROLES.includes(b.role) ? b.role : null;
+        if (!(meta.poses || []).some(p => p.name === name)) { res.status(404).json({ error: 'No pose with that name.' }); return; }
+        meta.poses = (meta.poses || []).map(p => { const q = { ...p }; if (q.name === name) { if (role) q.role = role; else delete q.role; } else if (role && q.role === role) delete q.role; return q; });
+        await writeJson(`mascots/${id}/data.json`, meta);
+        res.json({ poses: meta.poses.map(p => ({ name: p.name, desc: p.desc, role: p.role || null })) }); return;
+      }
+      const prevRole = ((meta.poses || []).find(p => p.name === name) || {}).role;
       let poses = (meta.poses || []).filter(p => p.name !== name);
       if (!b.remove) {
         if (!b.image) { res.status(400).json({ error: 'Missing pose image.' }); return; }
@@ -98,7 +108,7 @@ export default async function handler(req, res) {
         let url2 = null;
         if (b.image2) { const m2 = /^image\/(webp|png)$/.test(b.mime2) ? b.mime2 : 'image/png';
           url2 = (await put(`mascots/${id}/poses/${name}-${pv}-2.${m2.split('/')[1]}`, Buffer.from(b.image2, 'base64'), { access: 'public', contentType: m2, addRandomSuffix: false, allowOverwrite: true })).url; }
-        poses = [...poses, { name, url: blob.url, mime, ...(url2 ? { url2, mime2: /^image\/(webp|png)$/.test(b.mime2) ? b.mime2 : 'image/png' } : {}), desc: String(b.desc || '').slice(0, 200), v: pv, created: new Date().toISOString() }];
+        poses = [...poses, { name, url: blob.url, mime, ...(url2 ? { url2, mime2: /^image\/(webp|png)$/.test(b.mime2) ? b.mime2 : 'image/png' } : {}), desc: String(b.desc || '').slice(0, 200), v: pv, created: new Date().toISOString(), ...(prevRole ? { role: prevRole } : {}) }];
       }
       meta.poses = poses;
       await writeJson(`mascots/${id}/data.json`, meta);
@@ -168,7 +178,7 @@ export default async function handler(req, res) {
       const host = req.headers['x-forwarded-host'] || req.headers.host;
       res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=15');   // browsers always ask, the CDN keeps it 15s: changes show within ~15s
       const out = { id, mode: meta.mode, grid: meta.grid, face: meta.face, name: meta.name, greeting: meta.greeting, rules: meta.rules || [],
-        poses: (meta.poses || []).map(p => ({ name: p.name, desc: p.desc, image: `https://${host}/api/mascot?id=${id}&img=pose&name=${p.name}&v=${p.v}`, ...(p.url2 ? { image2: `https://${host}/api/mascot?id=${id}&img=pose&name=${p.name}&f=2&v=${p.v}` } : {}) })),
+        poses: (meta.poses || []).map(p => ({ name: p.name, desc: p.desc, ...(p.role ? { role: p.role } : {}), image: `https://${host}/api/mascot?id=${id}&img=pose&name=${p.name}&v=${p.v}`, ...(p.url2 ? { image2: `https://${host}/api/mascot?id=${id}&img=pose&name=${p.name}&f=2&v=${p.v}` } : {}) })),
         image: `https://${host}/api/mascot?id=${id}&img=1` };
       if (meta.atlasUrl) Object.assign(out, { atlas: `https://${host}/api/mascot?id=${id}&img=atlas&v=${meta.atlasV}`, atlasMeta: meta.atlasMeta, atlasFace: meta.atlasFace });
       res.json(out);

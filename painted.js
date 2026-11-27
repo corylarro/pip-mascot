@@ -173,7 +173,8 @@ class PaintRig{
     if(a==='sway'){const s=Math.random()<.5?-1:1;this.sway.t=.05*s;setTimeout(()=>{this.sway.t=-.05*s},420);setTimeout(()=>{this.sway.t=0},840)}}
   _yawn(){this.yawned=true;this.yawnUntil=performance.now()+1700;this.stretch.t=1;setTimeout(()=>{this.stretch.t=0},1100)}
   point(x,y){const r=this.cv.getBoundingClientRect(),side=x<r.left+r.width/2?'L':'R';this.lookAt(x,y);this.focusLook=performance.now()+2600;
-    if(this.full&&this.full['point'+side]){this.pointSide=side;this.pointUntil=performance.now()+3400;this.squash.v-=1.6;this.s.lean.t=0}
+    const PRp=this.poseRoles&&this.poseRoles.point&&this.poses&&this.poses[this.poseRoles.point];   // a custom pose picked to stand in for pointing
+    if(PRp||(this.full&&this.full['point'+side])){this.pointSide=side;this.pointUntil=performance.now()+3400;this.squash.v-=1.6;this.s.lean.t=0}
     else{this.s.lean.t=(side==='L'?-1:1)*6;clearTimeout(this._pt);this._pt=setTimeout(()=>{this.s.lean.t=0},1400)}}
   unpoint(){this.s.lean.t=0;this.pointSide=null}
   lookAtCaret(inp){const r=inp.getBoundingClientRect(),cs=getComputedStyle(inp);const m=PaintRig._m||(PaintRig._m=document.createElement('canvas').getContext('2d'));m.font=cs.font;
@@ -297,12 +298,15 @@ class PaintRig{
     // body
     const sinkPx=sink*B.h*scale*.5;ctx.save();if(sink>.01){ctx.beginPath();ctx.rect(0,0,W,ground+1);ctx.clip()}
     const FX=this._fxNow(performance.now()),gw=this.grow.step(dt);ctx.globalAlpha=this.fadeV;ctx.translate(W/2+shx+dbx+FX.dx,ground+this.jumpY+wb+dby+sinkPx+slump*3+gb);const follow=(this.state==='idle'||this.state==='talking')&&!this.walkDir&&!this.pointSide?v.lookX*4*RM:0;ctx.rotate((v.tilt+giggle+v.lean+wr+drot+gr+follow)*Math.PI/180);if(Math.abs(sw)>.001)ctx.transform(1,0,sw,1,0,0);if(FX.rot){const mid=B.h*scale*.5;ctx.translate(0,-mid);ctx.rotate(FX.rot*Math.PI/180);ctx.translate(0,mid)}ctx.scale(sx*(1+.035*slump)*scale*FX.turn*gw,sy*(1-.06*slump)*scale*gw);ctx.translate(-footX,-footY);
-    const posed=this.poseNow&&performance.now()<this.poseNow.until&&this.poses&&this.poses[this.poseNow.name];
+    // a pose plays when asked for, or stands in for a built-in reaction it was picked for (pointing, thinking, napping…)
+    const pnow=performance.now(),PR=this.poseRoles||{};let pn=this.poseNow&&pnow<this.poseNow.until?this.poseNow.name:null;
+    if(!pn&&this.poses){if(this.pointSide&&pnow<this.pointUntil&&PR.point)pn=PR.point;else if(PR[this.state])pn=PR[this.state]}
+    const posed=pn&&this.poses&&this.poses[pn];
     const FF=this.full||{},pointing=!posed&&this.pointSide&&performance.now()<this.pointUntil&&FF['point'+this.pointSide];
     const wantWave=!posed&&!pointing&&this.state==='wave'&&!!FF.waveA;
     this._waveK=!FF.waveA||posed||pointing?0:wvK+((wantWave?1:0)-wvK)*Math.min(1,dt*11);   // ease in and out of the wave
     const wk=this._waveK,waving=wk>.03;
-    if(posed){const L=this.base.canvas.width,R=posed.width/L,P2=this.poses2&&this.poses2[this.poseNow.name],ox=-(R-1)/2*L,oy=-(R-1)*L;
+    if(posed){const L=this.base.canvas.width,R=posed.width/L,P2=this.poses2&&this.poses2[pn],ox=-(R-1)/2*L,oy=-(R-1)*L;
       if(!P2)ctx.drawImage(posed,ox,oy);
       else{const p=(t*1.25)%1,e=x=>x*x*(3-2*x),bw=p<.42?0:p<.5?e((p-.42)/.08):p<.92?1:1-e((p-.92)/.08),a0=ctx.globalAlpha;
         if(bw<1){ctx.globalAlpha=a0*(1-bw*bw*bw);ctx.drawImage(posed,ox,oy)}if(bw>0){ctx.globalAlpha=a0*bw;ctx.drawImage(P2,ox,oy)}ctx.globalAlpha=a0}}
@@ -451,7 +455,9 @@ function refineFace(frames,face,names){
 // Some environments (like the iOS simulator) can't decode WebP; the mobile core sets PIP_IMAGE_FORMAT='png' there
 function blankFrame(fr){const b=fr.bbox,c=fr.canvas.getContext('2d',{willReadFrequently:true}),y=Math.round(b.y+b.h*.5),d=c.getImageData(Math.round(b.x),y,Math.max(1,Math.round(b.w)),1).data;for(let i=3;i<d.length;i+=4)if(d[i]>10)return false;return true}
 function imgURL(u){const f=typeof window!=='undefined'&&window.PIP_IMAGE_FORMAT;return f&&/\/api\/mascot\?/.test(u)?u+'&fmt='+f:u}
-function loadPoses(rig,data){if(!Array.isArray(data.poses)||!data.poses.length||!rig.base)return;
+function loadPoses(rig,data){if(!Array.isArray(data.poses)||!rig.base)return;
+  if(!data.only)rig.poseRoles=Object.fromEntries(data.poses.filter(p=>p&&p.role&&p.name).map(p=>[p.role,p.name]));
+  if(!data.poses.length)return;
   // a pose image may be larger than the mascot's frame (POSE_ROOM times, for props); the frame size comes from the atlas
   const fs=data.atlasMeta&&data.atlasMeta.size;
   rig._posePending=rig._posePending||{};
