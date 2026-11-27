@@ -689,8 +689,9 @@ class PaintRig{
     let gb=0,gr=0,gq=0;if(this.walkDir&&this.step){const a=Math.sin(this.step.p*Math.PI);gr=(this.step.i%2?1:-1)*a*3*RM;gq=-a*.045*RM}else if(this.walkDir){this.walkT+=dt;const ph=this.walkT*7.6,s1=Math.abs(Math.sin(ph));gb=-s1*9*RM;gr=Math.sin(ph)*4.5*RM;gq=Math.pow(1-s1,6)*.08*RM}
     const sleeping=this.state==='sleeping',breathe=(sleeping?Math.sin(t*1.2)*.03:Math.sin(t*2.3)*.015)*RM,air=this.jumpY<0?Math.min(Math.abs(this.jumpV)/2600,.1):0;
     const sy=sq+breathe+air+st*.09-gq,sx=1+(sq+breathe+air-gq-1)*-.9-st*.05;const giggle=this.state==='giggle'?Math.sin(t*22)*2.5*RM:0;
-    const wv=this.state==='wave'&&this.full&&this.full.waveA,wph=t*6.2,
-      wr=wv&&!this.full.waveB?Math.sin(wph)*2.4*RM:0,wb=wv?-Math.abs(Math.sin(wph))*(this.full.waveB?3:6)*RM:0;
+    // Wave: two painted frames, swapped slowly with a quick cross-fade, and one soft hop per swap (no hard flicker)
+    const WAVE_HZ=1.5,wp=(t*WAVE_HZ)%1,wvK=this._waveK||0,
+      wr=this.full&&this.full.waveA&&!this.full.waveB?Math.sin(wp*Math.PI*2)*2.2*RM*wvK:0,wb=-Math.sin(Math.PI*((t*WAVE_HZ*2)%1))*(this.full&&this.full.waveB?1.8:3.2)*RM*wvK;
     const ctx=this.ctx,W=this.W,H=this.H;ctx.setTransform(this.dpr,0,0,this.dpr,0,0);ctx.clearRect(0,0,W,H);
     if(this._dead)return;
     if(!this.base){this._raf=requestAnimationFrame(this._frame.bind(this));return}
@@ -702,10 +703,20 @@ class PaintRig{
     const sinkPx=sink*B.h*scale*.5;ctx.save();if(sink>.01){ctx.beginPath();ctx.rect(0,0,W,ground+1);ctx.clip()}
     const FX=this._fxNow(performance.now()),gw=this.grow.step(dt);ctx.globalAlpha=this.fadeV;ctx.translate(W/2+shx+dbx+FX.dx,ground+this.jumpY+wb+dby+sinkPx+slump*3+gb);const follow=(this.state==='idle'||this.state==='talking')&&!this.walkDir&&!this.pointSide?v.lookX*4*RM:0;ctx.rotate((v.tilt+giggle+v.lean+wr+drot+gr+follow)*Math.PI/180);if(Math.abs(sw)>.001)ctx.transform(1,0,sw,1,0,0);if(FX.rot){const mid=B.h*scale*.5;ctx.translate(0,-mid);ctx.rotate(FX.rot*Math.PI/180);ctx.translate(0,mid)}ctx.scale(sx*(1+.035*slump)*scale*FX.turn*gw,sy*(1-.06*slump)*scale*gw);ctx.translate(-footX,-footY);
     const posed=this.poseNow&&performance.now()<this.poseNow.until&&this.poses&&this.poses[this.poseNow.name];
-    const FF=this.full||{},pointing=!posed&&this.pointSide&&performance.now()<this.pointUntil&&FF['point'+this.pointSide],waving=!posed&&!pointing&&this.state==='wave'&&FF.waveA;
+    const FF=this.full||{},pointing=!posed&&this.pointSide&&performance.now()<this.pointUntil&&FF['point'+this.pointSide];
+    const wantWave=!posed&&!pointing&&this.state==='wave'&&!!FF.waveA;
+    this._waveK=!FF.waveA||posed||pointing?0:wvK+((wantWave?1:0)-wvK)*Math.min(1,dt*11);   // ease in and out of the wave
+    const wk=this._waveK,waving=wk>.03;
     if(posed){const L=this.base.canvas.width;ctx.drawImage(posed,0,0,L,L)}
     else if(pointing){const fr=FF['point'+this.pointSide];ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
-    else if(waving){const fr=(FF.waveB&&Math.floor(t*3.4)%2)?FF.waveB:FF.waveA;ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
+    else if(waving){const A=FF.waveA,Bf=FF.waveB,ease=x=>x*x*(3-2*x);
+      // hold A, blend to B, hold B, blend back: blends take a tenth of the cycle each
+      const bw=!Bf?0:wp<.4?0:wp<.5?ease((wp-.4)/.1):wp<.9?1:1-ease((wp-.9)/.1);
+      if(wk<.97)ctx.drawImage(this.base.canvas,0,0);
+      const a0=ctx.globalAlpha;
+      if(bw<1){ctx.globalAlpha=a0*wk*(1-bw*bw*bw);ctx.drawImage(A.canvas,-A.off.dx,-A.off.dy)}
+      if(bw>0){ctx.globalAlpha=a0*wk*bw;ctx.drawImage(Bf.canvas,-Bf.off.dx,-Bf.off.dy)}
+      ctx.globalAlpha=a0}
     else ctx.drawImage(this.base.canvas,0,0);
     if(this.simple&&!posed)drawSimpleFace(ctx,this.simple,v,blink,t);
     if(this.face&&!waving&&!pointing&&!posed){const P=this.patches,FB=this.face.box,ox=v.lookX*FB.w*.035,oy=v.lookY*FB.h*.03;
