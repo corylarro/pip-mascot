@@ -29,8 +29,8 @@ p{margin:0}
 .pick a{font:600 .92rem var(--body);padding:7px 14px;border-radius:999px;border:2px solid var(--ink);color:var(--ink);text-decoration:none;background:var(--white)}
 .pick a[aria-current]{background:var(--ink);color:var(--white)}
 .layout{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:34px;align-items:start;padding-bottom:70px}
-.left{position:static}
-.stage{position:relative;background:var(--butter);border:2px solid var(--ink);border-radius:32px;aspect-ratio:1/1;max-height:520px;width:100%}
+.left{position:sticky;top:max(20px,calc(50vh - 260px));z-index:1}   /* desktop: the mascot stays in view, centred, while you scroll */
+.stage{position:relative;background:var(--butter);border:2px solid var(--ink);border-radius:32px;aspect-ratio:1/1;max-height:min(520px,calc(100vh - 40px));width:100%}
 .stage critter-mascot{--pip-size:min(250px,52vw)}
 .try{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;justify-content:center}
 .try button{font:600 .9rem var(--body);padding:7px 13px;border-radius:999px;border:2px solid var(--ink);background:var(--white);color:var(--ink);cursor:pointer}
