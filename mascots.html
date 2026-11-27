@@ -486,7 +486,10 @@ function renderPose() {
 }
 function showPose() { const rig = pip && pip._m && pip._m.rig; if (rig && poseCanvas) { const L = rig.base.canvas.width, c = document.createElement('canvas'); c.width = c.height = L; c.getContext('2d').drawImage(poseCanvas, 0, 0, L, L); rig.addPose('__preview', c); pip.pose('__preview', 3500); } toStage(); }
 const CHANGES = /\b(turn(s|ed|ing)? (it |him |her )?into|transform(s|ed|ing)?|becom(e|es|ing)|as an? (?!big|small|little|happy|sad)\w+$|as an? (robot|dinosaur|dragon|human|person|cat|dog|monster|alien|zombie|vampire|ghost|unicorn)|replace(d)? (it|him|her)|different (character|animal|colou?r))\b/i;
-$('poseDesc').addEventListener('input', () => { $('poseWarn').hidden = !CHANGES.test($('poseDesc').value.trim()); });
+// a bare "robot" or "a dragon" reads as "make it a robot", not a pose
+const CREATURES = /^(a |an |the )?(robot|dinosaur|dragon|human|person|man|woman|boy|girl|cat|dog|monster|alien|zombie|vampire|ghost|unicorn|pirate|ninja|wizard|witch|superhero|knight|princess|prince|astronaut|mermaid|fairy|bear|bunny|rabbit|fox|frog|owl|penguin|shark|tiger|lion|panda|teddy bear|cyborg|android)s?$/i;
+const changesCharacter = t => CHANGES.test(t) || CREATURES.test(t);
+$('poseDesc').addEventListener('input', () => { $('poseWarn').hidden = !changesCharacter($('poseDesc').value.trim()); });
 $('poseForm').addEventListener('submit', e => { e.preventDefault(); paintPose(); });
 $('poseAgain').addEventListener('click', paintPose);
 $('poseSize').addEventListener('input', renderPose);
