@@ -1105,17 +1105,19 @@ var paintedEngine=PipPaintedEngine();
         for(const r of R())if(r.when.type==='visit'&&pathOk(r.when.value))setTimeout(()=>fire(r),900);setTimeout(scan,1300)};
       const click=e=>{const el=e.target&&e.target.closest&&e.target.closest('button,a,[role=button],input[type=submit],input[type=button]');if(!el||el===this)return;
         const v=norm(el.innerText||el.value||el.getAttribute('aria-label'));if(!v)return;
-        const go=()=>{for(const r of R())if(r.when.type==='click'&&v.includes(norm(r.when.value)))fire(r)};
-        // the tap that brings someone back to the tab also starts a refresh: wait for it so a just-added moment isn't missed
+        const match=()=>R().filter(r=>r.when.type==='click'&&v.includes(norm(r.when.value)));
+        // the tap that brings someone back to the tab also starts a refresh: wait for it so a just-added moment isn't missed.
+        // And a tap that matches nothing checks once for new moments (at most every 15s), in case one was just added.
+        const go=()=>{const hit=match();if(hit.length)return hit.forEach(fire);if(refresh(15000))pending.then(()=>match().forEach(fire))};
         if(pending)pending.then(go);else go()};
       visit();const iv=setInterval(visit,700);document.addEventListener('click',click,true);
       const mo=typeof MutationObserver!=='undefined'?new MutationObserver(()=>{if(!q&&R().some(r=>r.when.type==='text'))q=setTimeout(scan,600)}):null;
       if(mo&&document.body)mo.observe(document.body,{childList:true,subtree:true,characterData:true});
       // pick up moments (and poses) added on the mascot's page when someone comes back to the tab, at most once every 20s
       let lastFetch=Date.now(),pending=null;const api=this.getAttribute('api')||origin;
-      const refresh=()=>{if(document.hidden||Date.now()-lastFetch<20000)return;lastFetch=Date.now();
-        pending=fetch(`${api}/api/mascot?id=${encodeURIComponent(mid)}`).then(r=>r.ok?r.json():null).then(d=>{if(!d)return;if(Array.isArray(d.rules))this._rules=d.rules;
-          const rig=this._m&&this._m.rig,have=rig&&rig.poses||{};if(rig&&painted&&painted.loadPoses&&Array.isArray(d.poses))painted.loadPoses(rig,{atlasMeta:d.atlasMeta,poses:d.poses.filter(p=>!have[p.name])})}).catch(()=>{}).finally(()=>{pending=null})};
+      const refresh=(gap=20000)=>{if(typeof gap!=='number')gap=20000;if(document.hidden||pending||Date.now()-lastFetch<gap)return false;lastFetch=Date.now();
+        pending=fetch(`${api}/api/mascot?id=${encodeURIComponent(mid)}&r=${Math.floor(Date.now()/15000)}`).then(r=>r.ok?r.json():null).then(d=>{if(!d)return;if(Array.isArray(d.rules))this._rules=d.rules;
+          const rig=this._m&&this._m.rig,have=rig&&rig.poses||{};if(rig&&painted&&painted.loadPoses&&Array.isArray(d.poses))painted.loadPoses(rig,{atlasMeta:d.atlasMeta,poses:d.poses.filter(p=>!have[p.name])})}).catch(()=>{}).finally(()=>{pending=null});return true};
       document.addEventListener('visibilitychange',refresh);addEventListener('focus',refresh);
       this._rulesStop=()=>{clearInterval(iv);clearTimeout(q);document.removeEventListener('click',click,true);mo&&mo.disconnect();document.removeEventListener('visibilitychange',refresh);removeEventListener('focus',refresh)}}
     // Show one of the mascot's custom poses (painted on its page) for ms milliseconds. Returns 0 if it doesn't have that pose.

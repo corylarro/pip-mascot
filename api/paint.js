@@ -114,10 +114,8 @@ async function looksSame(key, refPng, outB64) {
   return { ok: true, skipped: true };   // if the check can't run, don't block the painting
 }
 async function poseReference(id) {
-  const { blobs } = await list({ prefix: `mascots/${id}/` });
-  const data = blobs.find(x => x.pathname.endsWith('/data.json'));
-  if (!data) return null;
-  const meta = await (await fetch(`${data.url}?t=${Date.now()}`, { cache: 'no-store' })).json();
+  const meta = await readJson(`mascots/${id}/data.json`);
+  if (!meta) return null;
   if (!meta.atlasUrl || !meta.atlasMeta) return { meta };
   const atlas = Buffer.from(await (await fetch(`${meta.atlasUrl}?v=${meta.atlasV || ''}`)).arrayBuffer());
   const sharp = (await import('sharp')).default, n = meta.atlasMeta.size;

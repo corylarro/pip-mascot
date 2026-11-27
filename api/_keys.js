@@ -6,11 +6,26 @@ import crypto from 'node:crypto';
 const KEY = /^ck_[A-Za-z0-9_-]{20,40}$/;
 export const newKey = () => 'ck_' + crypto.randomBytes(18).toString('base64url');
 
-export async function readJson(path) {
+// Read a stored file straight from its address instead of listing the store first (listing is the slow, metered call).
+// The address comes from the store id in the token; the first listing confirms it, and listing remains the fallback.
+let BASE = null, BASE_OK = false;
+const guessBase = () => { const m = /^vercel_blob_rw_([A-Za-z0-9]+)_/.exec(process.env.BLOB_READ_WRITE_TOKEN || ''); return m ? `https://${m[1].toLowerCase()}.public.blob.vercel-storage.com` : null; };
+export async function blobFetch(path) {
+  const base = BASE || guessBase();
+  if (base) {
+    const r = await fetch(`${base}/${path}?t=${Date.now()}`, { cache: 'no-store' }).catch(() => null);   // skip the CDN copy: these change
+    if (r && r.ok) { BASE = base; BASE_OK = true; return r; }
+    if (r && r.status === 404 && BASE_OK) return null;                                                   // address known good: it's really missing
+  }
   const { blobs } = await list({ prefix: path, limit: 1 });
   if (!blobs.length || blobs[0].pathname !== path) return null;
-  const r = await fetch(`${blobs[0].url}?t=${Date.now()}`, { cache: 'no-store' });   // skip the CDN copy: credits change
-  return r.ok ? r.json() : null;
+  BASE = new URL(blobs[0].url).origin; BASE_OK = true;
+  const r = await fetch(`${blobs[0].url}?t=${Date.now()}`, { cache: 'no-store' });
+  return r.ok ? r : null;
+}
+export async function readJson(path) {
+  const r = await blobFetch(path);
+  return r ? r.json() : null;
 }
 export const writeJson = (path, data) => put(path, JSON.stringify(data), { access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 });
 

@@ -3,7 +3,7 @@
 //   GET  /api/mascot?id=ID           -> mascot JSON (with an image URL that has CORS enabled)
 //   GET  /api/mascot?id=ID&img=1     -> the painting itself
 import { put, list } from '@vercel/blob';
-import { whoIs, refuse, readKey, writeKey } from './_keys.js';
+import { whoIs, refuse, readKey, writeKey, readJson } from './_keys.js';
 import { sanitize, clean } from './_steps.js';
 
 // No-code moments: "when this happens on my site, do that". Saved on the mascot, read by critter.js.
@@ -36,11 +36,7 @@ const ID = /^[a-z0-9]{6,24}$/;
 const newId = () => Array.from({ length: 12 }, () => 'abcdefghijkmnpqrstuvwxyz23456789'[Math.floor(Math.random() * 32)]).join('');
 
 async function findData(id) {
-  const { blobs } = await list({ prefix: `mascots/${id}/` });
-  const data = blobs.find(b => b.pathname.endsWith('/data.json'));
-  if (!data) return null;
-  const r = await fetch(`${data.url}?t=${Date.now()}`, { cache: 'no-store' });   // skip the CDN copy: rules change
-  return r.ok ? r.json() : null;
+  return readJson(`mascots/${id}/data.json`);   // always the latest: moments and poses change
 }
 
 async function saveAtlas(id, b) {
@@ -165,7 +161,7 @@ export default async function handler(req, res) {
         res.send(bytes); return;
       }
       const host = req.headers['x-forwarded-host'] || req.headers.host;
-      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=30, stale-while-revalidate=300');   // browsers always ask; changes (moments, poses) show within ~30s
+      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=15');   // browsers always ask, the CDN keeps it 15s: changes show within ~15s
       const out = { id, mode: meta.mode, grid: meta.grid, face: meta.face, name: meta.name, greeting: meta.greeting, rules: meta.rules || [],
         poses: (meta.poses || []).map(p => ({ name: p.name, desc: p.desc, image: `https://${host}/api/mascot?id=${id}&img=pose&name=${p.name}&v=${p.v}` })),
         image: `https://${host}/api/mascot?id=${id}&img=1` };
