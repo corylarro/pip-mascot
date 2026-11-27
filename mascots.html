@@ -357,7 +357,7 @@ function show(m) {
   pip = document.createElement('critter-mascot');
   pip.setAttribute('mascot', m.id); pip.setAttribute('dock', '#stage'); pip.setAttribute('seasonal', 'off'); pip.setAttribute('no-ping', ''); pip.setAttribute('no-rules', '');
   pip.setAttribute('greet', ''); pip.setAttribute('greeting', m.name ? `Hi! I'm ${m.name}.` : 'Hi there!');
-  document.body.appendChild(pip);
+  document.getElementById('stage').appendChild(pip);   // inside the stage, so it rides along when the stage sticks on scroll
   renderCode(); renderPlat(); checkLive(true); loadRules(); loadPoses();
 }
 
