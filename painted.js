@@ -283,9 +283,9 @@ class PaintRig{
     let gb=0,gr=0,gq=0;if(this.walkDir&&this.step){const a=Math.sin(this.step.p*Math.PI);gr=(this.step.i%2?1:-1)*a*3*RM;gq=-a*.045*RM}else if(this.walkDir){this.walkT+=dt;const ph=this.walkT*7.6,s1=Math.abs(Math.sin(ph));gb=-s1*9*RM;gr=Math.sin(ph)*4.5*RM;gq=Math.pow(1-s1,6)*.08*RM}
     const sleeping=this.state==='sleeping',breathe=(sleeping?Math.sin(t*1.2)*.03:Math.sin(t*2.3)*.015)*RM,air=this.jumpY<0?Math.min(Math.abs(this.jumpV)/2600,.1):0;
     const sy=sq+breathe+air+st*.09-gq,sx=1+(sq+breathe+air-gq-1)*-.9-st*.05;const giggle=this.state==='giggle'?Math.sin(t*22)*2.5*RM:0;
-    // Wave: two painted frames, swapped slowly with a quick cross-fade, and one soft hop per swap (no hard flicker)
-    const WAVE_HZ=1.5,wp=(t*WAVE_HZ)%1,wvK=this._waveK||0,
-      wr=this.full&&this.full.waveA&&!this.full.waveB?Math.sin(wp*Math.PI*2)*2.2*RM*wvK:0,wb=-Math.sin(Math.PI*((t*WAVE_HZ*2)%1))*(this.full&&this.full.waveB?1.8:3.2)*RM*wvK;
+    // Wave: hold one painted waving frame and rock gently side to side (swapping two paintings looked jumpy)
+    const WAVE_HZ=1.3,wp=(t*WAVE_HZ)%1,wvK=this._waveK||0,
+      wr=Math.sin(wp*Math.PI*2)*2.6*RM*wvK,wb=-Math.sin(Math.PI*((t*WAVE_HZ*2)%1))*1.6*RM*wvK;
     const ctx=this.ctx,W=this.W,H=this.H;ctx.setTransform(this.dpr,0,0,this.dpr,0,0);ctx.clearRect(0,0,W,H);
     if(this._dead)return;
     if(!this.base){this._raf=requestAnimationFrame(this._frame.bind(this));return}
@@ -305,7 +305,7 @@ class PaintRig{
     else if(pointing){const fr=FF['point'+this.pointSide];ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
     else if(waving){const A=FF.waveA,Bf=FF.waveB,ease=x=>x*x*(3-2*x);
       // hold A, blend to B, hold B, blend back: blends take a tenth of the cycle each
-      const bw=!Bf?0:wp<.4?0:wp<.5?ease((wp-.4)/.1):wp<.9?1:1-ease((wp-.9)/.1);
+      const bw=0;   // waveB is no longer swapped in
       if(wk<.97)ctx.drawImage(this.base.canvas,0,0);
       const a0=ctx.globalAlpha;
       if(bw<1){ctx.globalAlpha=a0*wk*(1-bw*bw*bw);ctx.drawImage(A.canvas,-A.off.dx,-A.off.dy)}
