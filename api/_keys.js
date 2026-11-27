@@ -57,6 +57,8 @@ export async function writeJson(path, data) {
 
 // Credits: a new mascot uses 5, a custom pose uses 1. Keys made before credits held "paints" (one per mascot): 1 paint = 5 credits.
 export const MASCOT_COST = 5;
+// which store small data lives in, and whether it answers (for the owner's check)
+export async function storeStatus() { if (!(REDIS_URL() && REDIS_TOKEN())) return 'blob'; try { return (await redis(['PING'])) === 'PONG' ? 'redis' : 'redis-error'; } catch (e) { return 'redis-error'; } }
 const norm = rec => { if (rec && rec.cv !== 2) { rec.credits = (rec.credits || 0) * MASCOT_COST; rec.cv = 2; } return rec; };
 export const readKey = k => (KEY.test(k || '') ? readJson(`keys/${k}.json`).then(norm) : Promise.resolve(null));
 export const writeKey = (k, rec) => writeJson(`keys/${k}.json`, rec);

@@ -43,7 +43,7 @@ For panels 1, 8, 9, 10 and 11, count the character's ARMS: the upper limbs, incl
 Also say whether the character in panel 1 is an animal with paws, and for panels 8 to 11 whether a hand with separate human-style fingers appears.
 Reply with ONLY this JSON (no prose): {"arms":{"1":2,"8":2,"9":2,"10":2,"11":2},"pawAnimal":false,"fingers":{"8":false,"9":false,"10":false,"11":false}}`;
 
-import { whoIs, spend, refuse, MASCOT_COST, readJson, writeJson } from './_keys.js';
+import { whoIs, spend, refuse, MASCOT_COST, readJson, writeJson, storeStatus } from './_keys.js';
 import { createHash } from 'node:crypto';
 
 // Spending guards, so nobody can run up the OpenAI bill:
@@ -153,7 +153,7 @@ export default async function handler(req, res) {
   if (refuse(res, who, 'Painting')) return;
 
   // Lock-screen check: confirms the passcode or key without painting anything.
-  if (req.query && req.query.check) { res.status(200).json({ ok: true, owner: !!who.owner, credits: who.rec ? who.rec.credits : null }); return; }
+  if (req.query && req.query.check) { res.status(200).json({ ok: true, owner: !!who.owner, credits: who.rec ? who.rec.credits : null, ...(who.owner ? { store: await storeStatus() } : {}) }); return; }
   const b = (typeof req.body === 'string' ? (() => { try { return JSON.parse(req.body); } catch (e) { return {}; } })() : req.body) || {};
   const auth = { Authorization: `Bearer ${key}` };
   const quality = ['low', 'medium', 'high'].includes(b.quality) ? b.quality : 'medium';
