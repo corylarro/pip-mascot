@@ -120,6 +120,21 @@ const FRAME2_PROMPT = (change, transparent) => `Repaint this exact image as the 
 Keep EVERYTHING identical: the same character, the same framing, size and position in the image, the same colours, lighting, style and every detail.
 Change only this, and only a little: ${change}.
 ${transparent ? 'Transparent background.' : 'Plain flat light grey background, the same colour everywhere.'} No text, no border, no ground shadow.`;
+// Frames 2-4 of a short move: the same character in the next moment of the action.
+const SEQ_PROMPT = (desc, moment, i, n, transparent) => `Repaint this exact character as frame ${i} of ${n} of a short animation: ${desc}.
+In this frame: ${moment}.
+Keep EVERYTHING else identical: the same character, colours, proportions, face, materials, art style and the same props. Keep it the same size in the image and keep its lowest point at the same height in the image even if it jumps (the animation adds the jump). Only the pose changes.
+${transparent ? 'Transparent background.' : 'Plain flat light grey background, the same colour everywhere.'} No text, no border, no ground shadow, no motion lines.`;
+// Turns "does a kickflip" into 1-4 frame moments. Text only, so it's free for the user.
+const PLAN_PROMPT = desc => `You plan a very short animation of an app's cartoon mascot. It is painted as 2 to 4 still frames.
+The request: "${desc}"
+Reply with JSON only: {"name":"kebab-case-name","frames":["...","..."],"once":true,"air":[false,true]}
+Rules:
+- Use the fewest frames that read clearly. Small repeating motions (waving, bobbing, wagging, nodding, blinking, typing) get 2 frames and once:false (they loop).
+- Actions with a start and an end (jumps, tricks, throws, spins, landing, catching, popping out) get 3 or 4 frames and once:true (play once, hold the last frame).
+- Each frame is under 14 words and describes the character's exact pose in that moment, and any prop it holds, wears or rides. Frame 1 names every prop so later frames match.
+- air[i] is true only when the character is off the ground in that frame. Same length as frames.
+- Never change who the character is. Never add other characters.`;
 async function poseReference(id) {
   const meta = await readJson(`mascots/${id}/data.json`);
   if (!meta) return null;
@@ -194,9 +209,35 @@ export default async function handler(req, res) {
     } catch (e) { res.status(500).json({ error: String((e && e.message) || e) }); return; }
   }
 
+  if (b.step === 'plan') {
+    const desc = String(b.desc || '').trim().slice(0, 160);
+    if (desc.length < 3) { res.status(400).json({ error: 'Describe the move first.' }); return; }
+    try {
+      const stop = await guard(who, 'pose');
+      if (stop) { res.status(429).json({ error: stop }); return; }
+      const block = await moderate({ key, desc, photo: null, visionModels: VISION_MODELS() });
+      if (block) { res.status(422).json({ error: block.message, blocked: block.reason }); return; }
+      for (const model of VISION_MODELS()) {
+        const r = await call(`${API}/responses`, { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model, ...(/^gpt-5/.test(model) ? { reasoning: { effort: 'minimal' } } : {}), input: PLAN_PROMPT(desc) }) });
+        if (!r.ok) { if (tryNext(r.status, r.msg)) continue; break; }
+        const j = parseJson(extractText(r.json));
+        const clean = t => String(t || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 110);
+        const frames = j && Array.isArray(j.frames) ? j.frames.map(clean).filter(f => f.length > 2).slice(0, 4) : [];
+        if (frames.length < 2) break;
+        const air = frames.map((_, i) => !!(Array.isArray(j.air) && j.air[i]));
+        const name = String(j.name || '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24);
+        res.json({ frames, once: frames.length > 2 ? j.once !== false : !!j.once, air, name }); return;
+      }
+      // the planner couldn't run: fall back to a simple two-frame loop
+      res.json({ frames: [desc, `${desc}, the next moment of the motion`], once: false, air: [false, false], name: '', fallback: true }); return;
+    } catch (e) { res.status(500).json({ error: String((e && e.message) || e) }); return; }
+  }
+
   if (b.step === 'pose2') {
     if (who.rec && !(who.rec.credits >= 1)) { res.status(402).json({ error: 'Animating a pose uses 1 credit and you’re out.', credits: 0 }); return; }
     const id = String(b.id || ''), change = String(b.change || '').trim().slice(0, 160);
+    const seq = b.seq && typeof b.seq === 'object' ? { desc: String(b.seq.desc || '').trim().slice(0, 160), i: Math.max(2, Math.min(4, Number(b.seq.i) || 2)), n: Math.max(2, Math.min(4, Number(b.seq.n) || 2)) } : null;
     if (!/^[a-z0-9]{6,24}$/.test(id)) { res.status(400).json({ error: 'Unknown mascot.' }); return; }
     if (change.length < 3) { res.status(400).json({ error: 'Say what should move.' }); return; }
     if (!b.image || b.image.length > 8e6) { res.status(400).json({ error: 'Paint the pose first.' }); return; }
@@ -204,7 +245,7 @@ export default async function handler(req, res) {
     try {
       const stop = await guard(who, 'pose');
       if (stop) { res.status(429).json({ error: stop }); return; }
-      const block = await moderate({ key, desc: change, photo: null, visionModels: VISION_MODELS() });
+      const block = await moderate({ key, desc: seq && seq.desc ? `${seq.desc}. ${change}` : change, photo: null, visionModels: VISION_MODELS() });
       if (block) { res.status(422).json({ error: block.message, blocked: block.reason }); return; }
       const ref = Buffer.from(b.image, 'base64');
       let last = null;
@@ -213,7 +254,7 @@ export default async function handler(req, res) {
         for (const [transparent, hiFi] of [[true, true], [true, false], [false, true], [false, false]]) {
           if ((transparent && noTransparent) || (hiFi && noHiFi)) continue;
           const fd = new FormData();
-          fd.append('model', model); fd.append('prompt', FRAME2_PROMPT(change, transparent));
+          fd.append('model', model); fd.append('prompt', seq ? SEQ_PROMPT(seq.desc || change, change, seq.i, seq.n, transparent) : FRAME2_PROMPT(change, transparent));
           fd.append('image', new Blob([ref], { type: 'image/png' }), 'frame1.png');
           fd.append('size', '1024x1024'); fd.append('quality', 'medium'); fd.append('output_format', 'png'); fd.append('n', '1');
           if (transparent) fd.append('background', 'transparent');

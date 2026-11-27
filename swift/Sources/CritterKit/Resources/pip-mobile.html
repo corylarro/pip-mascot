@@ -654,9 +654,11 @@ class PaintRig{
   growPop(k=1.38,ms=900){this.grow.t=RM<1?1.1:k;setTimeout(()=>{this.grow.t=1},ms);return ms+300}
   fade(on){this.fadeV=on?1:0}
   // Custom poses: extra full-body paintings shown in place of the body for a moment (made on the mascot's page).
-  addPose(name,canvas,canvas2){(this.poses||(this.poses={}))[name]=canvas;(this.poses2||(this.poses2={}))[name]=canvas2||null}
+  addPose(name,canvas,canvas2,opt){(this.poses||(this.poses={}))[name]=canvas;(this.poses2||(this.poses2={}))[name]=canvas2||null;
+    // a short move: 3-4 frames in order, played once (holding the last) or looped; air marks frames where it's off the ground
+    const more=(opt&&opt.more||[]).filter(Boolean);(this.poseSeq||(this.poseSeq={}))[name]=canvas2&&(more.length||opt&&(opt.once||(opt.air||[]).some(Boolean)))?{frames:[canvas,canvas2,...more],once:!!opt.once,air:(opt.air||[]).map(Boolean)}:null}
   pose(name,ms=2600){if((!this.poses||!this.poses[name])&&this._posePending&&this._posePending[name]){this._posePending[name].then(()=>this.pose(name,ms));return ms}   // still downloading: play it when it arrives
-    if(!this.poses||!this.poses[name])return 0;this.poseNow={name,until:performance.now()+ms};this.squash.v-=2.2*RM;this.lastAct=performance.now();this.emote('spark',4);
+    if(!this.poses||!this.poses[name])return 0;this._pnName=null;this.poseNow={name,until:performance.now()+ms};this.squash.v-=2.2*RM;this.lastAct=performance.now();this.emote('spark',4);
     clearTimeout(this._poseT);this._poseT=setTimeout(()=>{this.squash.v-=1.6*RM},ms);return ms}
   prop(ch,ms=2600){this.props=[{ch:String(ch||'').slice(0,4),t0:performance.now(),ms}];return ms}
   _fxNow(now){let rot=0,turn=1,dx=0;this.fx=this.fx.filter(f=>{const p=clamp((now-f.t0)/f.ms,0,1),e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
@@ -716,8 +718,16 @@ class PaintRig{
     const wantWave=!posed&&!pointing&&this.state==='wave'&&!!FF.waveA;
     this._waveK=!FF.waveA||posed||pointing?0:wvK+((wantWave?1:0)-wvK)*Math.min(1,dt*11);   // ease in and out of the wave
     const wk=this._waveK,waving=wk>.03;
+    if(pn!==this._pnName){this._pnName=pn;this._pnT0=pnow}
+    const SQ=posed&&this.poseSeq&&this.poseSeq[pn];
     if(posed){const L=this.base.canvas.width,R=posed.width/L,P2=this.poses2&&this.poses2[pn],ox=-(R-1)/2*L,oy=-(R-1)*L;
-      if(!P2)ctx.drawImage(posed,ox,oy);
+      if(SQ){const n=SQ.frames.length,D=SQ.once?[340,...Array(n-2).fill(200),1e9]:Array(n).fill(260),cyc=D.reduce((a,b)=>a+b,0);
+        let e=pnow-this._pnT0;if(!SQ.once)e%=cyc;let i=0,t0=0;while(i<n-1&&e>=t0+D[i]){t0+=D[i];i++}
+        // one smooth arc across the run of airborne frames
+        let hop=0,a0=-1,a1=-1,acc=0;for(let j=0;j<n;j++){if(SQ.air[j]){if(a0<0)a0=acc;a1=acc+Math.min(D[j],400)}acc+=D[j]}
+        if(a0>=0&&e>=a0&&e<=a1)hop=Math.sin(Math.PI*(e-a0)/(a1-a0))*L*.32*RM;
+        ctx.drawImage(SQ.frames[i],ox,oy-hop)}
+      else if(!P2)ctx.drawImage(posed,ox,oy);
       else{const p=(t*1.25)%1,e=x=>x*x*(3-2*x),bw=p<.42?0:p<.5?e((p-.42)/.08):p<.92?1:1-e((p-.92)/.08),a0=ctx.globalAlpha;
         if(bw<1){ctx.globalAlpha=a0*(1-bw*bw*bw);ctx.drawImage(posed,ox,oy)}if(bw>0){ctx.globalAlpha=a0*bw;ctx.drawImage(P2,ox,oy)}ctx.globalAlpha=a0}}
     else if(pointing){const fr=FF['point'+this.pointSide];ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
@@ -872,7 +882,7 @@ function loadPoses(rig,data){if(!Array.isArray(data.poses)||!rig.base)return;
   const fs=data.atlasMeta&&data.atlasMeta.size;
   rig._posePending=rig._posePending||{};
   const toCanvas=img=>{const L=rig.base.canvas.width,iw=img.naturalWidth||img.width,R=fs?Math.max(1,iw/fs):1,c=canvasOf(Math.round(L*R),Math.round(L*R));c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c};
-  for(const p of data.poses.slice(0,40))if(p&&p.name&&p.image)rig._posePending[p.name]=Promise.all([loadImg(imgURL(p.image)),p.image2?loadImg(imgURL(p.image2)).catch(()=>null):null]).then(([img,img2])=>{rig.addPose(p.name,toCanvas(img),img2?toCanvas(img2):null)}).catch(()=>{}).finally(()=>{delete rig._posePending[p.name]})}
+  for(const p of data.poses.slice(0,40))if(p&&p.name&&p.image)rig._posePending[p.name]=Promise.all([loadImg(imgURL(p.image)),p.image2?loadImg(imgURL(p.image2)).catch(()=>null):null,...(Array.isArray(p.frames)?p.frames.slice(2,4).map(u=>loadImg(imgURL(u)).catch(()=>null)):[])]).then(([img,img2,...more])=>{rig.addPose(p.name,toCanvas(img),img2?toCanvas(img2):null,{more:more.filter(Boolean).map(toCanvas),once:!!p.once,air:p.air||[]})}).catch(()=>{}).finally(()=>{delete rig._posePending[p.name]})}
 async function mountMascot(rig,data){const r=await mountMascot0(rig,data);loadPoses(rig,data);return r}
 async function mountMascot0(rig,data){
   if(data.atlas&&data.atlasMeta&&data.atlasFace&&data.mode!=='simple'){
@@ -940,7 +950,10 @@ function alignTo(kA,kB){const N=128,W=kA.canvas.width,H=kA.canvas.height,k=N/Mat
   let n=0;for(const v of A)n+=v;return {canvas:out,overlap:n?1-best.e/(2*n):0}}
 function poseFrame2(kA,kB,frameA){const g=frameA.geo,al=alignTo(kA,kB),c=canvasOf(g.S,g.S),x=c.getContext('2d');x.imageSmoothingQuality='high';
   x.drawImage(al.canvas,g.ox,g.oy,al.canvas.width*g.s,al.canvas.height*g.s);c.overlap=al.overlap;return c}
-return {poseFrame,poseFrame2,loadPoses,reachSide,matchScale,encodeAtlas,buildAtlas,framesFromAtlas,attachFrames,refineFace,mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
+// Frames 3-4 (and 2) of a short move: the pose changes a lot, so line them up by the bottom centre at frame A's scale instead.
+function poseFrameSeq(kA,kB,frameA){const g=frameA.geo,a=kA.bbox,b=kB.bbox,c=canvasOf(g.S,g.S),x=c.getContext('2d');x.imageSmoothingQuality='high';
+  const dx=g.ox+((a.x+a.w/2)-(b.x+b.w/2))*g.s,dy=g.oy+((a.y+a.h)-(b.y+b.h))*g.s;x.drawImage(kB.canvas,dx,dy,kB.canvas.width*g.s,kB.canvas.height*g.s);return c}
+return {poseFrame,poseFrame2,poseFrameSeq,loadPoses,reachSide,matchScale,encodeAtlas,buildAtlas,framesFromAtlas,attachFrames,refineFace,mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
 }
 
 var paintedEngine=PipPaintedEngine();
