@@ -82,6 +82,7 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
 .pp-side{display:flex;flex-direction:column;gap:10px}.pp-side label{display:flex;flex-direction:column;gap:4px;font-weight:600}
 .pp-side input[type=text],.pp-side input:not([type]){font:500 1rem var(--body);padding:9px 12px;border-radius:12px;border:2px solid var(--ink)}
 .warn{color:#8A4B00;background:#FFF4DC;border-radius:10px;padding:8px 12px}
+.ideas{display:flex;flex-wrap:wrap;gap:6px}.ideas button{font:600 .84rem var(--body);padding:5px 11px;border-radius:999px;border:1.5px solid var(--ink);background:var(--butter);color:var(--ink);cursor:pointer;text-align:left}
 .animate{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:12px}.animate label{font-weight:600}
 .animate input{font:500 1rem var(--body);padding:9px 12px;border-radius:12px;border:2px solid var(--ink)}
 .busy{opacity:.6;pointer-events:none}
@@ -192,6 +193,7 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
               <div class="animate">
                 <label for="poseChange">Make it move <span class="tag">beta</span></label>
                 <input id="poseChange" maxlength="140" placeholder="the umbrella tilts the other way">
+                <div class="ideas" id="moveIdeas" aria-label="Ideas" hidden></div>
                 <div class="row"><button class="ghost" type="button" id="poseAnimate">Animate it · 1 credit</button><button class="ghost" type="button" id="poseStill" hidden>Keep it still</button></div>
                 <p class="hint" id="animHint" style="margin:0">Paints a second frame with that one small change, and the pose loops between the two.</p>
               </div>
@@ -484,6 +486,9 @@ async function paintPose() {
     if (typeof j.credits === 'number') $('credits').textContent = `${j.credits} credit${j.credits === 1 ? '' : 's'}. A custom pose uses 1, a new mascot uses 5.`;
     if (!r.ok || !j.image) throw new Error(j.error || 'The painting didn’t come through. Your credit wasn’t used.');
     posePainting = PE.keyOut(await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = `data:${j.mime || 'image/png'};base64,${j.image}`; }));
+    const ideas = Array.isArray(j.moves) ? j.moves : [], box = $('moveIdeas');
+    box.innerHTML = ideas.map(m => `<button type="button">${esc(m)}</button>`).join(''); box.hidden = !ideas.length;
+    box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { $('poseChange').value = b.textContent; }));
     poseBody = Array.isArray(j.body) ? j.body : null; poseRaw = j.image; poseB = null; poseCanvas2 = null; $('poseStill').hidden = true; $('poseChange').value = ''; $('animHint').textContent = 'Paints a second frame with that one small change, and the pose loops between the two.';
     $('poseName').value = slug(desc); $('poseSize').value = 100; renderPose(); $('posePrev').hidden = false;
     if (pip) { pip.setState('idle'); showPose(); }

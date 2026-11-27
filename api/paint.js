@@ -94,7 +94,8 @@ const LIKENESS_PROMPT = `Image 1 is a mascot character. Image 2 is supposed to s
 Is image 2 clearly the same character? Compare species and body shape, colours, face and eye style, outfit and accessories, and art style.
 A different pose, held objects, props or an added hat or costume piece are fine. A different character, a big colour change, or a different art style is not.
 Also give the box around the character's own body in image 2 (head to feet, including anything worn, but NOT objects it holds, rides or stands on, like an umbrella, a skateboard or a sign), as fractions of the image width and height.
-Reply with ONLY this JSON: {"same":true,"score":8,"why":"few words","body":[x0,y0,x1,y1]} where score is 0 (different character) to 10 (unmistakably the same).`;
+Also suggest 3 small changes that would make image 2 come alive as a two-frame loop: each moves ONE thing a little (an arm, a held object, a tilt, the eyes), short and plain, like "the umbrella tilts the other way".
+Reply with ONLY this JSON: {"same":true,"score":8,"why":"few words","body":[x0,y0,x1,y1],"moves":["...","...","..."]} where score is 0 (different character) to 10 (unmistakably the same).`;
 async function looksSame(key, refPng, outB64) {
   for (const model of VISION_MODELS()) {
     try {
@@ -108,7 +109,8 @@ async function looksSame(key, refPng, outB64) {
       if (!j) return { ok: true, skipped: true };
       const bd = Array.isArray(j.body) && j.body.length === 4 && j.body.every(n => Number.isFinite(Number(n)) && n >= 0 && n <= 1) ? j.body.map(Number) : null;
       const body = bd && bd[2] - bd[0] > .08 && bd[3] - bd[1] > .12 ? bd : null;   // ignore boxes that make no sense
-      return { ok: j.same !== false && Number(j.score) >= 6, score: Number(j.score), why: String(j.why || '').slice(0, 80), body };
+      const moves = Array.isArray(j.moves) ? j.moves.map(m => String(m).replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 90)).filter(m => m.length > 3).slice(0, 3) : [];
+      return { ok: j.same !== false && Number(j.score) >= 6, score: Number(j.score), why: String(j.why || '').slice(0, 80), body, moves };
     } catch (e) { return { ok: true, skipped: true }; }
   }
   return { ok: true, skipped: true };   // if the check can't run, don't block the painting
@@ -184,7 +186,7 @@ export default async function handler(req, res) {
         const out = await paintOnce();
         if (!out) break;
         const same = await looksSame(key, ref.png, out.image);
-        if (same.ok) { const credits = await spend(who, 1).catch(() => null); res.json({ image: out.image, mime: 'image/png', model: out.model, credits, likeness: same.score ?? null, body: same.body || null }); return; }
+        if (same.ok) { const credits = await spend(who, 1).catch(() => null); res.json({ image: out.image, mime: 'image/png', model: out.model, credits, likeness: same.score ?? null, body: same.body || null, moves: same.moves || [] }); return; }
         miss = same; console.log('pose off-model', attempt, same.score, same.why);
       }
       if (miss) { res.status(422).json({ error: 'It didn’t come out looking like your mascot, so we didn’t keep it and your credit wasn’t used. Try describing the pose a different way.', offModel: true }); return; }
