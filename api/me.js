@@ -9,7 +9,7 @@ async function allMascots() {
   do {
     const r = await list({ prefix: 'mascots/', cursor, limit: 1000 });
     for (const b of r.blobs) {
-      const m = /^mascots\/([a-z0-9]{6,24})\/data\.json/.exec(b.pathname);
+      const m = /^mascots\/([a-z0-9]{6,24})\//.exec(b.pathname);
       if (m) { const t = new Date(b.uploadedAt).getTime(); if (!ids.has(m[1]) || ids.get(m[1]) < t) ids.set(m[1], t); }
     }
     cursor = r.hasMore ? r.cursor : null;

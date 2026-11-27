@@ -15,7 +15,17 @@ async function versions(path) {
   const { blobs } = await list({ prefix: path + '@', limit: 1000 });
   return blobs.filter(b => b.pathname.startsWith(path + '@')).sort((a, b) => (a.pathname < b.pathname ? 1 : -1));   // newest first
 }
-export async function readJson(path) {
+// Small changing files (keys, credits, moments, usage counts) live in Redis when it's connected (Upstash via the
+// Vercel Marketplace: a generous free tier, instant reads, never stale). Without it they fall back to Blob versions.
+// Files saved in Blob before Redis was connected are copied over the first time they're read.
+const REDIS_URL = () => process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+const REDIS_TOKEN = () => process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+async function redis(cmd) {
+  const r = await fetch(REDIS_URL(), { method: 'POST', headers: { Authorization: `Bearer ${REDIS_TOKEN()}`, 'Content-Type': 'application/json' }, body: JSON.stringify(cmd) });
+  if (!r.ok) throw new Error('redis ' + r.status);
+  return (await r.json()).result;
+}
+async function blobRead(path) {
   const v = await versions(path);
   if (v.length) { const r = await fetch(v[0].url, { cache: 'no-store' }); return r.ok ? r.json() : null; }   // unique address: never stale
   const { blobs } = await list({ prefix: path, limit: 1 });                                                 // saved before versioning
@@ -23,9 +33,25 @@ export async function readJson(path) {
   const r = await fetch(`${blobs[0].url}?t=${Date.now()}`, { cache: 'no-store' });
   return r.ok ? r.json() : null;
 }
+export async function readJson(path) {
+  if (REDIS_URL() && REDIS_TOKEN()) {
+    const v = await redis(['GET', 'ck:' + path]);
+    if (v != null) return JSON.parse(v);
+    if (/^(usage|rate)\//.test(path)) return null;                 // counters start fresh: no need to look in Blob
+    const old = await blobRead(path).catch(() => null);           // not moved yet
+    if (old != null) await redis(['SET', 'ck:' + path, JSON.stringify(old)]).catch(() => {});
+    return old;
+  }
+  return blobRead(path);
+}
 export async function writeJson(path, data) {
+  if (REDIS_URL() && REDIS_TOKEN()) {
+    const ttl = /^(usage|rate)\//.test(path) ? ['EX', 60 * 60 * 24 * 3] : [];   // counters tidy themselves up
+    await redis(['SET', 'ck:' + path, JSON.stringify(data), ...ttl]);
+    return { pathname: path };
+  }
   const out = await put(`${path}@${stamp()}`, JSON.stringify(data), { access: 'public', contentType: 'application/json', addRandomSuffix: false });
-  versions(path).then(v => { const old = v.slice(3).map(b => b.url); if (old.length) return del(old); }).catch(() => {});   // keep the newest three
+  if (Math.random() < .2) versions(path).then(v => { const old = v.slice(3).map(b => b.url); if (old.length) return del(old); }).catch(() => {});   // tidy now and then
   return out;
 }
 
