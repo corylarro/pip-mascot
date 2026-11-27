@@ -63,6 +63,7 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
 .rf label{font-weight:700;min-width:44px}
 .rf select,.rf input{font:500 1rem var(--body);padding:9px 12px;border-radius:12px;border:2px solid var(--ink);background:var(--white);color:var(--ink);min-width:0;flex:1 1 160px}
 .rf input[type=number]{flex:0 1 110px}
+.adv summary{cursor:pointer;font-weight:600;color:var(--ink-2)}.adv[open]{display:flex;flex-direction:column;gap:8px}.adv[open] summary{margin-bottom:2px}
 .once{display:flex;gap:8px;align-items:center;font-weight:500}
 .packs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
 .pack{display:flex;flex-direction:column;gap:2px;text-decoration:none;color:var(--ink);border:2px solid var(--ink);border-radius:16px;padding:12px;background:var(--white)}
@@ -223,9 +224,13 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
             <div class="rf" id="fMoment"><select id="rMoment" aria-label="Moment"></select><input id="rCount" type="number" min="0" placeholder="Number" aria-label="Number for the moment" hidden><input id="rSay" maxlength="70" placeholder="Its line (optional)" aria-label="What it says"></div>
             <div class="rf" id="fSay" hidden><input id="rText" maxlength="70" placeholder="Thanks for signing up!" aria-label="What it says"></div>
             <div class="rf" id="fPoint" hidden><input id="rTarget" maxlength="80" placeholder="Button text, like Upgrade" aria-label="Button or link text"><input id="rPointSay" maxlength="70" placeholder="What it says (optional)" aria-label="What it says"></div>
-            <div class="rf" id="fPose" hidden><select id="rPose" aria-label="Pose"></select><select id="rPoseMove" aria-label="Movement"><option value="">stays in place</option><option value="across">rides across the screen and back</option></select><input id="rPoseSay" maxlength="70" placeholder="What it says (optional)" aria-label="What it says"></div>
+            <div class="rf" id="fPose" hidden><select id="rPose" aria-label="Pose"></select><input id="rPoseSay" maxlength="70" placeholder="What it says (optional)" aria-label="What it says"></div>
             <div class="rf" id="fPlay" hidden><p class="hint" id="playInfo" style="margin:0"></p></div>
             <label class="once"><input type="checkbox" id="rOnce" checked> Only once per visitor</label>
+            <details class="adv"><summary>More options</summary>
+              <div class="rf"><label for="rMove">Move</label><select id="rMove"><option value="">stay in place</option><option value="across">across the screen and back</option><option value="left">to the left and back</option><option value="right">to the right and back</option><option value="center">to the middle and back</option></select></div>
+              <p class="hint" style="margin:0">“Across” heads for whichever side has more room.</p>
+            </details>
             <div class="row"><button class="btn" type="submit" id="rAdd">Add this moment</button><button class="ghost" type="button" id="rTry">Try it here</button></div>
             <p class="err" id="rErr" aria-live="polite"></p>
           </form>
@@ -391,7 +396,9 @@ $('recheck').addEventListener('click', () => checkLive(true));
 let rules = [], canEdit = false;
 const WHEN = { visit: ['someone visits', '/thank-you  (use * for any, like /blog/*)'], click: ['someone taps', 'Button or link text, like Upgrade'], text: ['these words appear', 'Words on the page, like Order confirmed'] };
 const momentName = n => (CK.MOMENTS.find(x => x.m === n) || { name: n }).name;
-const thenText = t => t.type === 'moment' ? `play ${momentName(t.name)}${t.count != null ? ' (' + t.count + ')' : ''}${t.say ? `: “${t.say}”` : ''}` : t.type === 'say' ? `say “${t.text}”` : t.type === 'point' ? `point at “${t.target}”${t.text ? `: “${t.text}”` : ''}` : t.type === 'pose' ? `show the ${t.name} pose${t.move === 'across' ? ', riding across the screen' : ''}${t.say ? `: “${t.say}”` : ''}` : `play a custom moment (${t.steps.length} steps)`;
+const MOVES_TXT = { across: ', moving across the screen and back', left: ', moving to the left and back', right: ', moving to the right and back', center: ', moving to the middle and back' };
+const thenText = t => (thenText0(t) + (MOVES_TXT[t.move] || ''));
+const thenText0 = t => t.type === 'moment' ? `play ${momentName(t.name)}${t.count != null ? ' (' + t.count + ')' : ''}${t.say ? `: “${t.say}”` : ''}` : t.type === 'say' ? `say “${t.text}”` : t.type === 'point' ? `point at “${t.target}”${t.text ? `: “${t.text}”` : ''}` : t.type === 'pose' ? `show the ${t.name} pose${t.say ? `: “${t.say}”` : ''}` : `play a custom moment (${t.steps.length} steps)`;
 function renderRules() {
   const ul = $('rules');
   ul.innerHTML = rules.map((r, i) => `<li><span>When ${esc(WHEN[r.when.type][0])} <b>${esc(r.when.value)}</b>, ${esc(thenText(r.then))}<small>${r.once ? 'Once per visitor' : 'Every time'}</small></span><button type="button" data-try="${i}">Try</button>${canEdit ? `<button type="button" data-del="${i}" aria-label="Remove">Remove</button>` : '<span></span>'}</li>`).join('');
@@ -403,8 +410,9 @@ function runThen(t) {
   if (t.type === 'moment') pip.moment(t.name, Object.assign({}, t.say ? { say: t.say } : {}, t.count != null ? { count: t.count } : {}));
   else if (t.type === 'say') pip.say(t.text, { hold: 2600 });
   else if (t.type === 'point') pip.say(`${t.text || 'Over here!'} (points at “${t.target}” on your site)`, { hold: 3000 });
-  else if (t.type === 'pose') { pip.pose(t.name, t.move ? 3600 : 3000); if (t.say) pip.say(t.say, { hold: 2600 }); if (t.move && pip.glide) pip.glide('across', 1500); }
+  else if (t.type === 'pose') { pip.pose(t.name, t.move ? 4200 : 3000); if (t.say) pip.say(t.say, { hold: 2600 }); }
   else if (t.type === 'play') pip.play(t.steps);
+  if (t.move && pip.glide) setTimeout(() => pip.glide(t.move, 1500, true), t.type === 'moment' ? 700 : 150);
   toStage();
 }
 let data = null;
@@ -437,18 +445,20 @@ function formThen() {
   const t = $('rThen').value;
   if (t === 'moment') { const c = $('rCount').hidden || $('rCount').value === '' ? null : Number($('rCount').value); return Object.assign({ type: 'moment', name: $('rMoment').value }, $('rSay').value.trim() ? { say: $('rSay').value.trim() } : {}, c != null ? { count: c } : {}); }
   if (t === 'say') return $('rText').value.trim() ? { type: 'say', text: $('rText').value.trim() } : null;
-  if (t === 'pose') return $('rPose').value ? Object.assign({ type: 'pose', name: $('rPose').value }, $('rPoseSay').value.trim() ? { say: $('rPoseSay').value.trim() } : {}, $('rPoseMove').value ? { move: $('rPoseMove').value } : {}) : null;
+  if (t === 'pose') return $('rPose').value ? Object.assign({ type: 'pose', name: $('rPose').value }, $('rPoseSay').value.trim() ? { say: $('rPoseSay').value.trim() } : {}) : null;
   if (t === 'point') return $('rTarget').value.trim() ? { type: 'point', target: $('rTarget').value.trim(), text: $('rPointSay').value.trim() } : null;
   const cs = customSteps(); return cs ? { type: 'play', steps: cs } : null;
 }
-$('rTry').addEventListener('click', () => { const t = formThen(); if (t) runThen(t); else $('rErr').textContent = 'Fill in what it should do first.'; });
+$('rTry').addEventListener('click', () => { const t = formThen(); if (t && $('rMove').value) t.move = $('rMove').value; if (t) runThen(t); else $('rErr').textContent = 'Fill in what it should do first.'; });
 $('ruleForm').addEventListener('submit', async e => {
   e.preventDefault(); const then = formThen(), value = $('rWhenVal').value.trim();
   if (!value) { $('rErr').textContent = 'Say which page, button or words.'; return; }
   if (!then) { $('rErr').textContent = $('rThen').value === 'play' ? 'Build a custom moment in the studio first.' : 'Fill in what it should do.'; return; }
+  if ($('rMove').value) then.move = $('rMove').value;
   const sig = JSON.stringify([$('rWhen').value, value.toLowerCase(), then]);
   if (rules.some(r => JSON.stringify([r.when.type, String(r.when.value).toLowerCase(), r.then]) === sig)) { $('rErr').textContent = 'That moment is already on the list.'; return; }
   $('rAdd').disabled = true; $('rAdd').textContent = 'Adding…';
+  if ($('rMove').value) then.move = $('rMove').value;
   const ok = await saveRules([...rules, { when: { type: $('rWhen').value, value }, then, once: $('rOnce').checked }]);
   $('rAdd').disabled = false; $('rAdd').textContent = 'Add this moment';
   if (ok) { $('rulesHint').textContent = 'Added. Open or switch back to your site in about 30 seconds and it’s there.'; $('rWhenVal').value = ''; $('rSay').value = ''; $('rText').value = ''; $('rTarget').value = ''; $('rPointSay').value = ''; $('rCount').value = ''; }

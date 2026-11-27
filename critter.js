@@ -1107,10 +1107,11 @@ var paintedEngine=PipPaintedEngine();
         if(el===this||!el.getClientRects().length)continue;const v=norm(el.innerText||el.value||el.getAttribute('aria-label'));if(v&&v.includes(n))return el}return null};
       const fire=r=>{if(!this._m||this._hiddenByUser)return;if(r.once){if(done(r.id))return;mark(r.id)}const t=r.then||{};
         this.dispatchEvent(new CustomEvent('pip:rule',{detail:{id:r.id,when:r.when,then:t}}));
+        const mv=['across','left','right','center'].includes(t.move)?t.move:null;if(mv)setTimeout(()=>this.glide(mv,1500,true),t.type==='moment'?700:150);
         if(t.type==='moment')this.moment(t.name,Object.assign({},t.say?{say:t.say}:{},t.count!=null?{count:t.count}:{}));
         else if(t.type==='say')this._m.say(t.text,{hold:2800});
         else if(t.type==='point'){const el=findByText(t.target);if(el)this.point(el,t.text||undefined);else if(t.text)this._m.say(t.text,{hold:2600})}
-        else if(t.type==='pose'){const move=t.move==='across';this.pose(t.name,move?3600:3000);if(t.say)this._m.say(t.say,{hold:2600});if(move)this.glide('across',1500)}
+        else if(t.type==='pose'){this.pose(t.name,mv?4200:3000);if(t.say)this._m.say(t.say,{hold:2600})}
         else if(t.type==='play')this.play(t.steps)};
       const pathOk=pat=>{const p=(location.pathname.replace(/\/+$/,'')||'/').toLowerCase();pat=String(pat||'').trim();try{if(/^https?:/i.test(pat))pat=new URL(pat).pathname}catch(e){}
         pat=(pat.split(/[?#]/)[0].replace(/\/+$/,'')||'/').toLowerCase();if(pat[0]!=='/')pat='/'+pat;
@@ -1238,14 +1239,15 @@ var paintedEngine=PipPaintedEngine();
     _arc(ms,height){const p0=this._pos.slice(),t0=performance.now();if(RM<1){ms*=.6;height*=.4}
       return new Promise(res=>{const step=now=>{const p=clamp((now-t0)/ms,0,1);this._setPos(p0[0],p0[1]-4*height*p*(1-p));if(p<1)requestAnimationFrame(step);else{this._setPos(p0[0],p0[1]);res()}};requestAnimationFrame(step)})}
     // Glide: a smooth slide with no steps, for poses like a skateboard or scooter. to: across (to the far side and back), left, right, center, home.
-    async glide(to='across',ms=1500){const M=this._m;if(!M||!this._float||this._hiddenByUser)return;
+    async glide(to='across',ms=1500,back=false){const M=this._m;if(!M||!this._float||this._hiddenByUser)return;
       const [w]=this._size(),d=this._dock(),[x0]=this._pos,L=12,R=innerWidth-w-12,far=x0+w/2>innerWidth/2?L:R;
       const go=(x,t)=>new Promise(res=>{const tok=this._walkTok=(this._walkTok||0)+1,[sx,sy]=this._pos,t0=performance.now();this._docked=false;this._walking=true;M.lean=Math.sign(x-sx)*12;
         const step=now=>{if(tok!==this._walkTok){this._walking=false;M.lean=0;return res()}const p=clamp((now-t0)/t,0,1),e=.5-.5*Math.cos(Math.PI*p);
           this._setPos(sx+(x-sx)*e,sy+(d[1]-sy)*e);if(p<1)requestAnimationFrame(step);else{this._walking=false;M.lean=0;res()}};requestAnimationFrame(step)});
       if(RM<1)ms=Math.min(ms,500);
       if(to==='across'){await go(far,ms);await wait(250);await go(d[0],ms);this._docked=true;return}
-      const x=to==='left'?L:to==='right'?R:to==='center'?(innerWidth-w)/2:d[0];await go(x,ms);if(to==='home')this._docked=true}
+      const x=to==='left'?L:to==='right'?R:to==='center'?(innerWidth-w)/2:d[0];await go(x,ms);if(to==='home'){this._docked=true;return}
+      if(back){await wait(900);await go(d[0],ms);this._docked=true}}
     async _poof(to){const M=this._m;if(!M||!this._float||!M.fade){return}
       M.emote('smoke');await wait(120);M.fade(false);await wait(260);
       const [w,h]=this._size();let x,y;const d=this._dock();
