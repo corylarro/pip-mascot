@@ -226,6 +226,10 @@ export default async function handler(req, res) {
     try {
       const stop = await guard(who, 'pose');
       if (stop) { res.status(429).json({ error: stop }); return; }
+      // planning is free for buyers, so it gets its own daily limit
+      const planPath = who.key ? `usage/plan-${keyTag(who.key)}-${today()}.json` : null, plans = planPath ? ((await readJson(planPath).catch(() => null)) || { n: 0 }) : null;
+      if (plans && plans.n >= (Number(process.env.PLAN_DAILY) || 30)) { res.status(429).json({ error: 'That’s a lot of planning for one day. Paint one of your plans, or try again tomorrow.' }); return; }
+      if (plans) { plans.n++; await writeJson(planPath, plans).catch(() => {}); }
       const block = await moderate({ key, desc, photo: null, visionModels: VISION_MODELS() });
       if (block) { res.status(422).json({ error: block.message, blocked: block.reason }); return; }
       for (const model of VISION_MODELS()) {
