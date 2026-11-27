@@ -115,7 +115,7 @@ export default async function handler(req, res) {
           more.push({ url: (await put(`mascots/${id}/poses/${name}-${pv}-${i + 3}.${mf.split('/')[1]}`, Buffer.from(f.image, 'base64'), { access: 'public', contentType: mf, addRandomSuffix: false, allowOverwrite: true })).url, mime: mf });
         }
         const nf = 1 + (url2 ? 1 : 0) + more.length, air = Array.isArray(b.air) ? b.air.slice(0, nf).map(Boolean) : [];
-        poses = [...poses, { name, url: blob.url, mime, ...(url2 ? { url2, mime2: /^image\/(webp|png)$/.test(b.mime2) ? b.mime2 : 'image/png' } : {}), ...(more.length ? { more } : {}), ...(b.once && url2 ? { once: true } : {}), ...(air.some(Boolean) ? { air } : {}), desc: String(b.desc || '').slice(0, 200), v: pv, created: new Date().toISOString(), ...(prevRole ? { role: prevRole } : {}) }];
+        poses = [...poses, { name, url: blob.url, mime, ...(url2 ? { url2, mime2: /^image\/(webp|png)$/.test(b.mime2) ? b.mime2 : 'image/png' } : {}), ...(more.length ? { more } : {}), ...(b.once && url2 ? { once: true } : {}), ...(air.some(Boolean) ? { air } : {}), ...(Number(b.pace) >= .5 && Number(b.pace) <= 2.5 && Number(b.pace) !== 1 ? { pace: Number(b.pace) } : {}), desc: String(b.desc || '').slice(0, 200), v: pv, created: new Date().toISOString(), ...(prevRole ? { role: prevRole } : {}) }];
       }
       meta.poses = poses;
       await writeJson(`mascots/${id}/data.json`, meta);
@@ -188,7 +188,7 @@ export default async function handler(req, res) {
       const out = { id, mode: meta.mode, grid: meta.grid, face: meta.face, name: meta.name, greeting: meta.greeting, rules: meta.rules || [],
         poses: (meta.poses || []).map(p => ({ name: p.name, desc: p.desc, ...(p.role ? { role: p.role } : {}), image: `https://${host}/api/mascot?id=${id}&img=pose&name=${p.name}&v=${p.v}`, ...(p.url2 ? { image2: `https://${host}/api/mascot?id=${id}&img=pose&name=${p.name}&f=2&v=${p.v}` } : {}),
           ...(p.more && p.more.length ? { frames: [1, 2, ...p.more.map((_, i) => i + 3)].map(f => `https://${host}/api/mascot?id=${id}&img=pose&name=${p.name}${f > 1 ? `&f=${f}` : ''}&v=${p.v}`) } : {}),
-          ...(p.once ? { once: true } : {}), ...(p.air ? { air: p.air } : {}) })),
+          ...(p.once ? { once: true } : {}), ...(p.air ? { air: p.air } : {}), ...(p.pace ? { pace: p.pace } : {}) })),
         image: `https://${host}/api/mascot?id=${id}&img=1` };
       if (meta.atlasUrl) Object.assign(out, { atlas: `https://${host}/api/mascot?id=${id}&img=atlas&v=${meta.atlasV}`, atlasMeta: meta.atlasMeta, atlasFace: meta.atlasFace });
       res.json(out);

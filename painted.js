@@ -246,7 +246,7 @@ class PaintRig{
   // Custom poses: extra full-body paintings shown in place of the body for a moment (made on the mascot's page).
   addPose(name,canvas,canvas2,opt){(this.poses||(this.poses={}))[name]=canvas;(this.poses2||(this.poses2={}))[name]=canvas2||null;
     // a short move: 3-4 frames in order, played once (holding the last) or looped; air marks frames where it's off the ground
-    const more=(opt&&opt.more||[]).filter(Boolean);(this.poseSeq||(this.poseSeq={}))[name]=canvas2&&(more.length||opt&&(opt.once||(opt.air||[]).some(Boolean)))?{frames:[canvas,canvas2,...more],once:!!opt.once,air:(opt.air||[]).map(Boolean)}:null}
+    const more=(opt&&opt.more||[]).filter(Boolean);(this.poseSeq||(this.poseSeq={}))[name]=canvas2&&(more.length||opt&&(opt.once||(opt.air||[]).some(Boolean)))?{frames:[canvas,canvas2,...more],once:!!opt.once,air:(opt.air||[]).map(Boolean),pace:Math.max(.5,Math.min(2.5,Number(opt.pace)||1))}:null}
   pose(name,ms=2600){if((!this.poses||!this.poses[name])&&this._posePending&&this._posePending[name]){this._posePending[name].then(()=>this.pose(name,ms));return ms}   // still downloading: play it when it arrives
     if(!this.poses||!this.poses[name])return 0;this._pnName=null;this.poseNow={name,until:performance.now()+ms};this.squash.v-=2.2*RM;this.lastAct=performance.now();this.emote('spark',4);
     clearTimeout(this._poseT);this._poseT=setTimeout(()=>{this.squash.v-=1.6*RM},ms);return ms}
@@ -311,10 +311,10 @@ class PaintRig{
     if(pn!==this._pnName){this._pnName=pn;this._pnT0=pnow}
     const SQ=posed&&this.poseSeq&&this.poseSeq[pn];
     if(posed){const L=this.base.canvas.width,R=posed.width/L,P2=this.poses2&&this.poses2[pn],ox=-(R-1)/2*L,oy=-(R-1)*L;
-      if(SQ){const n=SQ.frames.length,D=SQ.once?[340,...Array(n-2).fill(200),1e9]:Array(n).fill(260),cyc=D.reduce((a,b)=>a+b,0);
+      if(SQ){const n=SQ.frames.length,k=SQ.pace||1,D=SQ.once?[520*k,...Array(n-2).fill(340*k),1e9]:Array(n).fill(380*k),cyc=D.reduce((a,b)=>a+b,0);
         let e=pnow-this._pnT0;if(!SQ.once)e%=cyc;let i=0,t0=0;while(i<n-1&&e>=t0+D[i]){t0+=D[i];i++}
         // one smooth arc across the run of airborne frames
-        let hop=0,a0=-1,a1=-1,acc=0;for(let j=0;j<n;j++){if(SQ.air[j]){if(a0<0)a0=acc;a1=acc+Math.min(D[j],400)}acc+=D[j]}
+        let hop=0,a0=-1,a1=-1,acc=0;for(let j=0;j<n;j++){if(SQ.air[j]){if(a0<0)a0=acc;a1=acc+Math.min(D[j],600*k)}acc+=D[j]}
         if(a0>=0&&e>=a0&&e<=a1)hop=Math.sin(Math.PI*(e-a0)/(a1-a0))*L*.32*RM;
         ctx.drawImage(SQ.frames[i],ox,oy-hop)}
       else if(!P2)ctx.drawImage(posed,ox,oy);
@@ -472,7 +472,7 @@ function loadPoses(rig,data){if(!Array.isArray(data.poses)||!rig.base)return;
   const fs=data.atlasMeta&&data.atlasMeta.size;
   rig._posePending=rig._posePending||{};
   const toCanvas=img=>{const L=rig.base.canvas.width,iw=img.naturalWidth||img.width,R=fs?Math.max(1,iw/fs):1,c=canvasOf(Math.round(L*R),Math.round(L*R));c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c};
-  for(const p of data.poses.slice(0,40))if(p&&p.name&&p.image)rig._posePending[p.name]=Promise.all([loadImg(imgURL(p.image)),p.image2?loadImg(imgURL(p.image2)).catch(()=>null):null,...(Array.isArray(p.frames)?p.frames.slice(2,4).map(u=>loadImg(imgURL(u)).catch(()=>null)):[])]).then(([img,img2,...more])=>{rig.addPose(p.name,toCanvas(img),img2?toCanvas(img2):null,{more:more.filter(Boolean).map(toCanvas),once:!!p.once,air:p.air||[]})}).catch(()=>{}).finally(()=>{delete rig._posePending[p.name]})}
+  for(const p of data.poses.slice(0,40))if(p&&p.name&&p.image)rig._posePending[p.name]=Promise.all([loadImg(imgURL(p.image)),p.image2?loadImg(imgURL(p.image2)).catch(()=>null):null,...(Array.isArray(p.frames)?p.frames.slice(2,4).map(u=>loadImg(imgURL(u)).catch(()=>null)):[])]).then(([img,img2,...more])=>{rig.addPose(p.name,toCanvas(img),img2?toCanvas(img2):null,{more:more.filter(Boolean).map(toCanvas),once:!!p.once,air:p.air||[],pace:p.pace})}).catch(()=>{}).finally(()=>{delete rig._posePending[p.name]})}
 async function mountMascot(rig,data){const r=await mountMascot0(rig,data);loadPoses(rig,data);return r}
 async function mountMascot0(rig,data){
   if(data.atlas&&data.atlasMeta&&data.atlasFace&&data.mode!=='simple'){

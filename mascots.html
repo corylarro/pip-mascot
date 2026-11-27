@@ -213,6 +213,7 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
               <details class="mvframes" id="moveFrames"><summary>Edit the frames</summary><ol class="mvsteps" id="moveSteps"></ol>
                 <div class="row" style="margin-top:8px"><button class="ghost" type="button" id="moveAdd">Add a frame</button></div></details>
               <label class="check"><input type="checkbox" id="moveOnce"> Play once, then hold the last frame</label>
+              <label for="movePace">Speed <select id="movePace"><option value="1.6">Slow</option><option value="1" selected>Normal</option><option value="0.7">Fast</option></select></label>
               <div class="row"><button class="btn" type="button" id="moveGo">Paint it · 2 credits</button><button class="ghost" type="button" id="moveClose">Cancel</button></div>
               <div id="moveDone" hidden>
                 <label for="moveName">Name <input id="moveName" maxlength="24" pattern="[a-z0-9-]{1,24}"></label>
@@ -603,10 +604,10 @@ function mvBusy(on) { mv && (mv.busy = on); $('movePanel').classList.toggle('bus
 function mvPreview() {
   if (!mv) return; clearInterval(mv.flip); const urls = mv.frames.map(c => c.toDataURL('image/png'));
   $('moveImg').hidden = !urls.length; if (!urls.length) return;
-  let i = 0; $('moveImg').src = urls[0]; mv.flip = setInterval(() => { i = (i + 1) % (urls.length + (mv.once ? 2 : 0)); $('moveImg').src = urls[Math.min(i, urls.length - 1)]; }, 380);
+  let i = 0; $('moveImg').src = urls[0]; mv.flip = setInterval(() => { i = (i + 1) % (urls.length + (mv.once ? 2 : 0)); $('moveImg').src = urls[Math.min(i, urls.length - 1)]; }, 380 * (mv.pace || 1));
   const rig = pip && pip._m && pip._m.rig;
   if (rig && data && mv.frames.length >= 2) { const L = rig.base.canvas.width, R = mv.frames[0].width / data.atlasMeta.size, mk = cv => { const k = document.createElement('canvas'); k.width = k.height = Math.round(L * R); k.getContext('2d').drawImage(cv, 0, 0, k.width, k.height); return k; };
-    const fs = mv.frames.map(mk); rig.addPose('__move', fs[0], fs[1], { more: fs.slice(2), once: mv.once, air: mv.steps.map(s => s.air) }); pip.pose('__move', mv.once ? 2600 : 5200); toStage(); }
+    const fs = mv.frames.map(mk); rig.addPose('__move', fs[0], fs[1], { more: fs.slice(2), once: mv.once, air: mv.steps.map(s => s.air), pace: mv.pace }); pip.pose('__move', mv.once ? 2600 : 5200); toStage(); }
 }
 async function mvPlan() {
   const desc = $('moveDesc').value.trim(); $('poseErr').textContent = '';
@@ -619,7 +620,7 @@ async function mvPlan() {
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !Array.isArray(j.frames)) throw new Error(j.error || 'Couldn’t plan that move. Try describing it another way.');
     if (mv) clearInterval(mv.flip);
-    mv = { desc, steps: j.frames.map((t, i) => ({ text: t, air: !!(j.air && j.air[i]) })), once: !!j.once, keyed: [], frames: [], body: null };
+    mv = { desc, steps: j.frames.map((t, i) => ({ text: t, air: !!(j.air && j.air[i]) })), once: !!j.once, pace: 1, keyed: [], frames: [], body: null }; $('movePace').value = '1';
     $('moveOnce').checked = mv.once; $('moveName').value = j.name || slug(desc); $('moveFrames').open = false;
     $('moveHint').textContent = 'All the frames are painted together in one go, so they match.'; $('moveImg').hidden = true;
     $('movePanel').hidden = false; mvRender(); $('movePanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -649,6 +650,7 @@ $('moveGo').addEventListener('click', mvPaint);
 $('moveAdd').addEventListener('click', () => { if (mv && mv.steps.length < 4) { mv.steps.push({ text: '', air: false }); mvStale(); mvRender(); const ins = $('moveSteps').querySelectorAll('input[data-i]'); ins[ins.length - 1].focus(); } });
 $('moveOnce').addEventListener('change', () => { if (mv) { mv.once = $('moveOnce').checked; mvRender(); mvPreview(); } });
 $('moveShow').addEventListener('click', mvPreview);
+$('movePace').addEventListener('change', () => { if (mv) { mv.pace = Number($('movePace').value) || 1; mvPreview(); } });
 $('moveClose').addEventListener('click', () => { if (mv) clearInterval(mv.flip); mv = null; $('movePanel').hidden = true; });
 $('moveKeep').addEventListener('click', async () => {
   if (!mv || mv.frames.length < 2 || mv.busy) return;
@@ -658,10 +660,10 @@ $('moveKeep').addEventListener('click', async () => {
   try {
     const enc = async cv => { let bl = await new Promise(r => cv.toBlob(r, 'image/webp', .9)); if (!bl || bl.type !== 'image/webp') bl = await new Promise(r => cv.toBlob(r, 'image/png')); return { b64: await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(',')[1]); fr.readAsDataURL(bl); }), mime: bl.type }; };
     const fs = []; for (const c of mv.frames) fs.push(await enc(c));
-    const r = await fetch(`/api/mascot?id=${cur.id}&pose=1`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-pip-pass': key }, body: JSON.stringify({ name, image: fs[0].b64, mime: fs[0].mime, image2: fs[1].b64, mime2: fs[1].mime, more: fs.slice(2).map(f => ({ image: f.b64, mime: f.mime })), once: mv.once, air: mv.steps.map(s => s.air), desc: mv.desc }) });
+    const r = await fetch(`/api/mascot?id=${cur.id}&pose=1`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-pip-pass': key }, body: JSON.stringify({ name, image: fs[0].b64, mime: fs[0].mime, image2: fs[1].b64, mime2: fs[1].mime, more: fs.slice(2).map(f => ({ image: f.b64, mime: f.mime })), once: mv.once, air: mv.steps.map(s => s.air), pace: mv.pace, desc: mv.desc }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || 'Couldn’t save it. Try again.');
-    const rig = pip && pip._m && pip._m.rig, sq = rig && rig.poseSeq && rig.poseSeq.__move; if (rig && rig.poses && rig.poses.__move) rig.addPose(name, rig.poses.__move, rig.poses2.__move, sq ? { more: sq.frames.slice(2), once: sq.once, air: sq.air } : null);
+    const rig = pip && pip._m && pip._m.rig, sq = rig && rig.poseSeq && rig.poseSeq.__move; if (rig && rig.poses && rig.poses.__move) rig.addPose(name, rig.poses.__move, rig.poses2.__move, sq ? { more: sq.frames.slice(2), once: sq.once, air: sq.air, pace: sq.pace } : null);
     clearInterval(mv.flip); mv = null; $('movePanel').hidden = true; $('moveDesc').value = '';
     freshP = fresh(); await loadPoses(); pip && pip.pose && pip.pose(name, 3000);
   } catch (e) { $('poseErr').textContent = e.message; }
