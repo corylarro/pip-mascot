@@ -3,7 +3,7 @@
 //   GET  /api/mascot?id=ID           -> mascot JSON (with an image URL that has CORS enabled)
 //   GET  /api/mascot?id=ID&img=1     -> the painting itself
 import { put, list } from '@vercel/blob';
-import { whoIs, refuse, readKey, writeKey, readJson, writeJson } from './_keys.js';
+import { whoIs, refuse, readKey, writeKey, readJson, writeJson, storeName } from './_keys.js';
 import { sanitize, clean } from './_steps.js';
 
 // No-code moments: "when this happens on my site, do that". Saved on the mascot, read by critter.js.
@@ -176,7 +176,7 @@ export default async function handler(req, res) {
         res.send(bytes); return;
       }
       const host = req.headers['x-forwarded-host'] || req.headers.host;
-      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=15');   // browsers always ask, the CDN keeps it 15s: changes show within ~15s
+      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=15'); res.setHeader('x-ck-store', storeName());   // browsers always ask, the CDN keeps it 15s: changes show within ~15s
       const out = { id, mode: meta.mode, grid: meta.grid, face: meta.face, name: meta.name, greeting: meta.greeting, rules: meta.rules || [],
         poses: (meta.poses || []).map(p => ({ name: p.name, desc: p.desc, ...(p.role ? { role: p.role } : {}), image: `https://${host}/api/mascot?id=${id}&img=pose&name=${p.name}&v=${p.v}`, ...(p.url2 ? { image2: `https://${host}/api/mascot?id=${id}&img=pose&name=${p.name}&f=2&v=${p.v}` } : {}) })),
         image: `https://${host}/api/mascot?id=${id}&img=1` };
