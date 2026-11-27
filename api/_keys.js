@@ -1,33 +1,33 @@
 // Critterkit keys: what a buyer gets after paying. A key holds paint credits.
 // Stored in the Blob store as keys/<key>.json (the key itself is the secret, so the file name is unguessable).
-import { put, list } from '@vercel/blob';
+import { put, list, del } from '@vercel/blob';
 import crypto from 'node:crypto';
 
 const KEY = /^ck_[A-Za-z0-9_-]{20,40}$/;
 export const newKey = () => 'ck_' + crypto.randomBytes(18).toString('base64url');
 
-// Read a stored file straight from its address instead of listing the store first (listing is the slow, metered call).
-// The address comes from the store id in the token; the first listing confirms it, and listing remains the fallback.
-let BASE = null, BASE_OK = false;
-const guessBase = () => { const m = /^vercel_blob_rw_([A-Za-z0-9]+)_/.exec(process.env.BLOB_READ_WRITE_TOKEN || ''); return m ? `https://${m[1].toLowerCase()}.public.blob.vercel-storage.com` : null; };
-export async function blobFetch(path) {
-  const base = BASE || guessBase();
-  if (base) {
-    const r = await fetch(`${base}/${path}?t=${Date.now()}`, { cache: 'no-store' }).catch(() => null);   // skip the CDN copy: these change
-    if (r && r.ok) { BASE = base; BASE_OK = true; return r; }
-    if (r && r.status === 404 && BASE_OK) return null;                                                   // address known good: it's really missing
-  }
-  const { blobs } = await list({ prefix: path, limit: 1 });
-  if (!blobs.length || blobs[0].pathname !== path) return null;
-  BASE = new URL(blobs[0].url).origin; BASE_OK = true;
-  const r = await fetch(`${blobs[0].url}?t=${Date.now()}`, { cache: 'no-store' });
-  return r.ok ? r : null;
+// Files that change (keys, credits, usage counts, mascot settings) are saved as a new version each time
+// (name@<time>), because a changed file at the same address can be served stale for up to a minute, and a
+// read-change-write on a stale copy loses data (a pose, a rule, a credit). Reading lists the versions and takes
+// the newest; older versions are tidied up. Files saved before versioning are still read from their plain name.
+const stamp = () => Date.now().toString(36).padStart(9, '0') + Math.random().toString(36).slice(2, 6);
+async function versions(path) {
+  const { blobs } = await list({ prefix: path + '@', limit: 1000 });
+  return blobs.filter(b => b.pathname.startsWith(path + '@')).sort((a, b) => (a.pathname < b.pathname ? 1 : -1));   // newest first
 }
 export async function readJson(path) {
-  const r = await blobFetch(path);
-  return r ? r.json() : null;
+  const v = await versions(path);
+  if (v.length) { const r = await fetch(v[0].url, { cache: 'no-store' }); return r.ok ? r.json() : null; }   // unique address: never stale
+  const { blobs } = await list({ prefix: path, limit: 1 });                                                 // saved before versioning
+  if (!blobs.length || blobs[0].pathname !== path) return null;
+  const r = await fetch(`${blobs[0].url}?t=${Date.now()}`, { cache: 'no-store' });
+  return r.ok ? r.json() : null;
 }
-export const writeJson = (path, data) => put(path, JSON.stringify(data), { access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 });
+export async function writeJson(path, data) {
+  const out = await put(`${path}@${stamp()}`, JSON.stringify(data), { access: 'public', contentType: 'application/json', addRandomSuffix: false });
+  versions(path).then(v => { const old = v.slice(3).map(b => b.url); if (old.length) return del(old); }).catch(() => {});   // keep the newest three
+  return out;
+}
 
 // Credits: a new mascot uses 5, a custom pose uses 1. Keys made before credits held "paints" (one per mascot): 1 paint = 5 credits.
 export const MASCOT_COST = 5;
