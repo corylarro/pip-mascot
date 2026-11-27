@@ -82,6 +82,8 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
 .pp-side{display:flex;flex-direction:column;gap:10px}.pp-side label{display:flex;flex-direction:column;gap:4px;font-weight:600}
 .pp-side input[type=text],.pp-side input:not([type]){font:500 1rem var(--body);padding:9px 12px;border-radius:12px;border:2px solid var(--ink)}
 .warn{color:#8A4B00;background:#FFF4DC;border-radius:10px;padding:8px 12px}
+.animate{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:12px}.animate label{font-weight:600}
+.animate input{font:500 1rem var(--body);padding:9px 12px;border-radius:12px;border:2px solid var(--ink)}
 .busy{opacity:.6;pointer-events:none}
 @media (max-width:560px){.posepreview{grid-template-columns:1fr}}
 .notice{background:var(--white);border:2px solid var(--sprout);border-radius:16px;padding:12px 16px;margin-bottom:16px;font-weight:600}
@@ -187,6 +189,12 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
               <p class="hint" style="margin:0">Used in code, like <code>{ do: 'pose', name: '…' }</code></p>
               <div class="row"><button class="btn" type="button" id="poseKeep">Keep it</button><button class="ghost" type="button" id="poseShow">Show me</button></div>
               <div class="row"><button class="ghost" type="button" id="poseAgain">Try again · 1 credit</button><button class="ghost" type="button" id="poseDrop">Discard</button></div>
+              <div class="animate">
+                <label for="poseChange">Make it move <span class="tag">beta</span></label>
+                <input id="poseChange" maxlength="140" placeholder="the umbrella tilts the other way">
+                <div class="row"><button class="ghost" type="button" id="poseAnimate">Animate it · 1 credit</button><button class="ghost" type="button" id="poseStill" hidden>Keep it still</button></div>
+                <p class="hint" id="animHint" style="margin:0">Paints a second frame with that one small change, and the pose loops between the two.</p>
+              </div>
             </div>
           </div>
           <p class="err" id="poseErr" aria-live="polite"></p>
@@ -440,7 +448,7 @@ if (params.get('rule') === 'custom') setTimeout(() => { $('rThen').value = 'play
 
 // Custom poses
 const PE = typeof PipPaintedEngine === 'function' ? PipPaintedEngine() : null;
-let posePainting = null, poseCanvas = null, poseBody = null;
+let posePainting = null, poseCanvas = null, poseBody = null, poseRaw = null, poseB = null, poseCanvas2 = null, flipT = 0;
 const slug = t => String(t || '').toLowerCase().replace(/\b(a|an|the|and|with|on|in|of|while|his|her|its|their)\b/g, ' ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').split('-').slice(0, 3).join('-').slice(0, 24) || 'pose';
 const poseCode = n => plat === 'ios' ? `["do": "pose", "name": "${n}"]` : `{ do: 'pose', name: '${n}' }`;
 async function loadPoses() {
@@ -476,7 +484,7 @@ async function paintPose() {
     if (typeof j.credits === 'number') $('credits').textContent = `${j.credits} credit${j.credits === 1 ? '' : 's'}. A custom pose uses 1, a new mascot uses 5.`;
     if (!r.ok || !j.image) throw new Error(j.error || 'The painting didn’t come through. Your credit wasn’t used.');
     posePainting = PE.keyOut(await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = `data:${j.mime || 'image/png'};base64,${j.image}`; }));
-    poseBody = Array.isArray(j.body) ? j.body : null;
+    poseBody = Array.isArray(j.body) ? j.body : null; poseRaw = j.image; poseB = null; poseCanvas2 = null; $('poseStill').hidden = true; $('poseChange').value = ''; $('animHint').textContent = 'Paints a second frame with that one small change, and the pose loops between the two.';
     $('poseName').value = slug(desc); $('poseSize').value = 100; renderPose(); $('posePrev').hidden = false;
     if (pip) { pip.setState('idle'); showPose(); }
   } catch (e) { $('poseErr').textContent = e.message; if (pip && pip.setState) pip.setState('idle'); }
@@ -485,9 +493,31 @@ async function paintPose() {
 function renderPose() {
   if (!posePainting || !data) return;
   const m = data.atlasMeta; poseCanvas = PE.poseFrame(posePainting, m.size, m.boxes[0], Number($('poseSize').value) / 100, poseBody);
-  $('poseImg').src = poseCanvas.toDataURL('image/png');
+  poseCanvas2 = poseB ? PE.poseFrame2(posePainting, poseB, poseCanvas) : null;
+  const a = poseCanvas.toDataURL('image/png'), b = poseCanvas2 && poseCanvas2.toDataURL('image/png');
+  clearInterval(flipT); $('poseImg').src = a;
+  if (b) { let on = false; flipT = setInterval(() => { on = !on; $('poseImg').src = on ? b : a; }, 650); }   // the preview box flips between the two frames
 }
-function showPose() { const rig = pip && pip._m && pip._m.rig; if (rig && poseCanvas && data) { const L = rig.base.canvas.width, R = poseCanvas.width / data.atlasMeta.size, c = document.createElement('canvas'); c.width = c.height = Math.round(L * R); c.getContext('2d').drawImage(poseCanvas, 0, 0, c.width, c.height); rig.addPose('__preview', c); pip.pose('__preview', 3500); } toStage(); }
+async function animatePose() {
+  const change = $('poseChange').value.trim(); $('poseErr').textContent = '';
+  if (change.length < 3) { $('poseErr').textContent = 'Say what should move, like “the umbrella tilts the other way”.'; $('poseChange').focus(); return; }
+  if (!poseRaw) return;
+  const btn = $('poseAnimate'), was = btn.textContent; btn.disabled = true; btn.textContent = 'Painting frame two… about a minute';
+  try {
+    const r = await fetch('/api/paint', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-pip-pass': key }, body: JSON.stringify({ step: 'pose2', id: cur.id, change, image: poseRaw }) });
+    const j = await r.json().catch(() => ({}));
+    if (typeof j.credits === 'number') $('credits').textContent = `${j.credits} credit${j.credits === 1 ? '' : 's'}. A custom pose uses 1, a new mascot uses 5.`;
+    if (!r.ok || !j.image) throw new Error(j.error || 'The second frame didn’t come through. Your credit wasn’t used.');
+    poseB = PE.keyOut(await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = `data:${j.mime || 'image/png'};base64,${j.image}`; }));
+    renderPose(); showPose(); $('poseStill').hidden = false;
+    const ov = poseCanvas2 && poseCanvas2.overlap;
+    $('animHint').textContent = ov && ov < .85 ? 'The two frames don’t line up very well, so it may flicker. Try a smaller change, or keep it still.' : 'Looks good. Tap Keep it to save both frames, or Keep it still to drop the second one.';
+  } catch (e) { $('poseErr').textContent = e.message; }
+  finally { btn.disabled = false; btn.textContent = was; }
+}
+$('poseAnimate').addEventListener('click', animatePose);
+$('poseStill').addEventListener('click', () => { poseB = null; poseCanvas2 = null; $('poseStill').hidden = true; renderPose(); showPose(); });
+function showPose() { const rig = pip && pip._m && pip._m.rig; if (rig && poseCanvas && data) { const L = rig.base.canvas.width, R = poseCanvas.width / data.atlasMeta.size, c = document.createElement('canvas'); c.width = c.height = Math.round(L * R); c.getContext('2d').drawImage(poseCanvas, 0, 0, c.width, c.height); let c2 = null; if (poseCanvas2) { c2 = document.createElement('canvas'); c2.width = c2.height = c.width; c2.getContext('2d').drawImage(poseCanvas2, 0, 0, c.width, c.height); } rig.addPose('__preview', c, c2); pip.pose('__preview', poseCanvas2 ? 6000 : 3500); } toStage(); }
 const CHANGES = /\b(turn(s|ed|ing)? (it |him |her )?into|transform(s|ed|ing)?|becom(e|es|ing)|as an? (?!big|small|little|happy|sad)\w+$|as an? (robot|dinosaur|dragon|human|person|cat|dog|monster|alien|zombie|vampire|ghost|unicorn)|replace(d)? (it|him|her)|different (character|animal|colou?r))\b/i;
 // a bare "robot" or "a dragon" reads as "make it a robot", not a pose
 const CREATURES = /^(a |an |the )?(robot|dinosaur|dragon|human|person|man|woman|boy|girl|cat|dog|monster|alien|zombie|vampire|ghost|unicorn|pirate|ninja|wizard|witch|superhero|knight|princess|prince|astronaut|mermaid|fairy|bear|bunny|rabbit|fox|frog|owl|penguin|shark|tiger|lion|panda|teddy bear|cyborg|android)s?$/i;
@@ -498,7 +528,7 @@ $('poseAgain').addEventListener('click', paintPose);
 $('poseSize').addEventListener('input', renderPose);
 $('poseSize').addEventListener('change', showPose);
 $('poseShow').addEventListener('click', showPose);
-$('poseDrop').addEventListener('click', () => { posePainting = poseCanvas = null; $('posePrev').hidden = true; });
+$('poseDrop').addEventListener('click', () => { clearInterval(flipT); posePainting = poseCanvas = poseB = poseCanvas2 = poseRaw = null; $('posePrev').hidden = true; });
 $('poseKeep').addEventListener('click', async () => {
   const name = $('poseName').value.trim().toLowerCase();
   if (!/^[a-z0-9-]{1,24}$/.test(name)) { $('poseErr').textContent = 'Name it with lowercase letters, numbers and dashes, like skateboard.'; return; }
@@ -507,11 +537,13 @@ $('poseKeep').addEventListener('click', async () => {
   try {
     let blob = await new Promise(r => poseCanvas.toBlob(r, 'image/webp', .9)); if (!blob || blob.type !== 'image/webp') blob = await new Promise(r => poseCanvas.toBlob(r, 'image/png'));
     const image = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(',')[1]); fr.readAsDataURL(blob); });
-    const r = await fetch(`/api/mascot?id=${cur.id}&pose=1`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-pip-pass': key }, body: JSON.stringify({ name, image, mime: blob.type, desc: $('poseDesc').value.trim() }) });
+    const enc = async cv => { let bl = await new Promise(r => cv.toBlob(r, 'image/webp', .9)); if (!bl || bl.type !== 'image/webp') bl = await new Promise(r => cv.toBlob(r, 'image/png')); return { b64: await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(',')[1]); fr.readAsDataURL(bl); }), mime: bl.type }; };
+    const two = poseCanvas2 ? await enc(poseCanvas2) : null;
+    const r = await fetch(`/api/mascot?id=${cur.id}&pose=1`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-pip-pass': key }, body: JSON.stringify({ name, image, mime: blob.type, desc: $('poseDesc').value.trim(), ...(two ? { image2: two.b64, mime2: two.mime } : {}) }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || 'Couldn’t save the pose. Try again.');
-    const rig = pip && pip._m && pip._m.rig; if (rig && rig.poses && rig.poses.__preview) rig.addPose(name, rig.poses.__preview);
-    posePainting = poseCanvas = null; $('posePrev').hidden = true; $('poseDesc').value = '';
+    const rig = pip && pip._m && pip._m.rig; if (rig && rig.poses && rig.poses.__preview) rig.addPose(name, rig.poses.__preview, rig.poses2 && rig.poses2.__preview);
+    clearInterval(flipT); posePainting = poseCanvas = poseB = poseCanvas2 = poseRaw = null; $('posePrev').hidden = true; $('poseDesc').value = '';
     freshP = fresh(); await loadPoses(); pip && pip.pose && pip.pose(name, 3000);
   } catch (e) { $('poseErr').textContent = e.message; }
   finally { $('poseKeep').disabled = false; }

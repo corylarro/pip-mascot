@@ -649,7 +649,7 @@ class PaintRig{
   growPop(k=1.38,ms=900){this.grow.t=RM<1?1.1:k;setTimeout(()=>{this.grow.t=1},ms);return ms+300}
   fade(on){this.fadeV=on?1:0}
   // Custom poses: extra full-body paintings shown in place of the body for a moment (made on the mascot's page).
-  addPose(name,canvas){(this.poses||(this.poses={}))[name]=canvas}
+  addPose(name,canvas,canvas2){(this.poses||(this.poses={}))[name]=canvas;(this.poses2||(this.poses2={}))[name]=canvas2||null}
   pose(name,ms=2600){if((!this.poses||!this.poses[name])&&this._posePending&&this._posePending[name]){this._posePending[name].then(()=>this.pose(name,ms));return ms}   // still downloading: play it when it arrives
     if(!this.poses||!this.poses[name])return 0;this.poseNow={name,until:performance.now()+ms};this.squash.v-=2.2*RM;this.lastAct=performance.now();this.emote('spark',4);
     clearTimeout(this._poseT);this._poseT=setTimeout(()=>{this.squash.v-=1.6*RM},ms);return ms}
@@ -708,7 +708,10 @@ class PaintRig{
     const wantWave=!posed&&!pointing&&this.state==='wave'&&!!FF.waveA;
     this._waveK=!FF.waveA||posed||pointing?0:wvK+((wantWave?1:0)-wvK)*Math.min(1,dt*11);   // ease in and out of the wave
     const wk=this._waveK,waving=wk>.03;
-    if(posed){const L=this.base.canvas.width,R=posed.width/L;ctx.drawImage(posed,-(R-1)/2*L,-(R-1)*L)}
+    if(posed){const L=this.base.canvas.width,R=posed.width/L,P2=this.poses2&&this.poses2[this.poseNow.name],ox=-(R-1)/2*L,oy=-(R-1)*L;
+      if(!P2)ctx.drawImage(posed,ox,oy);
+      else{const p=(t*1.25)%1,e=x=>x*x*(3-2*x),bw=p<.42?0:p<.5?e((p-.42)/.08):p<.92?1:1-e((p-.92)/.08),a0=ctx.globalAlpha;
+        if(bw<1){ctx.globalAlpha=a0*(1-bw*bw*bw);ctx.drawImage(posed,ox,oy)}if(bw>0){ctx.globalAlpha=a0*bw;ctx.drawImage(P2,ox,oy)}ctx.globalAlpha=a0}}
     else if(pointing){const fr=FF['point'+this.pointSide];ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
     else if(waving){const A=FF.waveA,Bf=FF.waveB,ease=x=>x*x*(3-2*x);
       // hold A, blend to B, hold B, blend back: blends take a tenth of the cycle each
@@ -858,7 +861,8 @@ function loadPoses(rig,data){if(!Array.isArray(data.poses)||!data.poses.length||
   // a pose image may be larger than the mascot's frame (POSE_ROOM times, for props); the frame size comes from the atlas
   const fs=data.atlasMeta&&data.atlasMeta.size;
   rig._posePending=rig._posePending||{};
-  for(const p of data.poses.slice(0,40))if(p&&p.name&&p.image)rig._posePending[p.name]=loadImg(imgURL(p.image)).then(img=>{const L=rig.base.canvas.width,iw=img.naturalWidth||img.width,R=fs?Math.max(1,iw/fs):1,c=canvasOf(Math.round(L*R),Math.round(L*R));c.getContext('2d').drawImage(img,0,0,c.width,c.height);rig.addPose(p.name,c)}).catch(()=>{}).finally(()=>{delete rig._posePending[p.name]})}
+  const toCanvas=img=>{const L=rig.base.canvas.width,iw=img.naturalWidth||img.width,R=fs?Math.max(1,iw/fs):1,c=canvasOf(Math.round(L*R),Math.round(L*R));c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c};
+  for(const p of data.poses.slice(0,40))if(p&&p.name&&p.image)rig._posePending[p.name]=Promise.all([loadImg(imgURL(p.image)),p.image2?loadImg(imgURL(p.image2)).catch(()=>null):null]).then(([img,img2])=>{rig.addPose(p.name,toCanvas(img),img2?toCanvas(img2):null)}).catch(()=>{}).finally(()=>{delete rig._posePending[p.name]})}
 async function mountMascot(rig,data){const r=await mountMascot0(rig,data);loadPoses(rig,data);return r}
 async function mountMascot0(rig,data){
   if(data.atlas&&data.atlasMeta&&data.atlasFace&&data.mode!=='simple'){
@@ -912,8 +916,21 @@ function poseFrame(k,size,box0,scale=1,body=null){const b=k.bbox,S=Math.round(si
   const IW=k.canvas.width,IH=k.canvas.height,bb=body&&{x:body[0]*IW,y:body[1]*IH,w:(body[2]-body[0])*IW,h:(body[3]-body[1])*IH};
   let s=(bb?box0.h/bb.h:Math.min(box0.h/b.h,(box0.w*1.9)/b.w))*scale;s=Math.min(s,S*.98/b.h,S*.98/b.w);
   const w=b.w*s,h=b.h*s,cx=box0.x+box0.w/2+ox,foot=box0.y+box0.h+oy;let dx=bb?cx-(bb.x+bb.w/2-b.x)*s:cx-w/2;dx=Math.max(1,Math.min(S-w-1,dx));const dy=Math.max(1,foot-h);
-  x.drawImage(k.canvas,b.x,b.y,b.w,b.h,dx,dy,w,h);return c}
-return {poseFrame,loadPoses,reachSide,matchScale,encodeAtlas,buildAtlas,framesFromAtlas,attachFrames,refineFace,mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
+  x.drawImage(k.canvas,b.x,b.y,b.w,b.h,dx,dy,w,h);c.geo={s,ox:dx-b.x*s,oy:dy-b.y*s,S};return c}
+// Second frame of an animated pose: line painting B up with painting A (tiny shifts and size changes between paintings
+// make it flicker), then place it exactly where frame A went.
+function alignTo(kA,kB){const N=128,W=kA.canvas.width,H=kA.canvas.height,k=N/Math.max(W,H),bb=kA.bbox,ax=(bb.x+bb.w/2)*k,ay=(bb.y+bb.h)*k;
+  const mask=(c,dx,dy,sc)=>{const t=canvasOf(N,N),x=t.getContext('2d',{willReadFrequently:true});x.translate(ax+dx,ay+dy);x.scale(sc,sc);x.translate(-ax,-ay);x.drawImage(c,0,0,W*k,H*k);
+    const d=x.getImageData(0,0,N,N).data,m=new Uint8Array(N*N);for(let i=0;i<N*N;i++)m[i]=d[i*4+3]>128?1:0;return m};
+  const A=mask(kA.canvas,0,0,1);let best={e:1e9,dx:0,dy:0,sc:1};
+  for(const sc of [.94,.97,1,1.03,1.06])for(let dy=-6;dy<=6;dy+=2)for(let dx=-6;dx<=6;dx+=2){const B=mask(kB.canvas,dx,dy,sc);let e=0;for(let i=0;i<A.length;i++)e+=A[i]^B[i];if(e<best.e)best={e,dx,dy,sc}}
+  // refine by single pixels around the best
+  for(let dy=best.dy-1;dy<=best.dy+1;dy++)for(let dx=best.dx-1;dx<=best.dx+1;dx++){const B=mask(kB.canvas,dx,dy,best.sc);let e=0;for(let i=0;i<A.length;i++)e+=A[i]^B[i];if(e<best.e)best={e,dx,dy,sc:best.sc}}
+  const out=canvasOf(W,H),x=out.getContext('2d');x.imageSmoothingQuality='high';x.translate(ax/k+best.dx/k,ay/k+best.dy/k);x.scale(best.sc,best.sc);x.translate(-ax/k,-ay/k);x.drawImage(kB.canvas,0,0);
+  let n=0;for(const v of A)n+=v;return {canvas:out,overlap:n?1-best.e/(2*n):0}}
+function poseFrame2(kA,kB,frameA){const g=frameA.geo,al=alignTo(kA,kB),c=canvasOf(g.S,g.S),x=c.getContext('2d');x.imageSmoothingQuality='high';
+  x.drawImage(al.canvas,g.ox,g.oy,al.canvas.width*g.s,al.canvas.height*g.s);c.overlap=al.overlap;return c}
+return {poseFrame,poseFrame2,loadPoses,reachSide,matchScale,encodeAtlas,buildAtlas,framesFromAtlas,attachFrames,refineFace,mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
 }
 
 var paintedEngine=PipPaintedEngine();

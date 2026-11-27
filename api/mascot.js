@@ -94,7 +94,10 @@ export default async function handler(req, res) {
         if (poses.length >= 40) { res.status(400).json({ error: 'That’s 40 poses, the most a mascot can have. Remove one first.' }); return; }
         const mime = /^image\/(webp|png)$/.test(b.mime) ? b.mime : 'image/png';
         const blob = await put(`mascots/${id}/poses/${name}.${mime.split('/')[1]}`, Buffer.from(b.image, 'base64'), { access: 'public', contentType: mime, addRandomSuffix: false, allowOverwrite: true });
-        poses = [...poses, { name, url: blob.url, mime, desc: String(b.desc || '').slice(0, 200), v: Date.now().toString(36), created: new Date().toISOString() }];
+        let url2 = null;
+        if (b.image2) { const m2 = /^image\/(webp|png)$/.test(b.mime2) ? b.mime2 : 'image/png';
+          url2 = (await put(`mascots/${id}/poses/${name}-2.${m2.split('/')[1]}`, Buffer.from(b.image2, 'base64'), { access: 'public', contentType: m2, addRandomSuffix: false, allowOverwrite: true })).url; }
+        poses = [...poses, { name, url: blob.url, mime, ...(url2 ? { url2, mime2: /^image\/(webp|png)$/.test(b.mime2) ? b.mime2 : 'image/png' } : {}), desc: String(b.desc || '').slice(0, 200), v: Date.now().toString(36), created: new Date().toISOString() }];
       }
       meta.poses = poses;
       await put(`mascots/${id}/data.json`, JSON.stringify(meta), { access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 });
@@ -138,9 +141,10 @@ export default async function handler(req, res) {
       if (req.query.img === 'pose') {
         const p = (meta.poses || []).find(x => x.name === String(req.query.name || ''));
         if (!p) { res.status(404).json({ error: 'No pose with that name.' }); return; }
-        const r = await fetch(`${p.url}?v=${p.v}`, { cache: 'no-store' });
+        const two = req.query.f === '2' && p.url2;
+        const r = await fetch(`${two ? p.url2 : p.url}?v=${p.v}`, { cache: 'no-store' });
         if (!r.ok) { res.status(502).json({ error: 'Could not load the pose.' }); return; }
-        let bytes = Buffer.from(await r.arrayBuffer()), type = p.mime || 'image/png';
+        let bytes = Buffer.from(await r.arrayBuffer()), type = (two ? p.mime2 : p.mime) || 'image/png';
         if (req.query.fmt === 'png' && type !== 'image/png') { try { const sharp = (await import('sharp')).default; bytes = await sharp(bytes).png().toBuffer(); type = 'image/png'; } catch (e) {} }
         res.setHeader('Content-Type', type); res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); res.send(bytes); return;
       }
@@ -163,7 +167,7 @@ export default async function handler(req, res) {
       const host = req.headers['x-forwarded-host'] || req.headers.host;
       res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=15');   // browsers always ask, the CDN keeps it 15s: changes show within ~15s
       const out = { id, mode: meta.mode, grid: meta.grid, face: meta.face, name: meta.name, greeting: meta.greeting, rules: meta.rules || [],
-        poses: (meta.poses || []).map(p => ({ name: p.name, desc: p.desc, image: `https://${host}/api/mascot?id=${id}&img=pose&name=${p.name}&v=${p.v}` })),
+        poses: (meta.poses || []).map(p => ({ name: p.name, desc: p.desc, image: `https://${host}/api/mascot?id=${id}&img=pose&name=${p.name}&v=${p.v}`, ...(p.url2 ? { image2: `https://${host}/api/mascot?id=${id}&img=pose&name=${p.name}&f=2&v=${p.v}` } : {}) })),
         image: `https://${host}/api/mascot?id=${id}&img=1` };
       if (meta.atlasUrl) Object.assign(out, { atlas: `https://${host}/api/mascot?id=${id}&img=atlas&v=${meta.atlasV}`, atlasMeta: meta.atlasMeta, atlasFace: meta.atlasFace });
       res.json(out);
