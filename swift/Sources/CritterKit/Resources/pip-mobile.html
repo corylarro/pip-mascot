@@ -1467,7 +1467,12 @@ var paintedEngine=PipPaintedEngine();
         });
         return;
       }
-      if (el) el.remove();
+      if (el && (el.getAttribute('mascot') || '') !== (cfg.mascot || '')) {
+        // a different mascot: the old one vanishes in a puff of smoke while the new one arrives
+        var old = el; el = null;
+        try { if (old._m && old._m.emote) old._m.emote('smoke'); old.style.transition = 'opacity .28s, transform .28s'; old.style.opacity = '0'; } catch (e) {}
+        setTimeout(function () { old.remove(); }, 300);
+      } else if (el) el.remove();
       el = document.createElement('critter-mascot');
       el.setAttribute('float', '');
       if (cfg.mascot) el.setAttribute('mascot', cfg.mascot);

@@ -88,6 +88,7 @@ final class CritterOverlay {
     private var loaded = false
     private var pending: [String] = []
     private var config = Critter.Configuration()
+    var currentConfiguration: Critter.Configuration { config }
     private var sceneObserver: NSObjectProtocol?
 
     // MARK: Lifecycle

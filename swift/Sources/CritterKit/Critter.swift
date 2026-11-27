@@ -17,6 +17,7 @@ public enum Critter {
     public typealias Event = CritterEvent
     public typealias Configuration = CritterConfiguration
     public typealias Season = CritterSeason
+    public typealias GlideDirection = CritterGlideDirection
 
     /// Called when Critter finishes loading, is tapped, hidden, shown, or changes state.
     public static var onEvent: ((Event) -> Void)?
@@ -169,6 +170,26 @@ public enum Critter {
     /// Force a seasonal effect (handy for screenshots), or go back to picking by date with `.auto`.
     public static func season(_ season: Season) { call("season", season.rawValue) }
 
+    /// Show one of your custom poses (painted on your mascot's page at critterkit.com/mascots) for a few seconds.
+    public static func pose(_ name: String, for seconds: TimeInterval = 3) {
+        play([["do": "pose", "name": name, "ms": Int(seconds * 1000)]])
+    }
+
+    /// Slide smoothly across the screen and back (or to one side and back).
+    public static func glide(_ direction: GlideDirection = .across) {
+        play([["do": "glide", "to": direction.rawValue]])
+    }
+
+    /// Swap to a different mascot, with a little puff of smoke, keeping every other setting.
+    /// Pass nil to go back to the drawn mascot.
+    public static func switchMascot(to mascotID: String?, greeting: String? = nil) {
+        var config = CritterOverlay.shared.currentConfiguration
+        config.mascotID = mascotID
+        config.greeting = greeting
+        config.greets = true
+        start(config)
+    }
+
     /// Stop a tour early and send Critter home.
     public static func stopTour() { call("stopTour") }
 
@@ -222,6 +243,10 @@ public enum Critter {
 }
 
 // MARK: - Types
+
+public enum CritterGlideDirection: String, Sendable {
+    case across, left, right, center
+}
 
 public enum CritterCorner: String, Sendable {
     case bottomRight = "bottom-right", bottomLeft = "bottom-left", topRight = "top-right", topLeft = "top-left"
