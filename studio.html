@@ -158,7 +158,7 @@ $('play').addEventListener('click',()=>steps&&steps.length&&pip.play(steps,value
 $('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('code').textContent);$('copy').textContent='Copied!';setTimeout(()=>$('copy').textContent='Copy code',1400)}catch(e){}});
 
 // The palette: everything the mascot can do, as chips
-const MOVES=[['Hop',{do:'jump'}],['Big jump',{do:'bigjump'}],['Backflip',{do:'flip'}],['Spin',{do:'spin'}],['Shake it off',{do:'shake'}],['Grow',{do:'grow'}],['Vanish to the middle',{do:'poof',to:'center'}],['Vanish home',{do:'poof',to:'home'}]];
+const MOVES=[['Hop',{do:'jump'}],['Big jump',{do:'bigjump'}],['Backflip',{do:'flip'}],['Spin',{do:'spin'}],['Shake it off',{do:'shake'}],['Grow',{do:'grow'}],['Vanish to the middle',{do:'poof',to:'center'}],['Vanish home',{do:'poof',to:'home'}],['Glide across',{do:'glide',to:'across',ms:1500}]];
 const MOODS=[['Cheer','success'],['Dance','dance'],['Love','love'],['Wave','wave'],['Surprised','surprised'],['Thinking','thinking'],['Confused','confused'],['Worried','error'],['Sad','sad'],['Nap','sleeping']].map(([l,st])=>[l,{do:'react',state:st,ms:st==='dance'?2800:2200}]);
 const FX=[['Sparkles','spark'],['Confetti','confetti'],['Hearts','hearts'],['Music notes','note'],['Sweat drop','sweat'],['!','bang'],['Puff of smoke','smoke'],['Dust','dust']].map(([l,k])=>[l,{do:'emote',kind:k}]);
 const PROPS=['🍕','🏆','🎂','☕','🎁','📦','🚀','💰','⭐','🔥','🎈','❤️'].map(e=>[e,{do:'prop',emoji:e,ms:3000}]);
@@ -166,7 +166,7 @@ const TIME=[['Short pause',{do:'wait',ms:500}],['Long pause',{do:'wait',ms:1200}
 const NAMES={jump:'Hop',bigjump:'Big jump',flip:'Backflip',spin:'Spin',shake:'Shake it off',grow:'Grow'};
 const label=st=>st.do==='react'?(MOODS.find(m=>m[1].state===st.state)||[st.state])[0]:st.do==='emote'?(FX.find(f=>f[1].kind===st.kind)||[st.kind])[0]
   :st.do==='prop'?'Hold '+st.emoji:st.do==='say'?'“'+st.text+'”':st.do==='wait'?(st.ms>=1000?'Long pause':'Short pause'):st.do==='poof'?(st.to==='home'?'Vanish home':'Vanish to the '+(st.to==='center'?'middle':st.to))
-  :st.do==='pose'?'Pose: '+st.name:st.do==='moment'?'Moment: '+st.name:NAMES[st.do]||st.do;
+  :st.do==='glide'?'Glide '+(st.to||'across'):st.do==='pose'?'Pose: '+st.name:st.do==='moment'?'Moment: '+st.name:NAMES[st.do]||st.do;
 function chips(id,list){const box=$(id);list.forEach(([l,st])=>{const b=document.createElement('button');b.type='button';b.textContent=l;b.addEventListener('click',()=>add({...st}));box.appendChild(b)})}
 window.ckAddPoses=ps=>{chips('pPoses',ps.map(p=>[p.name,{do:'pose',name:p.name,ms:2600}]));$('posesGroup').hidden=false};if(window.ckMascotPoses)ckAddPoses(window.ckMascotPoses);
 chips('pMoves',MOVES);chips('pMoods',MOODS);chips('pFx',FX);chips('pProps',PROPS);chips('pTime',TIME);

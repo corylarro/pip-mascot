@@ -17,7 +17,7 @@ function cleanRules(list) {
     if (t.type === 'moment' && MOMENT_NAMES.includes(t.name)) then = { type: 'moment', name: t.name, ...(clean(t.say) ? { say: clean(t.say).slice(0, 70) } : {}), ...(Number.isFinite(Number(t.count)) && t.count !== '' && t.count != null ? { count: Math.max(0, Math.min(100000, Math.round(Number(t.count)))) } : {}) };
     else if (t.type === 'say' && clean(t.text)) then = { type: 'say', text: clean(t.text).slice(0, 70) };
     else if (t.type === 'point' && clean(t.target)) then = { type: 'point', target: clean(t.target).slice(0, 80), text: clean(t.text).slice(0, 70) };
-    else if (t.type === 'pose' && /^[a-z0-9-]{1,24}$/.test(String(t.name || ''))) then = { type: 'pose', name: String(t.name), ...(clean(t.say) ? { say: clean(t.say).slice(0, 70) } : {}) };
+    else if (t.type === 'pose' && /^[a-z0-9-]{1,24}$/.test(String(t.name || ''))) then = { type: 'pose', name: String(t.name), ...(clean(t.say) ? { say: clean(t.say).slice(0, 70) } : {}), ...(t.move === 'across' ? { move: 'across' } : {}) };
     else if (t.type === 'play') { const steps = sanitize(t.steps); if (steps.length) then = { type: 'play', steps }; }
     if (!then) continue;
     out.push({ id: /^r_[a-z0-9]{4,12}$/.test(r.id) ? r.id : 'r_' + Math.random().toString(36).slice(2, 10), when: { type: w.type, value }, then, once: r.once !== false });

@@ -223,7 +223,7 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
             <div class="rf" id="fMoment"><select id="rMoment" aria-label="Moment"></select><input id="rCount" type="number" min="0" placeholder="Number" aria-label="Number for the moment" hidden><input id="rSay" maxlength="70" placeholder="Its line (optional)" aria-label="What it says"></div>
             <div class="rf" id="fSay" hidden><input id="rText" maxlength="70" placeholder="Thanks for signing up!" aria-label="What it says"></div>
             <div class="rf" id="fPoint" hidden><input id="rTarget" maxlength="80" placeholder="Button text, like Upgrade" aria-label="Button or link text"><input id="rPointSay" maxlength="70" placeholder="What it says (optional)" aria-label="What it says"></div>
-            <div class="rf" id="fPose" hidden><select id="rPose" aria-label="Pose"></select><input id="rPoseSay" maxlength="70" placeholder="What it says (optional)" aria-label="What it says"></div>
+            <div class="rf" id="fPose" hidden><select id="rPose" aria-label="Pose"></select><select id="rPoseMove" aria-label="Movement"><option value="">stays in place</option><option value="across">rides across the screen and back</option></select><input id="rPoseSay" maxlength="70" placeholder="What it says (optional)" aria-label="What it says"></div>
             <div class="rf" id="fPlay" hidden><p class="hint" id="playInfo" style="margin:0"></p></div>
             <label class="once"><input type="checkbox" id="rOnce" checked> Only once per visitor</label>
             <div class="row"><button class="btn" type="submit" id="rAdd">Add this moment</button><button class="ghost" type="button" id="rTry">Try it here</button></div>
@@ -391,7 +391,7 @@ $('recheck').addEventListener('click', () => checkLive(true));
 let rules = [], canEdit = false;
 const WHEN = { visit: ['someone visits', '/thank-you  (use * for any, like /blog/*)'], click: ['someone taps', 'Button or link text, like Upgrade'], text: ['these words appear', 'Words on the page, like Order confirmed'] };
 const momentName = n => (CK.MOMENTS.find(x => x.m === n) || { name: n }).name;
-const thenText = t => t.type === 'moment' ? `play ${momentName(t.name)}${t.count != null ? ' (' + t.count + ')' : ''}${t.say ? `: “${t.say}”` : ''}` : t.type === 'say' ? `say “${t.text}”` : t.type === 'point' ? `point at “${t.target}”${t.text ? `: “${t.text}”` : ''}` : t.type === 'pose' ? `show the ${t.name} pose${t.say ? `: “${t.say}”` : ''}` : `play a custom moment (${t.steps.length} steps)`;
+const thenText = t => t.type === 'moment' ? `play ${momentName(t.name)}${t.count != null ? ' (' + t.count + ')' : ''}${t.say ? `: “${t.say}”` : ''}` : t.type === 'say' ? `say “${t.text}”` : t.type === 'point' ? `point at “${t.target}”${t.text ? `: “${t.text}”` : ''}` : t.type === 'pose' ? `show the ${t.name} pose${t.move === 'across' ? ', riding across the screen' : ''}${t.say ? `: “${t.say}”` : ''}` : `play a custom moment (${t.steps.length} steps)`;
 function renderRules() {
   const ul = $('rules');
   ul.innerHTML = rules.map((r, i) => `<li><span>When ${esc(WHEN[r.when.type][0])} <b>${esc(r.when.value)}</b>, ${esc(thenText(r.then))}<small>${r.once ? 'Once per visitor' : 'Every time'}</small></span><button type="button" data-try="${i}">Try</button>${canEdit ? `<button type="button" data-del="${i}" aria-label="Remove">Remove</button>` : '<span></span>'}</li>`).join('');
@@ -403,7 +403,7 @@ function runThen(t) {
   if (t.type === 'moment') pip.moment(t.name, Object.assign({}, t.say ? { say: t.say } : {}, t.count != null ? { count: t.count } : {}));
   else if (t.type === 'say') pip.say(t.text, { hold: 2600 });
   else if (t.type === 'point') pip.say(`${t.text || 'Over here!'} (points at “${t.target}” on your site)`, { hold: 3000 });
-  else if (t.type === 'pose') { pip.pose(t.name, 3000); if (t.say) pip.say(t.say, { hold: 2600 }); }
+  else if (t.type === 'pose') { pip.pose(t.name, t.move ? 3600 : 3000); if (t.say) pip.say(t.say, { hold: 2600 }); if (t.move && pip.glide) pip.glide('across', 1500); }
   else if (t.type === 'play') pip.play(t.steps);
   toStage();
 }
@@ -437,7 +437,7 @@ function formThen() {
   const t = $('rThen').value;
   if (t === 'moment') { const c = $('rCount').hidden || $('rCount').value === '' ? null : Number($('rCount').value); return Object.assign({ type: 'moment', name: $('rMoment').value }, $('rSay').value.trim() ? { say: $('rSay').value.trim() } : {}, c != null ? { count: c } : {}); }
   if (t === 'say') return $('rText').value.trim() ? { type: 'say', text: $('rText').value.trim() } : null;
-  if (t === 'pose') return $('rPose').value ? Object.assign({ type: 'pose', name: $('rPose').value }, $('rPoseSay').value.trim() ? { say: $('rPoseSay').value.trim() } : {}) : null;
+  if (t === 'pose') return $('rPose').value ? Object.assign({ type: 'pose', name: $('rPose').value }, $('rPoseSay').value.trim() ? { say: $('rPoseSay').value.trim() } : {}, $('rPoseMove').value ? { move: $('rPoseMove').value } : {}) : null;
   if (t === 'point') return $('rTarget').value.trim() ? { type: 'point', target: $('rTarget').value.trim(), text: $('rPointSay').value.trim() } : null;
   const cs = customSteps(); return cs ? { type: 'play', steps: cs } : null;
 }
