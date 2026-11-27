@@ -244,7 +244,8 @@ class PaintRig{
   fade(on){this.fadeV=on?1:0}
   // Custom poses: extra full-body paintings shown in place of the body for a moment (made on the mascot's page).
   addPose(name,canvas){(this.poses||(this.poses={}))[name]=canvas}
-  pose(name,ms=2600){if(!this.poses||!this.poses[name])return 0;this.poseNow={name,until:performance.now()+ms};this.squash.v-=2.2*RM;this.lastAct=performance.now();this.emote('spark',4);
+  pose(name,ms=2600){if((!this.poses||!this.poses[name])&&this._posePending&&this._posePending[name]){this._posePending[name].then(()=>this.pose(name,ms));return ms}   // still downloading: play it when it arrives
+    if(!this.poses||!this.poses[name])return 0;this.poseNow={name,until:performance.now()+ms};this.squash.v-=2.2*RM;this.lastAct=performance.now();this.emote('spark',4);
     clearTimeout(this._poseT);this._poseT=setTimeout(()=>{this.squash.v-=1.6*RM},ms);return ms}
   prop(ch,ms=2600){this.props=[{ch:String(ch||'').slice(0,4),t0:performance.now(),ms}];return ms}
   _fxNow(now){let rot=0,turn=1,dx=0;this.fx=this.fx.filter(f=>{const p=clamp((now-f.t0)/f.ms,0,1),e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
@@ -450,7 +451,8 @@ function imgURL(u){const f=typeof window!=='undefined'&&window.PIP_IMAGE_FORMAT;
 function loadPoses(rig,data){if(!Array.isArray(data.poses)||!data.poses.length||!rig.base)return;
   // a pose image may be larger than the mascot's frame (POSE_ROOM times, for props); the frame size comes from the atlas
   const fs=data.atlasMeta&&data.atlasMeta.size;
-  for(const p of data.poses.slice(0,40))if(p&&p.name&&p.image)loadImg(imgURL(p.image)).then(img=>{const L=rig.base.canvas.width,iw=img.naturalWidth||img.width,R=fs?Math.max(1,iw/fs):1,c=canvasOf(Math.round(L*R),Math.round(L*R));c.getContext('2d').drawImage(img,0,0,c.width,c.height);rig.addPose(p.name,c)}).catch(()=>{})}
+  rig._posePending=rig._posePending||{};
+  for(const p of data.poses.slice(0,40))if(p&&p.name&&p.image)rig._posePending[p.name]=loadImg(imgURL(p.image)).then(img=>{const L=rig.base.canvas.width,iw=img.naturalWidth||img.width,R=fs?Math.max(1,iw/fs):1,c=canvasOf(Math.round(L*R),Math.round(L*R));c.getContext('2d').drawImage(img,0,0,c.width,c.height);rig.addPose(p.name,c)}).catch(()=>{}).finally(()=>{delete rig._posePending[p.name]})}
 async function mountMascot(rig,data){const r=await mountMascot0(rig,data);loadPoses(rig,data);return r}
 async function mountMascot0(rig,data){
   if(data.atlas&&data.atlasMeta&&data.atlasFace&&data.mode!=='simple'){

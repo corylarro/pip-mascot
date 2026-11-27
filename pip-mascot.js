@@ -650,7 +650,8 @@ class PaintRig{
   fade(on){this.fadeV=on?1:0}
   // Custom poses: extra full-body paintings shown in place of the body for a moment (made on the mascot's page).
   addPose(name,canvas){(this.poses||(this.poses={}))[name]=canvas}
-  pose(name,ms=2600){if(!this.poses||!this.poses[name])return 0;this.poseNow={name,until:performance.now()+ms};this.squash.v-=2.2*RM;this.lastAct=performance.now();this.emote('spark',4);
+  pose(name,ms=2600){if((!this.poses||!this.poses[name])&&this._posePending&&this._posePending[name]){this._posePending[name].then(()=>this.pose(name,ms));return ms}   // still downloading: play it when it arrives
+    if(!this.poses||!this.poses[name])return 0;this.poseNow={name,until:performance.now()+ms};this.squash.v-=2.2*RM;this.lastAct=performance.now();this.emote('spark',4);
     clearTimeout(this._poseT);this._poseT=setTimeout(()=>{this.squash.v-=1.6*RM},ms);return ms}
   prop(ch,ms=2600){this.props=[{ch:String(ch||'').slice(0,4),t0:performance.now(),ms}];return ms}
   _fxNow(now){let rot=0,turn=1,dx=0;this.fx=this.fx.filter(f=>{const p=clamp((now-f.t0)/f.ms,0,1),e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
@@ -856,7 +857,8 @@ function imgURL(u){const f=typeof window!=='undefined'&&window.PIP_IMAGE_FORMAT;
 function loadPoses(rig,data){if(!Array.isArray(data.poses)||!data.poses.length||!rig.base)return;
   // a pose image may be larger than the mascot's frame (POSE_ROOM times, for props); the frame size comes from the atlas
   const fs=data.atlasMeta&&data.atlasMeta.size;
-  for(const p of data.poses.slice(0,40))if(p&&p.name&&p.image)loadImg(imgURL(p.image)).then(img=>{const L=rig.base.canvas.width,iw=img.naturalWidth||img.width,R=fs?Math.max(1,iw/fs):1,c=canvasOf(Math.round(L*R),Math.round(L*R));c.getContext('2d').drawImage(img,0,0,c.width,c.height);rig.addPose(p.name,c)}).catch(()=>{})}
+  rig._posePending=rig._posePending||{};
+  for(const p of data.poses.slice(0,40))if(p&&p.name&&p.image)rig._posePending[p.name]=loadImg(imgURL(p.image)).then(img=>{const L=rig.base.canvas.width,iw=img.naturalWidth||img.width,R=fs?Math.max(1,iw/fs):1,c=canvasOf(Math.round(L*R),Math.round(L*R));c.getContext('2d').drawImage(img,0,0,c.width,c.height);rig.addPose(p.name,c)}).catch(()=>{}).finally(()=>{delete rig._posePending[p.name]})}
 async function mountMascot(rig,data){const r=await mountMascot0(rig,data);loadPoses(rig,data);return r}
 async function mountMascot0(rig,data){
   if(data.atlas&&data.atlasMeta&&data.atlasFace&&data.mode!=='simple'){
@@ -1102,15 +1104,18 @@ var paintedEngine=PipPaintedEngine();
       const visit=()=>{const p=location.pathname;if(p===lastPath)return;lastPath=p;seenText.clear();
         for(const r of R())if(r.when.type==='visit'&&pathOk(r.when.value))setTimeout(()=>fire(r),900);setTimeout(scan,1300)};
       const click=e=>{const el=e.target&&e.target.closest&&e.target.closest('button,a,[role=button],input[type=submit],input[type=button]');if(!el||el===this)return;
-        const v=norm(el.innerText||el.value||el.getAttribute('aria-label'));if(!v)return;for(const r of R())if(r.when.type==='click'&&v.includes(norm(r.when.value)))fire(r)};
+        const v=norm(el.innerText||el.value||el.getAttribute('aria-label'));if(!v)return;
+        const go=()=>{for(const r of R())if(r.when.type==='click'&&v.includes(norm(r.when.value)))fire(r)};
+        // the tap that brings someone back to the tab also starts a refresh: wait for it so a just-added moment isn't missed
+        if(pending)pending.then(go);else go()};
       visit();const iv=setInterval(visit,700);document.addEventListener('click',click,true);
       const mo=typeof MutationObserver!=='undefined'?new MutationObserver(()=>{if(!q&&R().some(r=>r.when.type==='text'))q=setTimeout(scan,600)}):null;
       if(mo&&document.body)mo.observe(document.body,{childList:true,subtree:true,characterData:true});
       // pick up moments (and poses) added on the mascot's page when someone comes back to the tab, at most once every 20s
-      let lastFetch=Date.now();const api=this.getAttribute('api')||origin;
+      let lastFetch=Date.now(),pending=null;const api=this.getAttribute('api')||origin;
       const refresh=()=>{if(document.hidden||Date.now()-lastFetch<20000)return;lastFetch=Date.now();
-        fetch(`${api}/api/mascot?id=${encodeURIComponent(mid)}`).then(r=>r.ok?r.json():null).then(d=>{if(!d)return;if(Array.isArray(d.rules))this._rules=d.rules;
-          const rig=this._m&&this._m.rig,have=rig&&rig.poses||{};if(rig&&painted&&painted.loadPoses&&Array.isArray(d.poses))painted.loadPoses(rig,{poses:d.poses.filter(p=>!have[p.name])})}).catch(()=>{})};
+        pending=fetch(`${api}/api/mascot?id=${encodeURIComponent(mid)}`).then(r=>r.ok?r.json():null).then(d=>{if(!d)return;if(Array.isArray(d.rules))this._rules=d.rules;
+          const rig=this._m&&this._m.rig,have=rig&&rig.poses||{};if(rig&&painted&&painted.loadPoses&&Array.isArray(d.poses))painted.loadPoses(rig,{atlasMeta:d.atlasMeta,poses:d.poses.filter(p=>!have[p.name])})}).catch(()=>{}).finally(()=>{pending=null})};
       document.addEventListener('visibilitychange',refresh);addEventListener('focus',refresh);
       this._rulesStop=()=>{clearInterval(iv);clearTimeout(q);document.removeEventListener('click',click,true);mo&&mo.disconnect();document.removeEventListener('visibilitychange',refresh);removeEventListener('focus',refresh)}}
     // Show one of the mascot's custom poses (painted on its page) for ms milliseconds. Returns 0 if it doesn't have that pose.
