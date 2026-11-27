@@ -440,7 +440,7 @@ if (params.get('rule') === 'custom') setTimeout(() => { $('rThen').value = 'play
 
 // Custom poses
 const PE = typeof PipPaintedEngine === 'function' ? PipPaintedEngine() : null;
-let posePainting = null, poseCanvas = null;
+let posePainting = null, poseCanvas = null, poseBody = null;
 const slug = t => String(t || '').toLowerCase().replace(/\b(a|an|the|and|with|on|in|of|while|his|her|its|their)\b/g, ' ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').split('-').slice(0, 3).join('-').slice(0, 24) || 'pose';
 const poseCode = n => plat === 'ios' ? `["do": "pose", "name": "${n}"]` : `{ do: 'pose', name: '${n}' }`;
 async function loadPoses() {
@@ -476,6 +476,7 @@ async function paintPose() {
     if (typeof j.credits === 'number') $('credits').textContent = `${j.credits} credit${j.credits === 1 ? '' : 's'}. A custom pose uses 1, a new mascot uses 5.`;
     if (!r.ok || !j.image) throw new Error(j.error || 'The painting didn’t come through. Your credit wasn’t used.');
     posePainting = PE.keyOut(await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = `data:${j.mime || 'image/png'};base64,${j.image}`; }));
+    poseBody = Array.isArray(j.body) ? j.body : null;
     $('poseName').value = slug(desc); $('poseSize').value = 100; renderPose(); $('posePrev').hidden = false;
     if (pip) { pip.setState('idle'); showPose(); }
   } catch (e) { $('poseErr').textContent = e.message; if (pip && pip.setState) pip.setState('idle'); }
@@ -483,10 +484,10 @@ async function paintPose() {
 }
 function renderPose() {
   if (!posePainting || !data) return;
-  const m = data.atlasMeta; poseCanvas = PE.poseFrame(posePainting, m.size, m.boxes[0], Number($('poseSize').value) / 100);
+  const m = data.atlasMeta; poseCanvas = PE.poseFrame(posePainting, m.size, m.boxes[0], Number($('poseSize').value) / 100, poseBody);
   $('poseImg').src = poseCanvas.toDataURL('image/png');
 }
-function showPose() { const rig = pip && pip._m && pip._m.rig; if (rig && poseCanvas) { const L = rig.base.canvas.width, c = document.createElement('canvas'); c.width = c.height = L; c.getContext('2d').drawImage(poseCanvas, 0, 0, L, L); rig.addPose('__preview', c); pip.pose('__preview', 3500); } toStage(); }
+function showPose() { const rig = pip && pip._m && pip._m.rig; if (rig && poseCanvas && data) { const L = rig.base.canvas.width, R = poseCanvas.width / data.atlasMeta.size, c = document.createElement('canvas'); c.width = c.height = Math.round(L * R); c.getContext('2d').drawImage(poseCanvas, 0, 0, c.width, c.height); rig.addPose('__preview', c); pip.pose('__preview', 3500); } toStage(); }
 const CHANGES = /\b(turn(s|ed|ing)? (it |him |her )?into|transform(s|ed|ing)?|becom(e|es|ing)|as an? (?!big|small|little|happy|sad)\w+$|as an? (robot|dinosaur|dragon|human|person|cat|dog|monster|alien|zombie|vampire|ghost|unicorn)|replace(d)? (it|him|her)|different (character|animal|colou?r))\b/i;
 // a bare "robot" or "a dragon" reads as "make it a robot", not a pose
 const CREATURES = /^(a |an |the )?(robot|dinosaur|dragon|human|person|man|woman|boy|girl|cat|dog|monster|alien|zombie|vampire|ghost|unicorn|pirate|ninja|wizard|witch|superhero|knight|princess|prince|astronaut|mermaid|fairy|bear|bunny|rabbit|fox|frog|owl|penguin|shark|tiger|lion|panda|teddy bear|cyborg|android)s?$/i;

@@ -707,7 +707,7 @@ class PaintRig{
     const wantWave=!posed&&!pointing&&this.state==='wave'&&!!FF.waveA;
     this._waveK=!FF.waveA||posed||pointing?0:wvK+((wantWave?1:0)-wvK)*Math.min(1,dt*11);   // ease in and out of the wave
     const wk=this._waveK,waving=wk>.03;
-    if(posed){const L=this.base.canvas.width;ctx.drawImage(posed,0,0,L,L)}
+    if(posed){const L=this.base.canvas.width,R=posed.width/L;ctx.drawImage(posed,-(R-1)/2*L,-(R-1)*L)}
     else if(pointing){const fr=FF['point'+this.pointSide];ctx.drawImage(fr.canvas,-fr.off.dx,-fr.off.dy)}
     else if(waving){const A=FF.waveA,Bf=FF.waveB,ease=x=>x*x*(3-2*x);
       // hold A, blend to B, hold B, blend back: blends take a tenth of the cycle each
@@ -854,7 +854,9 @@ function refineFace(frames,face,names){
 function blankFrame(fr){const b=fr.bbox,c=fr.canvas.getContext('2d',{willReadFrequently:true}),y=Math.round(b.y+b.h*.5),d=c.getImageData(Math.round(b.x),y,Math.max(1,Math.round(b.w)),1).data;for(let i=3;i<d.length;i+=4)if(d[i]>10)return false;return true}
 function imgURL(u){const f=typeof window!=='undefined'&&window.PIP_IMAGE_FORMAT;return f&&/\/api\/mascot\?/.test(u)?u+'&fmt='+f:u}
 function loadPoses(rig,data){if(!Array.isArray(data.poses)||!data.poses.length||!rig.base)return;
-  for(const p of data.poses.slice(0,40))if(p&&p.name&&p.image)loadImg(imgURL(p.image)).then(img=>{const L=rig.base.canvas.width,c=canvasOf(L,L);c.getContext('2d').drawImage(img,0,0,L,L);rig.addPose(p.name,c)}).catch(()=>{})}
+  // a pose image may be larger than the mascot's frame (POSE_ROOM times, for props); the frame size comes from the atlas
+  const fs=data.atlasMeta&&data.atlasMeta.size;
+  for(const p of data.poses.slice(0,40))if(p&&p.name&&p.image)loadImg(imgURL(p.image)).then(img=>{const L=rig.base.canvas.width,iw=img.naturalWidth||img.width,R=fs?Math.max(1,iw/fs):1,c=canvasOf(Math.round(L*R),Math.round(L*R));c.getContext('2d').drawImage(img,0,0,c.width,c.height);rig.addPose(p.name,c)}).catch(()=>{})}
 async function mountMascot(rig,data){const r=await mountMascot0(rig,data);loadPoses(rig,data);return r}
 async function mountMascot0(rig,data){
   if(data.atlas&&data.atlasMeta&&data.atlasFace&&data.mode!=='simple'){
@@ -900,9 +902,14 @@ function attachFrames(rig,frames,face){
     if(byside.L&&!byside.R)byside.R=mirrorFrame(byside.L);if(byside.R&&!byside.L)byside.L=mirrorFrame(byside.R);
     if(byside.L)rig.addFull('pointL',byside.L);if(byside.R)rig.addFull('pointR',byside.R)}}
 // Line up a freshly painted pose with the mascot: same frame size, standing on the same spot, about the same height.
-function poseFrame(k,size,box0,scale=1){const b=k.bbox,c=canvasOf(size,size),x=c.getContext('2d');x.imageSmoothingQuality='high';
-  let s=Math.min(box0.h/b.h,(box0.w*1.9)/b.w,size*.98/b.h,size*.98/b.w)*scale;s=Math.min(s,size*.98/b.h,size*.98/b.w);
-  const w=b.w*s,h=b.h*s,cx=box0.x+box0.w/2,foot=box0.y+box0.h;let dx=cx-w/2;dx=Math.max(1,Math.min(size-w-1,dx));const dy=Math.max(1,foot-h);
+// body: the character's own box in the painting (without held or ridden objects), as [x0,y0,x1,y1] fractions, when known.
+// With it the character comes out the same size as the original and props add on around it.
+// The result is POSE_ROOM times the frame, with the frame bottom-centre inside it, so props can stick out above and to the sides.
+const POSE_ROOM=1.6;
+function poseFrame(k,size,box0,scale=1,body=null){const b=k.bbox,S=Math.round(size*POSE_ROOM),ox=(S-size)/2,oy=S-size,c=canvasOf(S,S),x=c.getContext('2d');x.imageSmoothingQuality='high';
+  const IW=k.canvas.width,IH=k.canvas.height,bb=body&&{x:body[0]*IW,y:body[1]*IH,w:(body[2]-body[0])*IW,h:(body[3]-body[1])*IH};
+  let s=(bb?box0.h/bb.h:Math.min(box0.h/b.h,(box0.w*1.9)/b.w))*scale;s=Math.min(s,S*.98/b.h,S*.98/b.w);
+  const w=b.w*s,h=b.h*s,cx=box0.x+box0.w/2+ox,foot=box0.y+box0.h+oy;let dx=bb?cx-(bb.x+bb.w/2-b.x)*s:cx-w/2;dx=Math.max(1,Math.min(S-w-1,dx));const dy=Math.max(1,foot-h);
   x.drawImage(k.canvas,b.x,b.y,b.w,b.h,dx,dy,w,h);return c}
 return {poseFrame,loadPoses,reachSide,matchScale,encodeAtlas,buildAtlas,framesFromAtlas,attachFrames,refineFace,mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
 }
