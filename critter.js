@@ -652,7 +652,8 @@ class PaintRig{
   // Custom poses: extra full-body paintings shown in place of the body for a moment (made on the mascot's page).
   addPose(name,canvas,canvas2,opt){(this.poses||(this.poses={}))[name]=canvas;(this.poses2||(this.poses2={}))[name]=canvas2||null;
     // a short move: 3-4 frames in order, played once (holding the last) or looped; air marks frames where it's off the ground
-    const more=(opt&&opt.more||[]).filter(Boolean);(this.poseSeq||(this.poseSeq={}))[name]=canvas2&&(more.length||opt&&(opt.once||(opt.air||[]).some(Boolean)))?{frames:[canvas,canvas2,...more],once:!!opt.once,air:(opt.air||[]).map(Boolean),pace:Math.max(.5,Math.min(2.5,Number(opt.pace)||1))}:null}
+    const more=(opt&&opt.more||[]).filter(Boolean);(this.poseTrick||(this.poseTrick={}))[name]=opt&&opt.trick&&opt.prop?{trick:opt.trick,prop:opt.prop,cx:opt.cx||.5,foot:opt.foot||.98,bw:opt.bw||.8,pace:Math.max(.5,Math.min(2.5,Number(opt.pace)||1))}:null;
+    (this.poseSeq||(this.poseSeq={}))[name]=canvas2&&(more.length||opt&&(opt.once||(opt.air||[]).some(Boolean)))?{frames:[canvas,canvas2,...more],once:!!opt.once,air:(opt.air||[]).map(Boolean),pace:Math.max(.5,Math.min(2.5,Number(opt.pace)||1))}:null}
   pose(name,ms=2600){if((!this.poses||!this.poses[name])&&this._posePending&&this._posePending[name]){this._posePending[name].then(()=>this.pose(name,ms));return ms}   // still downloading: play it when it arrives
     if(!this.poses||!this.poses[name])return 0;this._pnName=null;this.poseNow={name,until:performance.now()+ms};this.squash.v-=2.2*RM;this.lastAct=performance.now();this.emote('spark',4);
     clearTimeout(this._poseT);this._poseT=setTimeout(()=>{this.squash.v-=1.6*RM},ms);return ms}
@@ -716,8 +717,21 @@ class PaintRig{
     const wk=this._waveK,waving=wk>.03;
     if(pn!==this._pnName){this._pnName=pn;this._pnT0=pnow}
     const SQ=posed&&this.poseSeq&&this.poseSeq[pn];
+    const TR=posed&&this.poseTrick&&this.poseTrick[pn];
     if(posed){const L=this.base.canvas.width,R=posed.width/L,P2=this.poses2&&this.poses2[pn],ox=-(R-1)/2*L,oy=-(R-1)*L;
-      if(SQ){const n=SQ.frames.length,k=SQ.pace||1,D=SQ.once?[520*k,...Array(n-2).fill(340*k),1e9]:Array(n).fill(380*k),cyc=D.reduce((a,b)=>a+b,0);
+      if(TR){// a board trick, all in code: crouch, pop, the board does its thing in the air, catch, land, then ride
+        const k=TR.pace,e=(pnow-this._pnT0)/k,cr=230,air=560,ld=240,a0=cr,a1=cr+air,B=TR.prop;
+        let hop=0,sq=1,flip=0,tilt=0,gap=0;
+        if(e<a0)sq=1-.09*Math.sin(Math.PI*e/a0)*RM;
+        else if(e<a1){const u=(e-a0)/air,v=clamp((u-.12)/.62,0,1),ev=v*v*(3-2*v);hop=Math.sin(Math.PI*u)*L*.42*RM;gap=Math.sin(Math.PI*v)*L*.06;
+          if(TR.trick==='kickflip'||TR.trick==='shuvit')flip=ev*Math.PI*2;else if(TR.trick==='ollie')tilt=-Math.sin(Math.PI*Math.min(1,u*1.6))*16;}
+        else if(e<a1+ld)sq=1-.11*Math.sin(Math.PI*(e-a1)/ld)*RM;
+        const bw=L*TR.bw*1.2,bh=bw*B.height/B.width,cx=L*TR.cx,foot=L*TR.foot,lift=bh*.72;
+        ctx.save();ctx.translate(cx,foot-bh/2-hop+gap);ctx.rotate(tilt*Math.PI/180);
+        if(TR.trick==='kickflip')ctx.scale(1,Math.cos(flip)||.001);else if(TR.trick==='shuvit')ctx.scale(Math.cos(flip)||.001,1);
+        ctx.drawImage(B,-bw/2,-bh/2,bw,bh);ctx.restore();
+        ctx.save();ctx.translate(cx,foot-lift-hop);ctx.scale(1+(1-sq)*.6,sq);ctx.translate(-cx,-foot);ctx.drawImage(posed,ox,oy);ctx.restore()}
+      else if(SQ){const n=SQ.frames.length,k=SQ.pace||1,D=SQ.once?[520*k,...Array(n-2).fill(340*k),1e9]:Array(n).fill(380*k),cyc=D.reduce((a,b)=>a+b,0);
         let e=pnow-this._pnT0;if(!SQ.once)e%=cyc;let i=0,t0=0;while(i<n-1&&e>=t0+D[i]){t0+=D[i];i++}
         // one smooth arc across the run of airborne frames
         let hop=0,a0=-1,a1=-1,acc=0;for(let j=0;j<n;j++){if(SQ.air[j]){if(a0<0)a0=acc;a1=acc+Math.min(D[j],600*k)}acc+=D[j]}
@@ -871,6 +885,10 @@ function refineFace(frames,face,names){
 // Some environments (like the iOS simulator) can't decode WebP; the mobile core sets PIP_IMAGE_FORMAT='png' there
 function blankFrame(fr){const b=fr.bbox,c=fr.canvas.getContext('2d',{willReadFrequently:true}),y=Math.round(b.y+b.h*.5),d=c.getImageData(Math.round(b.x),y,Math.max(1,Math.round(b.w)),1).data;for(let i=3;i<d.length;i+=4)if(d[i]>10)return false;return true}
 function imgURL(u){const f=typeof window!=='undefined'&&window.PIP_IMAGE_FORMAT;return f&&/\/api\/mascot\?/.test(u)?u+'&fmt='+f:u}
+// where the mascot stands in its frame, as fractions, so a board can go under its feet
+function trickBox(data){const m=data&&data.atlasMeta,b=m&&m.boxes&&m.boxes[0];return b?{cx:(b.x+b.w/2)/m.size,foot:(b.y+b.h)/m.size,bw:b.w/m.size}:{}}
+// the board picture, cut down to just the board
+function propCanvas(img){const k=keyOut(img),b=k.bbox,c=canvasOf(Math.max(1,Math.round(b.w)),Math.max(1,Math.round(b.h)));c.getContext('2d').drawImage(k.canvas,b.x,b.y,b.w,b.h,0,0,c.width,c.height);return c}
 function loadPoses(rig,data){if(!Array.isArray(data.poses)||!rig.base)return;
   if(!data.only)rig.poseRoles=Object.fromEntries(data.poses.filter(p=>p&&p.role&&p.name).map(p=>[p.role,p.name]));
   if(!data.poses.length)return;
@@ -878,7 +896,7 @@ function loadPoses(rig,data){if(!Array.isArray(data.poses)||!rig.base)return;
   const fs=data.atlasMeta&&data.atlasMeta.size;
   rig._posePending=rig._posePending||{};
   const toCanvas=img=>{const L=rig.base.canvas.width,iw=img.naturalWidth||img.width,R=fs?Math.max(1,iw/fs):1,c=canvasOf(Math.round(L*R),Math.round(L*R));c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c};
-  for(const p of data.poses.slice(0,40))if(p&&p.name&&p.image)rig._posePending[p.name]=Promise.all([loadImg(imgURL(p.image)),p.image2?loadImg(imgURL(p.image2)).catch(()=>null):null,...(Array.isArray(p.frames)?p.frames.slice(2,4).map(u=>loadImg(imgURL(u)).catch(()=>null)):[])]).then(([img,img2,...more])=>{rig.addPose(p.name,toCanvas(img),img2?toCanvas(img2):null,{more:more.filter(Boolean).map(toCanvas),once:!!p.once,air:p.air||[],pace:p.pace})}).catch(()=>{}).finally(()=>{delete rig._posePending[p.name]})}
+  for(const p of data.poses.slice(0,40))if(p&&p.name&&p.image)rig._posePending[p.name]=Promise.all([loadImg(imgURL(p.image)),p.image2?loadImg(imgURL(p.image2)).catch(()=>null):null,p.prop?loadImg(imgURL(p.prop)).catch(()=>null):null,...(Array.isArray(p.frames)?p.frames.slice(2,4).map(u=>loadImg(imgURL(u)).catch(()=>null)):[])]).then(([img,img2,prop,...more])=>{rig.addPose(p.name,toCanvas(img),img2?toCanvas(img2):null,{more:more.filter(Boolean).map(toCanvas),once:!!p.once,air:p.air||[],pace:p.pace,...(prop&&p.trick?{trick:p.trick,prop:propCanvas(prop),...trickBox(data)}:{})})}).catch(()=>{}).finally(()=>{delete rig._posePending[p.name]})}
 async function mountMascot(rig,data){const r=await mountMascot0(rig,data);loadPoses(rig,data);return r}
 async function mountMascot0(rig,data){
   if(data.atlas&&data.atlasMeta&&data.atlasFace&&data.mode!=='simple'){
@@ -949,7 +967,7 @@ function poseFrame2(kA,kB,frameA){const g=frameA.geo,al=alignTo(kA,kB),c=canvasO
 // Frames 3-4 (and 2) of a short move: the pose changes a lot, so line them up by the bottom centre at frame A's scale instead.
 function poseFrameSeq(kA,kB,frameA){const g=frameA.geo,a=kA.bbox,b=kB.bbox,c=canvasOf(g.S,g.S),x=c.getContext('2d');x.imageSmoothingQuality='high';
   const dx=g.ox+((a.x+a.w/2)-(b.x+b.w/2))*g.s,dy=g.oy+((a.y+a.h)-(b.y+b.h))*g.s;x.drawImage(kB.canvas,dx,dy,kB.canvas.width*g.s,kB.canvas.height*g.s);return c}
-return {poseFrame,poseFrame2,poseFrameSeq,loadPoses,reachSide,matchScale,encodeAtlas,buildAtlas,framesFromAtlas,attachFrames,refineFace,mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
+return {poseFrame,poseFrame2,poseFrameSeq,propCanvas,trickBox,loadPoses,reachSide,matchScale,encodeAtlas,buildAtlas,framesFromAtlas,attachFrames,refineFace,mountMascot,PaintRig,keyOut,splitSheet,alignFrames,raisedSide,faceFrom,simpleInfo,loadImg,canvasOf,b64ToDataUrl,canvasB64,SHEET_NAMES,Spring};
 }
 
 var paintedEngine=PipPaintedEngine();

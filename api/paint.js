@@ -146,6 +146,10 @@ Layout: ${MOVE_LAYOUT(frames.length).text}. Leave plenty of empty space around t
 ${frames.map((f, i) => `Panel ${i + 1}: ${f}.`).join('\n')}
 Each panel is a clearly different moment, so the action reads when the panels play in order. Any prop (a skateboard, a ball) is the exact same object in every panel, and its own motion is clearly visible (a board doing a flip is visibly rotated differently in each panel).
 ${transparent ? 'Transparent background.' : 'Plain flat light grey background, the same colour everywhere.'} No text, no numbers, no panel borders or dividing lines, no motion lines, no ground shadow.`;
+// Board tricks: the board is painted on its own, and the trick itself is done in code.
+const PROP_PROMPT = (prop, transparent) => `The image shows a cartoon mascot character. Paint ONLY a ${prop} that belongs to this character, in exactly the same art style, colours, materials and rendering.
+Show the ${prop} alone, seen exactly from the side, perfectly horizontal, wheels or underside at the bottom, filling about 80% of the width, centred.
+No character, no feet, no hands, no text, no shadow, no motion lines. ${transparent ? 'Transparent background.' : 'Plain flat light grey background, the same colour everywhere.'}`;
 async function poseReference(id) {
   const meta = await readJson(`mascots/${id}/data.json`);
   if (!meta) return null;
@@ -302,6 +306,43 @@ export default async function handler(req, res) {
       }
       if (miss) { res.status(422).json({ error: 'It didn’t come out looking like your mascot, so we didn’t keep it and your credits weren’t used. Try describing the move a different way.', offModel: true }); return; }
       res.status((last && last.status) || 500).json({ error: (last && last.msg) || 'Painting failed. Your credits weren’t used.' }); return;
+    } catch (e) { res.status(500).json({ error: String((e && e.message) || e) }); return; }
+  }
+
+  if (b.step === 'prop') {
+    if (who.rec && !(who.rec.credits >= 1)) { res.status(402).json({ error: 'Painting the board uses 1 credit and you’re out.', credits: 0 }); return; }
+    const id = String(b.id || ''), prop = String(b.prop || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 40);
+    if (!/^[a-z0-9]{6,24}$/.test(id)) { res.status(400).json({ error: 'Unknown mascot.' }); return; }
+    if (prop.length < 3) { res.status(400).json({ error: 'Say what it rides, like skateboard.' }); return; }
+    if (!who.owner && !(who.rec.mascots || []).some(m => m.id === id)) { res.status(403).json({ error: 'This mascot was saved with a different key.' }); return; }
+    try {
+      const block = await moderate({ key, desc: prop, photo: null, visionModels: VISION_MODELS() });
+      if (block) { res.status(422).json({ error: block.message, blocked: block.reason }); return; }
+      const stop = await guard(who, 'pose');
+      if (stop) { res.status(429).json({ error: stop }); return; }
+      const ref = await poseReference(id);
+      if (!ref) { res.status(404).json({ error: 'Mascot not found.' }); return; }
+      if (!ref.png) { res.status(409).json({ error: 'Open this mascot on the paint page and save it again first, so its poses are prepared.' }); return; }
+      let last = null;
+      for (const model of IMAGE_MODELS()) {
+        let noTransparent = false, next = false;
+        for (const transparent of [true, false]) {
+          if (transparent && noTransparent) continue;
+          const fd = new FormData();
+          fd.append('model', model); fd.append('prompt', PROP_PROMPT(prop, transparent));
+          fd.append('image', new Blob([ref.png], { type: 'image/png' }), 'mascot.png');
+          fd.append('size', '1536x1024'); fd.append('quality', 'medium'); fd.append('output_format', 'png'); fd.append('n', '1');
+          if (transparent) fd.append('background', 'transparent');
+          const r = await call(`${API}/images/edits`, { method: 'POST', headers: auth, body: fd });
+          if (r.ok && r.json && r.json.data && r.json.data[0]) { await counted(who, 'pose'); const credits = await spend(who, 1).catch(() => null); res.json({ image: r.json.data[0].b64_json, mime: 'image/png', model, credits }); return; }
+          last = r;
+          if (/background|transparen/i.test(r.msg || '')) { noTransparent = true; continue; }
+          if (tryNext(r.status, r.msg)) { next = true; break; }
+          res.status(r.status || 500).json({ error: r.msg || 'Painting failed. Your credit wasn’t used.' }); return;
+        }
+        if (!next) break;
+      }
+      res.status((last && last.status) || 500).json({ error: (last && last.msg) || 'Painting failed. Your credit wasn’t used.' }); return;
     } catch (e) { res.status(500).json({ error: String((e && e.message) || e) }); return; }
   }
 

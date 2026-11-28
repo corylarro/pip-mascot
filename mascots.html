@@ -200,12 +200,29 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
             <div class="row"><button class="btn" type="submit" id="posePaint">Paint it · 1 credit</button></div>
             <p class="hint" style="margin-top:0">Painting takes about a minute. If it can’t be painted, you keep your credit.</p>
           </form>
-          <form class="poseform" id="moveForm">
+          <form class="poseform" id="moveForm" hidden>
             <label for="moveDesc">Or paint a short move <span class="tag">up to 4 frames</span></label>
             <input id="moveDesc" maxlength="160" placeholder="does a kickflip on a skateboard" required>
             <div class="row"><button class="ghost" type="submit" id="movePlan">Plan the frames · free</button></div>
             <p class="hint" style="margin-top:0">We plan the frames first, for free. Painting the move uses 2 credits.</p>
           </form>
+          <form class="poseform" id="trickForm">
+            <label for="trickRide">Or do a board trick <span class="tag">beta</span></label>
+            <div class="row"><select id="trickPick" aria-label="Trick"><option value="kickflip">Kickflip</option><option value="ollie">Ollie</option><option value="shuvit">Shove-it</option><option value="hop">Hop</option></select>
+              <input id="trickRide" maxlength="40" value="skateboard" aria-label="What it rides" style="flex:1;min-width:0"></div>
+            <div class="row"><button class="ghost" type="submit" id="trickPaint">Paint it · 2 credits</button></div>
+            <p class="hint" style="margin-top:0">We paint your mascot in a riding stance and the board on its own. The trick itself is animated, so it looks the same every time. Switching tricks afterwards is free.</p>
+          </form>
+          <div class="posepreview" id="trickPanel" hidden>
+            <div class="checker"><img id="trickImg" alt="The stance and the board"></div>
+            <div class="pp-side">
+              <label for="trickPick2">Trick <select id="trickPick2"><option value="kickflip">Kickflip</option><option value="ollie">Ollie</option><option value="shuvit">Shove-it</option><option value="hop">Hop</option></select></label>
+              <label for="trickPace">Speed <select id="trickPace"><option value="1.5">Slow</option><option value="1" selected>Normal</option><option value="0.75">Fast</option></select></label>
+              <label for="trickName">Name <input id="trickName" maxlength="24" pattern="[a-z0-9-]{1,24}"></label>
+              <div class="row"><button class="btn" type="button" id="trickKeep">Keep it</button><button class="ghost" type="button" id="trickShow">Play it</button></div>
+              <div class="row"><button class="ghost" type="button" id="trickAgain">Repaint · 2 credits</button><button class="ghost" type="button" id="trickDrop">Discard</button></div>
+            </div>
+          </div>
           <div class="posepreview movepanel" id="movePanel" hidden>
             <div class="checker"><img id="moveImg" alt="The move, frame by frame" hidden></div>
             <div class="pp-side">
@@ -513,7 +530,7 @@ async function loadPoses() {
   mm.innerHTML = list.map(p => `<li><b>${esc(p.name)}</b><span>${esc(p.desc || 'Your custom pose')}</span><button type="button" data-pp="${esc(p.name)}">Preview</button><code>${esc(plat === 'ios' ? `Critter.play([["do": "pose", "name": "${p.name}"]])` : `pip.pose('${p.name}')`)}</code></li>`).join('');
   mm.querySelectorAll('[data-pp]').forEach(b => b.addEventListener('click', () => { pip && pip.pose && pip.pose(b.dataset.pp, 3000); toStage(); }));
   $('rPose').innerHTML = list.length ? list.map(p => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('') : '<option value="">Paint a pose first</option>';
-  $('poseList').innerHTML = list.map(p => `<li><img src="${esc(p.image)}" alt="${esc(p.desc || p.name)}" loading="lazy"><b>${esc(p.name)}</b>${canEdit ? `<select class="role" data-role="${esc(p.name)}" aria-label="Use this pose">${ROLE_OPTS.map(([v, t]) => `<option value="${v}"${(p.role || '') === v ? ' selected' : ''}>${t}</option>`).join('')}</select>` : (p.role ? `<span class="hint" style="margin:0">${esc(ROLE_TXT[p.role] || '')}</span>` : '')}<code style="font-size:.75rem;word-break:break-all">${esc(poseCode(p.name))}</code><div class="row"><button type="button" data-play="${esc(p.name)}">Play</button>${canEdit && !p.image2 ? `<button type="button" data-anim="${esc(p.name)}">Animate</button>` : ''}${p.frames ? `<span class="tag">${p.frames.length}-frame move</span>` : p.image2 ? '<span class="tag">animated</span>' : ''}${canEdit ? `<button type="button" data-rm="${esc(p.name)}">Remove</button>` : ''}</div></li>`).join('');
+  $('poseList').innerHTML = list.map(p => `<li><img src="${esc(p.image)}" alt="${esc(p.desc || p.name)}" loading="lazy"><b>${esc(p.name)}</b>${canEdit ? `<select class="role" data-role="${esc(p.name)}" aria-label="Use this pose">${ROLE_OPTS.map(([v, t]) => `<option value="${v}"${(p.role || '') === v ? ' selected' : ''}>${t}</option>`).join('')}</select>` : (p.role ? `<span class="hint" style="margin:0">${esc(ROLE_TXT[p.role] || '')}</span>` : '')}<code style="font-size:.75rem;word-break:break-all">${esc(poseCode(p.name))}</code><div class="row"><button type="button" data-play="${esc(p.name)}">Play</button>${canEdit && !p.image2 && !p.trick ? `<button type="button" data-anim="${esc(p.name)}">Animate</button>` : ''}${p.trick ? `<span class="tag">${esc(p.trick)}</span>` : p.frames ? `<span class="tag">${p.frames.length}-frame move</span>` : p.image2 ? '<span class="tag">animated</span>' : ''}${canEdit ? `<button type="button" data-rm="${esc(p.name)}">Remove</button>` : ''}</div></li>`).join('');
   $('poseList').querySelectorAll('[data-play]').forEach(b => b.addEventListener('click', () => { pip && pip.pose && pip.pose(b.dataset.play, 3000); toStage(); }));
   $('poseList').querySelectorAll('[data-role]').forEach(sel => sel.addEventListener('change', async () => {
     const name = sel.dataset.role, role = sel.value || null; sel.disabled = true; $('poseErr').textContent = '';
@@ -668,6 +685,61 @@ $('moveKeep').addEventListener('click', async () => {
     freshP = fresh(); await loadPoses(); pip && pip.pose && pip.pose(name, 3000);
   } catch (e) { $('poseErr').textContent = e.message; }
   finally { mvBusy(false); }
+});
+// Board tricks: paint the stance and the board, the trick itself is code
+let tk = null;   // { ride, frame, prop, propB64 }
+const tkOpts = () => ({ trick: $('trickPick2').value, prop: tk.prop, pace: Number($('trickPace').value) || 1, ...PE.trickBox(data) });
+function tkPlay() {
+  const rig = pip && pip._m && pip._m.rig; if (!rig || !tk || !data) return;
+  const L = rig.base.canvas.width, R = tk.frame.width / data.atlasMeta.size, k = document.createElement('canvas'); k.width = k.height = Math.round(L * R); k.getContext('2d').drawImage(tk.frame, 0, 0, k.width, k.height);
+  rig.addPose('__trick', k, null, tkOpts()); pip.pose('__trick', 2600 * (Number($('trickPace').value) || 1)); toStage();
+}
+function tkThumb() {   // the preview box: the stance standing on the board
+  const f = tk.frame, b = tk.prop, c = document.createElement('canvas'); c.width = f.width; c.height = f.height; const x = c.getContext('2d'), tb = PE.trickBox(data), S = data.atlasMeta.size, off = (f.width - S) / 2, top = f.height - S;
+  const bw = S * tb.bw * 1.2, bh = bw * b.height / b.width, cx = off + S * tb.cx, foot = top + S * tb.foot;
+  x.drawImage(b, cx - bw / 2, foot - bh, bw, bh); x.drawImage(f, 0, -bh * .72); $('trickImg').src = c.toDataURL('image/png');
+}
+async function tkPaint() {
+  const ride = $('trickRide').value.trim() || 'skateboard'; $('poseErr').textContent = '';
+  const d = data || await freshP;
+  if (!d || !d.atlasMeta) { $('poseErr').textContent = 'Open this mascot on the paint page and save it again first, so its poses are prepared.'; return; }
+  const btns = [$('trickPaint'), $('trickAgain'), $('trickKeep')], was = $('trickPaint').textContent; btns.forEach(b => { b.disabled = true; }); $('trickPaint').textContent = 'Painting… about a minute';
+  if (pip && pip.setState) pip.setState('thinking');
+  const post = body => fetch('/api/paint', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-pip-pass': key }, body: JSON.stringify(body) }).then(async r => ({ ok: r.ok, j: await r.json().catch(() => ({})) }));
+  try {
+    const [a, b] = await Promise.all([
+      post({ step: 'pose', id: cur.id, desc: `standing side-on in a ${ride} riding stance: feet apart, knees bent, arms out for balance, as if standing on a ${ride}, but with no ${ride} and nothing under the feet` }),
+      post({ step: 'prop', id: cur.id, prop: ride })]);
+    credText(b.j.credits != null ? b.j : a.j);
+    if (!a.ok || !a.j.image) throw new Error(a.j.error || 'The stance didn’t come through.' + (b.ok ? ' The board did, so 1 credit was used.' : ' Your credits weren’t used.'));
+    if (!b.ok || !b.j.image) throw new Error(b.j.error || 'The board didn’t come through. The stance did, so 1 credit was used.');
+    const k = PE.keyOut(await loadImgEl(`data:image/png;base64,${a.j.image}`)), m = d.atlasMeta;
+    tk = { ride, frame: PE.poseFrame(k, m.size, m.boxes[0], 1, Array.isArray(a.j.body) ? a.j.body : null), prop: PE.propCanvas(await loadImgEl(`data:image/png;base64,${b.j.image}`)) };
+    $('trickPick2').value = $('trickPick').value; $('trickName').value = slug(`${$('trickPick').value} ${ride}`);
+    tkThumb(); $('trickPanel').hidden = false; tkPlay();
+  } catch (e) { $('poseErr').textContent = e.message; }
+  finally { btns.forEach(b => { b.disabled = false; }); $('trickPaint').textContent = was; if (pip && pip.setState) pip.setState('idle'); }
+}
+$('trickForm').addEventListener('submit', e => { e.preventDefault(); tkPaint(); });
+$('trickAgain').addEventListener('click', tkPaint);
+$('trickShow').addEventListener('click', tkPlay);
+$('trickPick2').addEventListener('change', tkPlay);
+$('trickPace').addEventListener('change', tkPlay);
+$('trickDrop').addEventListener('click', () => { tk = null; $('trickPanel').hidden = true; });
+$('trickKeep').addEventListener('click', async () => {
+  if (!tk) return; const name = $('trickName').value.trim().toLowerCase();
+  if (!/^[a-z0-9-]{1,24}$/.test(name)) { $('poseErr').textContent = 'Name it with lowercase letters, numbers and dashes, like kickflip.'; return; }
+  $('trickKeep').disabled = true; $('poseErr').textContent = '';
+  try {
+    const enc = async cv => { let bl = await new Promise(r => cv.toBlob(r, 'image/webp', .9)); if (!bl || bl.type !== 'image/webp') bl = await new Promise(r => cv.toBlob(r, 'image/png')); return { b64: await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(',')[1]); fr.readAsDataURL(bl); }), mime: bl.type }; };
+    const f = await enc(tk.frame), pr = await enc(tk.prop);
+    const r = await fetch(`/api/mascot?id=${cur.id}&pose=1`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-pip-pass': key }, body: JSON.stringify({ name, image: f.b64, mime: f.mime, prop: { image: pr.b64, mime: pr.mime }, trick: $('trickPick2').value, pace: Number($('trickPace').value) || 1, desc: `${$('trickPick2').options[$('trickPick2').selectedIndex].text} on a ${tk.ride}` }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'Couldn’t save it. Try again.');
+    const rig = pip && pip._m && pip._m.rig; if (rig && rig.poses && rig.poses.__trick) rig.addPose(name, rig.poses.__trick, null, tkOpts());
+    tk = null; $('trickPanel').hidden = true; freshP = fresh(); await loadPoses(); pip && pip.pose && pip.pose(name, 2600);
+  } catch (e) { $('poseErr').textContent = e.message; }
+  finally { $('trickKeep').disabled = false; }
 });
 // a second tap confirms, instead of a browser dialog
 function confirmRemove(b) { if (b.dataset.sure) return true; b.dataset.sure = '1'; b.textContent = 'Tap again to remove'; setTimeout(() => { delete b.dataset.sure; b.textContent = 'Remove'; }, 3000); return false; }
