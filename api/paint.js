@@ -120,6 +120,36 @@ const FRAME2_PROMPT = (change, transparent) => `Repaint this exact image as the 
 Keep EVERYTHING identical: the same character, the same framing, size and position in the image, the same colours, lighting, style and every detail.
 Change only this, and only a little: ${change}.
 ${transparent ? 'Transparent background.' : 'Plain flat light grey background, the same colour everywhere.'} No text, no border, no ground shadow.`;
+// Frames 2-4 of a short move: the same character in the next moment of the action.
+const SEQ_PROMPT = (desc, moment, i, n, transparent) => `Repaint this exact character as frame ${i} of ${n} of a short animation: ${desc}.
+In this frame: ${moment}.
+Keep EVERYTHING else identical: the same character, colours, proportions, face, materials, art style and the same props. Keep it the same size in the image and keep its lowest point at the same height in the image even if it jumps (the animation adds the jump). Only the pose changes.
+${transparent ? 'Transparent background.' : 'Plain flat light grey background, the same colour everywhere.'} No text, no border, no ground shadow, no motion lines.`;
+// Turns "does a kickflip" into 1-4 frame moments. Text only, so it's free for the user.
+const PLAN_PROMPT = desc => `You plan a very short animation of an app's cartoon mascot. It is painted as 2 to 4 still frames.
+The request: "${desc}"
+Reply with JSON only: {"name":"kebab-case-name","frames":["...","..."],"once":true,"air":[false,true]}
+Rules:
+- Use the fewest frames that read clearly. Small repeating motions (waving, bobbing, wagging, nodding, blinking, typing) get 2 frames and once:false (they loop).
+- Actions with a start and an end (jumps, tricks, throws, spins, landing, catching, popping out) get 3 or 4 frames and once:true (play once, hold the last frame).
+- Each frame is under 14 words and describes the character's exact pose in that moment, and any prop it holds, wears or rides. Frame 1 names every prop so later frames match.
+- air[i] is true only when the character is off the ground in that frame. Same length as frames.
+- Never change who the character is. Never add other characters.`;
+// A whole short move painted at once, as panels in one image, so every frame matches.
+const MOVE_COST = 2;
+const MOVE_LAYOUT = n => n === 4 ? { cols: 2, rows: 2, size: '1024x1024', text: 'a 2 by 2 grid of 4 equal panels, read left to right then top to bottom' }
+  : { cols: n, rows: 1, size: '1536x1024', text: `${n} equal panels side by side, read left to right` };
+const MOVE_PROMPT = (desc, frames, transparent) => `The image shows a cartoon mascot character. Paint an animation strip of this SAME character: identical design, colours, proportions, face, materials and art style in every panel.
+Do not add any hat, clothing or accessory the character isn't already wearing, unless the action below needs it.
+The action: ${desc}.
+Layout: ${MOVE_LAYOUT(frames.length).text}. Leave plenty of empty space around the character in each panel so nothing touches or crosses a panel edge. The character is the same size in every panel, whole body visible.
+${frames.map((f, i) => `Panel ${i + 1}: ${f}.`).join('\n')}
+Each panel is a clearly different moment, so the action reads when the panels play in order. Any prop (a skateboard, a ball) is the exact same object in every panel, and its own motion is clearly visible (a board doing a flip is visibly rotated differently in each panel).
+${transparent ? 'Transparent background.' : 'Plain flat light grey background, the same colour everywhere.'} No text, no numbers, no panel borders or dividing lines, no motion lines, no ground shadow.`;
+// Board tricks: the board is painted on its own, and the trick itself is done in code.
+const PROP_PROMPT = (prop, transparent) => `The image shows a cartoon mascot character. Paint ONLY a ${prop} that belongs to this character, in exactly the same art style, colours, materials and rendering.
+Show the ${prop} alone, seen exactly from the side, perfectly horizontal, wheels or underside at the bottom, filling about 80% of the width, centred.
+No character, no feet, no hands, no text, no shadow, no motion lines. ${transparent ? 'Transparent background.' : 'Plain flat light grey background, the same colour everywhere.'}`;
 async function poseReference(id) {
   const meta = await readJson(`mascots/${id}/data.json`);
   if (!meta) return null;
@@ -194,9 +224,132 @@ export default async function handler(req, res) {
     } catch (e) { res.status(500).json({ error: String((e && e.message) || e) }); return; }
   }
 
+  if (b.step === 'plan') {
+    const desc = String(b.desc || '').trim().slice(0, 160);
+    if (desc.length < 3) { res.status(400).json({ error: 'Describe the move first.' }); return; }
+    try {
+      const stop = await guard(who, 'pose');
+      if (stop) { res.status(429).json({ error: stop }); return; }
+      // planning is free for buyers, so it gets its own daily limit
+      const planPath = who.key ? `usage/plan-${keyTag(who.key)}-${today()}.json` : null, plans = planPath ? ((await readJson(planPath).catch(() => null)) || { n: 0 }) : null;
+      if (plans && plans.n >= (Number(process.env.PLAN_DAILY) || 30)) { res.status(429).json({ error: 'That’s a lot of planning for one day. Paint one of your plans, or try again tomorrow.' }); return; }
+      if (plans) { plans.n++; await writeJson(planPath, plans).catch(() => {}); }
+      const block = await moderate({ key, desc, photo: null, visionModels: VISION_MODELS() });
+      if (block) { res.status(422).json({ error: block.message, blocked: block.reason }); return; }
+      for (const model of VISION_MODELS()) {
+        const r = await call(`${API}/responses`, { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model, ...(/^gpt-5/.test(model) ? { reasoning: { effort: 'minimal' } } : {}), input: PLAN_PROMPT(desc) }) });
+        if (!r.ok) { if (tryNext(r.status, r.msg)) continue; break; }
+        const j = parseJson(extractText(r.json));
+        const clean = t => String(t || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 110);
+        const frames = j && Array.isArray(j.frames) ? j.frames.map(clean).filter(f => f.length > 2).slice(0, 4) : [];
+        if (frames.length < 2) break;
+        const air = frames.map((_, i) => !!(Array.isArray(j.air) && j.air[i]));
+        const name = String(j.name || '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24);
+        res.json({ frames, once: frames.length > 2 ? j.once !== false : !!j.once, air, name }); return;
+      }
+      // the planner couldn't run: fall back to a simple two-frame loop
+      res.json({ frames: [desc, `${desc}, the next moment of the motion`], once: false, air: [false, false], name: '', fallback: true }); return;
+    } catch (e) { res.status(500).json({ error: String((e && e.message) || e) }); return; }
+  }
+
+  if (b.step === 'move') {
+    if (who.rec && !(who.rec.credits >= MOVE_COST)) { res.status(402).json({ error: `A short move uses ${MOVE_COST} credits and you have ${who.rec.credits || 0}.`, credits: who.rec.credits || 0 }); return; }
+    const id = String(b.id || ''), desc = String(b.desc || '').trim().slice(0, 160);
+    const frames = (Array.isArray(b.frames) ? b.frames : []).map(f => String(f || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 110)).filter(f => f.length > 2).slice(0, 4);
+    if (!/^[a-z0-9]{6,24}$/.test(id)) { res.status(400).json({ error: 'Unknown mascot.' }); return; }
+    if (desc.length < 3 || frames.length < 2) { res.status(400).json({ error: 'Describe the move and give it at least 2 frames.' }); return; }
+    if (!who.owner && !(who.rec.mascots || []).some(m => m.id === id)) { res.status(403).json({ error: 'This mascot was saved with a different key.' }); return; }
+    try {
+      const block = await moderate({ key, desc: `${desc}. ${frames.join('. ')}`, photo: null, visionModels: VISION_MODELS() });
+      if (block) { res.status(422).json({ error: block.message, blocked: block.reason }); return; }
+      const stop = await guard(who, 'pose');
+      if (stop) { res.status(429).json({ error: stop }); return; }
+      const ref = await poseReference(id);
+      if (!ref) { res.status(404).json({ error: 'Mascot not found.' }); return; }
+      if (!ref.png) { res.status(409).json({ error: 'Open this mascot on the paint page and save it again first, so its poses are prepared.' }); return; }
+      const L = MOVE_LAYOUT(frames.length), sharp = (await import('sharp')).default;
+      let last = null, miss = null;
+      const paintOnce = async () => {
+        for (const model of IMAGE_MODELS()) {
+          let noTransparent = false, noHiFi = false;
+          for (const [transparent, hiFi] of [[true, true], [true, false], [false, true], [false, false]]) {
+            if ((transparent && noTransparent) || (hiFi && noHiFi)) continue;
+            const fd = new FormData();
+            fd.append('model', model); fd.append('prompt', MOVE_PROMPT(desc, frames, transparent));
+            fd.append('image', new Blob([ref.png], { type: 'image/png' }), 'mascot.png');
+            fd.append('size', L.size); fd.append('quality', 'medium'); fd.append('output_format', 'png'); fd.append('n', '1');
+            if (transparent) fd.append('background', 'transparent');
+            if (hiFi) fd.append('input_fidelity', 'high');
+            const r = await call(`${API}/images/edits`, { method: 'POST', headers: auth, body: fd });
+            if (r.ok && r.json && r.json.data && r.json.data[0]) { await counted(who, 'pose'); return { image: r.json.data[0].b64_json, model }; }
+            last = r;
+            if (/fidelity/i.test(r.msg || '')) { noHiFi = true; continue; }
+            if (/background|transparen/i.test(r.msg || '')) { noTransparent = true; continue; }
+            if (tryNext(r.status, r.msg)) break;
+            return null;
+          }
+        }
+        return null;
+      };
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (attempt && await guard(who, 'pose')) break;
+        const out = await paintOnce();
+        if (!out) break;
+        // cut the sheet into its panels
+        const sheet = sharp(Buffer.from(out.image, 'base64')), meta = await sheet.metadata(), cw = Math.floor(meta.width / L.cols), ch = Math.floor(meta.height / L.rows);
+        const panels = [];
+        for (let i = 0; i < frames.length; i++) panels.push((await sharp(Buffer.from(out.image, 'base64')).extract({ left: (i % L.cols) * cw, top: Math.floor(i / L.cols) * ch, width: cw, height: ch }).png().toBuffer()).toString('base64'));
+        const same = await looksSame(key, ref.png, panels[0]);
+        if (same.ok) { const credits = await spend(who, MOVE_COST).catch(() => null); res.json({ images: panels, mime: 'image/png', model: out.model, credits, body: same.body || null }); return; }
+        miss = same; console.log('move off-model', attempt, same.score, same.why);
+      }
+      if (miss) { res.status(422).json({ error: 'It didn’t come out looking like your mascot, so we didn’t keep it and your credits weren’t used. Try describing the move a different way.', offModel: true }); return; }
+      res.status((last && last.status) || 500).json({ error: (last && last.msg) || 'Painting failed. Your credits weren’t used.' }); return;
+    } catch (e) { res.status(500).json({ error: String((e && e.message) || e) }); return; }
+  }
+
+  if (b.step === 'prop') {
+    if (who.rec && !(who.rec.credits >= 1)) { res.status(402).json({ error: 'Painting the board uses 1 credit and you’re out.', credits: 0 }); return; }
+    const id = String(b.id || ''), prop = String(b.prop || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 40);
+    if (!/^[a-z0-9]{6,24}$/.test(id)) { res.status(400).json({ error: 'Unknown mascot.' }); return; }
+    if (prop.length < 3) { res.status(400).json({ error: 'Say what it rides, like skateboard.' }); return; }
+    if (!who.owner && !(who.rec.mascots || []).some(m => m.id === id)) { res.status(403).json({ error: 'This mascot was saved with a different key.' }); return; }
+    try {
+      const block = await moderate({ key, desc: prop, photo: null, visionModels: VISION_MODELS() });
+      if (block) { res.status(422).json({ error: block.message, blocked: block.reason }); return; }
+      const stop = await guard(who, 'pose');
+      if (stop) { res.status(429).json({ error: stop }); return; }
+      const ref = await poseReference(id);
+      if (!ref) { res.status(404).json({ error: 'Mascot not found.' }); return; }
+      if (!ref.png) { res.status(409).json({ error: 'Open this mascot on the paint page and save it again first, so its poses are prepared.' }); return; }
+      let last = null;
+      for (const model of IMAGE_MODELS()) {
+        let noTransparent = false, next = false;
+        for (const transparent of [true, false]) {
+          if (transparent && noTransparent) continue;
+          const fd = new FormData();
+          fd.append('model', model); fd.append('prompt', PROP_PROMPT(prop, transparent));
+          fd.append('image', new Blob([ref.png], { type: 'image/png' }), 'mascot.png');
+          fd.append('size', '1536x1024'); fd.append('quality', 'medium'); fd.append('output_format', 'png'); fd.append('n', '1');
+          if (transparent) fd.append('background', 'transparent');
+          const r = await call(`${API}/images/edits`, { method: 'POST', headers: auth, body: fd });
+          if (r.ok && r.json && r.json.data && r.json.data[0]) { await counted(who, 'pose'); const credits = await spend(who, 1).catch(() => null); res.json({ image: r.json.data[0].b64_json, mime: 'image/png', model, credits }); return; }
+          last = r;
+          if (/background|transparen/i.test(r.msg || '')) { noTransparent = true; continue; }
+          if (tryNext(r.status, r.msg)) { next = true; break; }
+          res.status(r.status || 500).json({ error: r.msg || 'Painting failed. Your credit wasn’t used.' }); return;
+        }
+        if (!next) break;
+      }
+      res.status((last && last.status) || 500).json({ error: (last && last.msg) || 'Painting failed. Your credit wasn’t used.' }); return;
+    } catch (e) { res.status(500).json({ error: String((e && e.message) || e) }); return; }
+  }
+
   if (b.step === 'pose2') {
     if (who.rec && !(who.rec.credits >= 1)) { res.status(402).json({ error: 'Animating a pose uses 1 credit and you’re out.', credits: 0 }); return; }
     const id = String(b.id || ''), change = String(b.change || '').trim().slice(0, 160);
+    const seq = b.seq && typeof b.seq === 'object' ? { desc: String(b.seq.desc || '').trim().slice(0, 160), i: Math.max(2, Math.min(4, Number(b.seq.i) || 2)), n: Math.max(2, Math.min(4, Number(b.seq.n) || 2)) } : null;
     if (!/^[a-z0-9]{6,24}$/.test(id)) { res.status(400).json({ error: 'Unknown mascot.' }); return; }
     if (change.length < 3) { res.status(400).json({ error: 'Say what should move.' }); return; }
     if (!b.image || b.image.length > 8e6) { res.status(400).json({ error: 'Paint the pose first.' }); return; }
@@ -204,7 +357,7 @@ export default async function handler(req, res) {
     try {
       const stop = await guard(who, 'pose');
       if (stop) { res.status(429).json({ error: stop }); return; }
-      const block = await moderate({ key, desc: change, photo: null, visionModels: VISION_MODELS() });
+      const block = await moderate({ key, desc: seq && seq.desc ? `${seq.desc}. ${change}` : change, photo: null, visionModels: VISION_MODELS() });
       if (block) { res.status(422).json({ error: block.message, blocked: block.reason }); return; }
       const ref = Buffer.from(b.image, 'base64');
       let last = null;
@@ -213,7 +366,7 @@ export default async function handler(req, res) {
         for (const [transparent, hiFi] of [[true, true], [true, false], [false, true], [false, false]]) {
           if ((transparent && noTransparent) || (hiFi && noHiFi)) continue;
           const fd = new FormData();
-          fd.append('model', model); fd.append('prompt', FRAME2_PROMPT(change, transparent));
+          fd.append('model', model); fd.append('prompt', seq ? SEQ_PROMPT(seq.desc || change, change, seq.i, seq.n, transparent) : FRAME2_PROMPT(change, transparent));
           fd.append('image', new Blob([ref], { type: 'image/png' }), 'frame1.png');
           fd.append('size', '1024x1024'); fd.append('quality', 'medium'); fd.append('output_format', 'png'); fd.append('n', '1');
           if (transparent) fd.append('background', 'transparent');
