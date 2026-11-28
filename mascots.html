@@ -220,7 +220,8 @@ pre{margin:0 0 12px;background:var(--ink);color:#F2F0FF;border-radius:16px;paddi
               <label for="trickPace">Speed <select id="trickPace"><option value="1.5">Slow</option><option value="1" selected>Normal</option><option value="0.75">Fast</option></select></label>
               <label for="trickName">Name <input id="trickName" maxlength="24" pattern="[a-z0-9-]{1,24}"></label>
               <div class="row"><button class="btn" type="button" id="trickKeep">Keep it</button><button class="ghost" type="button" id="trickShow">Play it</button></div>
-              <div class="row"><button class="ghost" type="button" id="trickAgain">Repaint · 2 credits</button><button class="ghost" type="button" id="trickDrop">Discard</button></div>
+              <div class="row"><button class="ghost" type="button" id="trickStance">Repaint the stance · 1 credit</button></div>
+              <div class="row"><button class="ghost" type="button" id="trickAgain">Repaint both · 2 credits</button><button class="ghost" type="button" id="trickDrop">Discard</button></div>
             </div>
           </div>
           <div class="posepreview movepanel" id="movePanel" hidden>
@@ -699,29 +700,30 @@ function tkThumb() {   // the preview box: the stance standing on the board
   const bw = S * tb.bw * 1.2, bh = bw * b.height / b.width, cx = off + S * tb.cx, foot = top + S * tb.foot;
   x.drawImage(b, cx - bw / 2, foot - bh, bw, bh); x.drawImage(f, 0, -bh * .72); $('trickImg').src = c.toDataURL('image/png');
 }
-async function tkPaint() {
-  const ride = $('trickRide').value.trim() || 'skateboard'; $('poseErr').textContent = '';
+async function tkPaint(onlyStance) {
+  const ride = onlyStance && tk ? tk.ride : ($('trickRide').value.trim() || 'skateboard'); $('poseErr').textContent = '';
   const d = data || await freshP;
   if (!d || !d.atlasMeta) { $('poseErr').textContent = 'Open this mascot on the paint page and save it again first, so its poses are prepared.'; return; }
-  const btns = [$('trickPaint'), $('trickAgain'), $('trickKeep')], was = $('trickPaint').textContent; btns.forEach(b => { b.disabled = true; }); $('trickPaint').textContent = 'Painting… about a minute';
+  const btns = [$('trickPaint'), $('trickAgain'), $('trickStance'), $('trickKeep')], was = $('trickPaint').textContent; btns.forEach(b => { b.disabled = true; }); $('trickPaint').textContent = 'Painting… about a minute';
   if (pip && pip.setState) pip.setState('thinking');
   const post = body => fetch('/api/paint', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-pip-pass': key }, body: JSON.stringify(body) }).then(async r => ({ ok: r.ok, j: await r.json().catch(() => ({})) }));
   try {
     const [a, b] = await Promise.all([
-      post({ step: 'pose', id: cur.id, desc: `standing side-on in a ${ride} riding stance: feet apart, knees bent, arms out for balance, as if standing on a ${ride}, but with no ${ride} and nothing under the feet` }),
-      post({ step: 'prop', id: cur.id, prop: ride })]);
+      post({ step: 'pose', id: cur.id, desc: `in a ${ride} riding stance, body turned three-quarters to the side, feet planted wide apart (one foot where each end of a ${ride} would be), toes pointing across the direction of travel, knees bent, hips low, arms out wide for balance. Nothing under the feet: no ${ride}, no ground` }),
+      onlyStance && tk ? Promise.resolve({ ok: true, j: { image: null, keep: true } }) : post({ step: 'prop', id: cur.id, prop: ride })]);
     credText(b.j.credits != null ? b.j : a.j);
     if (!a.ok || !a.j.image) throw new Error(a.j.error || 'The stance didn’t come through.' + (b.ok ? ' The board did, so 1 credit was used.' : ' Your credits weren’t used.'));
-    if (!b.ok || !b.j.image) throw new Error(b.j.error || 'The board didn’t come through. The stance did, so 1 credit was used.');
+    if (!b.ok || !(b.j.image || b.j.keep)) throw new Error(b.j.error || 'The board didn’t come through. The stance did, so 1 credit was used.');
     const k = PE.keyOut(await loadImgEl(`data:image/png;base64,${a.j.image}`)), m = d.atlasMeta;
-    tk = { ride, frame: PE.poseFrame(k, m.size, m.boxes[0], 1, Array.isArray(a.j.body) ? a.j.body : null), prop: PE.propCanvas(await loadImgEl(`data:image/png;base64,${b.j.image}`)) };
-    $('trickPick2').value = $('trickPick').value; $('trickName').value = slug(`${$('trickPick').value} ${ride}`);
+    tk = { ride, frame: PE.poseFrame(k, m.size, m.boxes[0], 1, Array.isArray(a.j.body) ? a.j.body : null), prop: b.j.keep ? tk.prop : PE.propCanvas(await loadImgEl(`data:image/png;base64,${b.j.image}`)) };
+    if (!onlyStance) { $('trickPick2').value = $('trickPick').value; $('trickName').value = slug(`${$('trickPick').value} ${ride}`); }
     tkThumb(); $('trickPanel').hidden = false; tkPlay();
   } catch (e) { $('poseErr').textContent = e.message; }
   finally { btns.forEach(b => { b.disabled = false; }); $('trickPaint').textContent = was; if (pip && pip.setState) pip.setState('idle'); }
 }
-$('trickForm').addEventListener('submit', e => { e.preventDefault(); tkPaint(); });
-$('trickAgain').addEventListener('click', tkPaint);
+$('trickForm').addEventListener('submit', e => { e.preventDefault(); tkPaint(false); });
+$('trickAgain').addEventListener('click', () => tkPaint(false));
+$('trickStance').addEventListener('click', () => tkPaint(true));
 $('trickShow').addEventListener('click', tkPlay);
 $('trickPick2').addEventListener('change', tkPlay);
 $('trickPace').addEventListener('change', tkPlay);
