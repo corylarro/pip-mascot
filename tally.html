@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Tally · Invoices</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231E5B4F'/%3E%3Cpath d='M10 9h12M16 9v14' stroke='white' stroke-width='3.4' stroke-linecap='round'/%3E%3C/svg%3E">
+<!-- A pretend app for recording Critterkit clips. Pick the mascot with ?mascot=<id> (Mushy by default). -->
+<style>
+:root{--ink:#16201D;--ink-2:#55625E;--line:#E3E8E6;--bg:#F4F6F5;--card:#FFFFFF;--green:#1E5B4F;--green-2:#E3EFEB;--amber:#B26B00;--amber-2:#FFF3DC;--r:14px;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--bg)}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;grid-template-columns:232px 1fr}
+button{font:inherit;cursor:pointer}
+aside{background:var(--card);border-right:1px solid var(--line);padding:22px 16px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:750;font-size:1.15rem;margin:0 8px 22px}
+.brand i{width:30px;height:30px;border-radius:8px;background:var(--green);display:grid;place-items:center;color:#fff;font-style:normal;font-weight:800}
+aside a{display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:9px;color:var(--ink-2);text-decoration:none;font-weight:550;font-size:.95rem}
+aside a.on{background:var(--green-2);color:var(--green)}
+aside .plan{margin-top:auto;border:1px solid var(--line);border-radius:12px;padding:12px;font-size:.85rem;color:var(--ink-2)}
+aside .plan b{display:block;color:var(--ink);font-size:.95rem;margin-bottom:2px}
+main{padding:28px 36px 120px;max-width:1040px}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+h1{font-size:1.6rem;margin:0;letter-spacing:-.01em}
+.btn{border:0;border-radius:10px;padding:10px 16px;font-weight:650;background:var(--green);color:#fff}
+.btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.6;cursor:default}
+.banner{display:flex;align-items:center;gap:16px;background:var(--amber-2);border:1px solid #F1D9A8;border-radius:var(--r);padding:14px 16px;margin-bottom:22px}
+.banner p{margin:0;flex:1;color:#5A3D00}.banner p b{color:#3E2A00}
+.meter{width:120px;height:8px;border-radius:9px;background:#F1D9A8;overflow:hidden}.meter i{display:block;height:100%;width:100%;background:var(--amber)}
+.banner.pro{background:var(--green-2);border-color:#C6DDD6}.banner.pro p{color:var(--green)}.banner.pro .meter{display:none}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.stat span{color:var(--ink-2);font-size:.85rem}.stat b{display:block;font-size:1.5rem;margin-top:4px;letter-spacing:-.01em}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+th,td{text-align:left;padding:13px 16px;border-bottom:1px solid var(--line);font-size:.93rem}th{color:var(--ink-2);font-weight:600;font-size:.8rem;background:#FAFBFA}
+tr:last-child td{border-bottom:0}.pill{font-size:.78rem;font-weight:650;padding:3px 9px;border-radius:99px}
+.paid{background:var(--green-2);color:var(--green)}.due{background:var(--amber-2);color:var(--amber)}
+.toast{position:fixed;left:50%;top:22px;transform:translate(-50%,-80px);background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;transition:transform .35s cubic-bezier(.2,.9,.3,1.2);z-index:10}
+.toast.on{transform:translate(-50%,0)}
+@media (max-width:760px){body{grid-template-columns:1fr}aside{display:none}main{padding:20px 16px 140px}.stats{grid-template-columns:1fr 1fr}.stats .stat:last-child{display:none}.banner{flex-wrap:wrap}.meter{display:none}}
+</style>
+<script src="/critter.js"></script>
+</head>
+<body>
+<aside>
+  <div class="brand"><i>T</i>Tally</div>
+  <a href="#">Home</a><a href="#" class="on">Invoices</a><a href="#">Clients</a><a href="#">Reports</a><a href="#">Settings</a>
+  <div class="plan" id="sidePlan"><b>Free plan</b>3 of 3 invoices this month</div>
+</aside>
+<main>
+  <header><h1>Invoices</h1><button class="btn ghost" type="button" id="newInv">New invoice</button></header>
+  <div class="banner" id="banner">
+    <p id="bannerText"><b>You've used all 3 free invoices this month.</b> Upgrade to send unlimited invoices and get paid faster.</p>
+    <div class="meter" aria-hidden="true"><i></i></div>
+    <button class="btn" type="button" id="upgrade">Upgrade</button>
+  </div>
+  <div class="stats">
+    <div class="stat"><span>Outstanding</span><b>$4,280</b></div>
+    <div class="stat"><span>Paid this month</span><b>$12,940</b></div>
+    <div class="stat"><span>Average days to pay</span><b>9</b></div>
+  </div>
+  <table>
+    <thead><tr><th>Invoice</th><th>Client</th><th>Amount</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>#1042</td><td>Fernwood Studio</td><td>$2,400</td><td><span class="pill due">Due Dec 4</span></td></tr>
+      <tr><td>#1041</td><td>Lark &amp; Co.</td><td>$1,880</td><td><span class="pill due">Due Dec 1</span></td></tr>
+      <tr><td>#1040</td><td>Maple Health</td><td>$6,250</td><td><span class="pill paid">Paid</span></td></tr>
+      <tr><td>#1039</td><td>Otter Supply</td><td>$3,940</td><td><span class="pill paid">Paid</span></td></tr>
+      <tr><td>#1038</td><td>Fernwood Studio</td><td>$2,750</td><td><span class="pill paid">Paid</span></td></tr>
+    </tbody>
+  </table>
+</main>
+<div class="toast" id="toast" role="status"></div>
+<script>
+// The mascot: Mushy unless the address says ?mascot=<id>. Its no-code moments come from its page on critterkit.com.
+const id = new URLSearchParams(location.search).get('mascot') || 'ehyr8edi49iu';
+const m = document.createElement('critter-mascot');
+m.setAttribute('mascot', /^[a-z0-9]{6,24}$/.test(id) ? id : 'ehyr8edi49iu'); m.setAttribute('autopilot', ''); m.setAttribute('seasonal', 'off');
+document.body.appendChild(m);
+
+const $ = i => document.getElementById(i);
+const toast = t => { $('toast').textContent = t; $('toast').classList.add('on'); setTimeout(() => $('toast').classList.remove('on'), 2600); };
+// Upgrading looks real: a short wait, then the account is on Pro. (Reload the page to go back to Free.)
+$('upgrade').addEventListener('click', () => {
+  const b = $('upgrade'); b.disabled = true; b.textContent = 'Upgrading…';
+  setTimeout(() => {
+    $('banner').classList.add('pro'); $('bannerText').innerHTML = '<b>You\'re on Tally Pro.</b> Unlimited invoices, automatic reminders and faster payouts.';
+    b.hidden = true; $('sidePlan').innerHTML = '<b>Pro plan</b>Unlimited invoices'; toast('Welcome to Tally Pro');
+  }, 700);
+});
+$('newInv').addEventListener('click', () => { if ($('banner').classList.contains('pro')) toast('Invoice #1043 created'); else $('upgrade').focus(); });
+</script>
+</body>
+</html>
