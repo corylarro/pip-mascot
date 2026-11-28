@@ -709,7 +709,7 @@ async function tkPaint(onlyStance) {
   const post = body => fetch('/api/paint', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-pip-pass': key }, body: JSON.stringify(body) }).then(async r => ({ ok: r.ok, j: await r.json().catch(() => ({})) }));
   try {
     const [a, b] = await Promise.all([
-      post({ step: 'pose', id: cur.id, desc: 'in a wide, low balancing stance, body turned three-quarters to the side, feet planted wide apart, knees bent, hips low, arms out wide for balance, standing on nothing at all: bare feet in empty air, no object, no board, no floor and no shadow under the feet' }),
+      post({ step: 'pose', id: cur.id, desc: 'in a wide, low balancing stance, body turned three-quarters to the side, feet planted wide apart, knees bent, hips low, arms out wide for balance, standing on nothing at all: feet in empty air, no object, no board, no floor and no shadow under the feet' }),
       onlyStance && tk ? Promise.resolve({ ok: true, j: { image: null, keep: true } }) : post({ step: 'prop', id: cur.id, prop: ride })]);
     credText(b.j.credits != null ? b.j : a.j);
     if (!a.ok || !a.j.image) throw new Error(a.j.error || 'The stance didn’t come through.' + (b.ok ? ' The board did, so 1 credit was used.' : ' Your credits weren’t used.'));
